@@ -11,8 +11,6 @@ mathematical equation and can be more easily analyzed than
 normal C/C++/Python code. This exact form is useful for simplifying
 verification and validation of control systems.
 
-## Getting Started
-
 ### Development Tips
 
 The Casadi generated functions act as algorithmic blocks that can be called.
