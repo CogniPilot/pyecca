@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="src" pattern="file[pyecca]:pyecca//*&amp;&amp;!file[pyecca]:pyecca/.pytest_cache//*&amp;&amp;!file:pyecca/_version.py" />
+</component>
