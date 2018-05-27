@@ -1,12 +1,15 @@
 """
 A module for Modified Rodrigues Parameters (MRPs)
+
+This is a representation of SO(3). It has 3 parameter. There is a singularity at a rotation of 2*pi. This singularity
+can be avoided by switching to the shadow set. One of the two sets will always have magnitude less than one.
 """
 import casadi as ca
-from .quat import Quat
-from .dcm import Dcm
-from .so3 import wedge as skew  # SO3 wedge is the R^3 -> R^3 X R^3 skew operator
+from pyecca.so3.quat import Quat
+from pyecca.so3.dcm import Dcm
+from pyecca.old_so3 import wedge as skew  # SO3 wedge is the R^3 -> R^3 X R^3 skew operator
 
-Expr = ca.SX
+Expr = ca.SX  # the Casadi expression graph type
 
 
 # noinspection PyPep8Naming
@@ -17,17 +20,37 @@ class Mrp(Expr):
         assert self.shape == (3, 1)
 
     def __add__(self, other: 'Mrp') -> 'Mrp':
+        """
+        Add two MRPs element-wise, no real geometric meaning.
+        :param other: other MRP
+        :return: result
+        """
         assert isinstance(other, Mrp)
         return Mrp(Expr(self) + Expr(other))
 
     def __sub__(self, other: 'Mrp') -> 'Mrp':
+        """
+        Subtract two MRPs element-wise, no real geometric meaning.
+        :param other: other MRP
+        :return: result
+        """
         assert isinstance(other, Mrp)
         return Mrp(Expr(self) - Expr(other))
 
     def __neg__(self):
+        """
+        Take the negative of an MRP, the same as the multiplicative inverse.
+        :return: result
+        """
         return Mrp(-Expr(self))
 
     def __rmul__(self, other: Expr) -> 'Mrp':
+        """
+        Multiply by a scalar.
+        :param other: scalar
+        :return:
+        """
+        assert Expr(other).size() == (1, 1)
         return Mrp(other * Expr(self))
 
     def __mul__(self, other: 'Mrp') -> 'Mrp':
@@ -57,10 +80,10 @@ class Mrp(Expr):
 
     def shadow(self) -> 'Mrp':
         """
-        Convert MRPs to their shadow (the MRPs corresponding to the quaternion with opposite sign).
-        Both the MRPs and shadow MRPs represent the same attitude, but one of the two's magnitude is always less than 1,
-        while the other's magnitude can approach inf near a rotation of 2*pi. So this function is used to switch to
-        the other set when an MRP magnitude is greater than one to avoid the singularity.
+        Convert MRPs to their shadow (the MRPs corresponding to the quaternion with opposite sign). Both the MRPs and
+        shadow MRPs represent the same attitude, but one of the two's magnitude is always less than 1, while the other's
+        magnitude can approach inf near a rotation of 2*pi. So this function is used to switch to the other set when an
+        MRP magnitude is greater than one to avoid the singularity.
         :return: The shadow MRP
         """
         a = self
@@ -110,18 +133,17 @@ class Mrp(Expr):
         phi = ca.if_else(ca.fabs(angle) < ca.pi, angle, angle - ca.sign(angle) * 2 * ca.pi)
         return cls(ca.tan(phi / 4) * axis)
 
-    @classmethod
-    def log(cls, a: Expr) -> 'Mrp':
+    def log(self) -> 'Mrp':
         """
         The inverse exponential map form the Lie group to the Lie algebra element components.
-        :param a: The Lie group, represented by MRPs.
         :return: The Lie algebra, represented by an angular velocity vector.
         """
+        a = self
         n = ca.mod(ca.norm_2(a), 2 * ca.pi)
         axis = ca.if_else(n < 1e-6, Expr([1, 0, 0]), a / n)
         angle = 4 * ca.atan(n)
         phi = ca.if_else(ca.fabs(angle) < ca.pi, angle, angle - ca.sign(angle) * 2 * ca.pi)
-        return cls(phi * axis)
+        return Mrp(phi * axis)
 
     @classmethod
     def from_quat(cls, q: Quat) -> 'Mrp':

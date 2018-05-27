@@ -1,9 +1,9 @@
-from pyecca.dcm import Dcm
-from pyecca.quat import Quat
+from pyecca.so3.dcm import Dcm
+from pyecca.so3.quat import Quat
 import casadi as ca
 import pytest
 
-tol = 1e-5 # tolerance
+tol = 1e-5  # tolerance
 
 # Analytical Mechanics of Space Systems, Shaub pg. 97
 dcm_check = Dcm([
@@ -23,11 +23,16 @@ def test_to_from_dcm():
 
 
 def test_product():
-    print(type(a*b))
-    assert ca.norm_fro((a*b).to_dcm() - ca.mtimes(a.to_dcm(), b.to_dcm())) < tol
+    print(type(a * b))
+    assert ca.norm_fro((a * b).to_dcm() - ca.mtimes(a.to_dcm(), b.to_dcm())) < tol
 
 
 def test_ctor():
-    q = Quat()
+    Quat()
     with pytest.raises(AssertionError):
         Quat([1, 2, 3])
+
+
+def test_arithmetic():
+    assert ca.norm_fro(a + b - Quat([1, 1, 0, 0])) < tol
+    assert ca.norm_fro(a - b - Quat([1, -1, 0, 0])) < tol

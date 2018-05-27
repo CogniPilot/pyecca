@@ -1,17 +1,24 @@
 """
 A module for quaternions (Euler parameters)
+
+This is a representation of SO(3). It has 4 parameters, and is continuous.
+
 """
 
 import casadi as ca
-from .dcm import Dcm
+from pyecca.so3.dcm import Dcm
 
-Expr = ca.SX
+Expr = ca.SX  # the Casadi expression graph type
 
 
 # noinspection PyPep8Naming
 class Quat(Expr):
 
     def __init__(self, *args):
+        """
+        Constructor that checks size and instantiates the base expression.
+        :param args: arguments to expression constructor
+        """
         if len(args) == 0:
             super().__init__(4, 1)
         else:
@@ -19,17 +26,39 @@ class Quat(Expr):
         assert self.shape == (4, 1)
 
     def __add__(self, other: 'Quat') -> 'Quat':
-        assert isinstance(other, Quat)
+        """
+        Adds two quaternions element by element, should be avoided in general,
+        resultant quaternion will need to be renormalized.
+        :param other:
+        :return:
+        """
         return Quat(Expr(self) + Expr(other))
 
     def __sub__(self, other: 'Quat') -> 'Quat':
-        assert isinstance(other, Quat)
+        """
+        Subtract two quaternions element by element, should be avoided in
+        general, resultant quaternion will need to be renormalized.
+        :param other: quaternion to subtract
+        :return: result
+        """
         return Quat(Expr(self) - Expr(other))
 
     def __neg__(self):
+        """
+        Take the negative element by element of a quaternion. Gives the
+        shadow quaternion, which represents the same orientation. Generally no
+        need to do this.
+        :return: result
+        """
         return Quat(-Expr(self))
 
     def __rmul__(self, other: Expr) -> 'Quat':
+        """
+        Multiply by a scalar.
+        :param other: scalar
+        :return:
+        """
+        assert other.size() == (1, 1)
         return Quat(Expr(other) * Expr(self))
 
     def __mul__(self, other: 'Quat') -> 'Quat':

@@ -1,4 +1,4 @@
-from pyecca.mrp import Mrp
+from pyecca.so3.mrp import Mrp
 import casadi as ca
 import numpy as np
 import matplotlib.pyplot as plt
