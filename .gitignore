@@ -64,5 +64,5 @@ target/
 
 .idea/workspace.xml
 .pytest_cache/
-scripts/gen/
+examples/gen/
 a.out
