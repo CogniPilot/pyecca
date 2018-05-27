@@ -1,3 +1,7 @@
+"""
+Demonstrates use of Modified Rodrigues Paramaters (MRPs)
+for simulation of attitude kinematics.
+"""
 from pyecca.so3.mrp import Mrp
 import casadi as ca
 import numpy as np
