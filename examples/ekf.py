@@ -1,5 +1,8 @@
 """
-Demonstrates code generation of an EKF prediction and correction step.
+For an standard EKF demonstrates:
+1. Derivation
+2. Simulation
+3. Code Generation
 """
 
 import os
