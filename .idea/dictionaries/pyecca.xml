@@ -11,6 +11,10 @@
       <w>scipy</w>
       <w>solaris</w>
       <w>versioneer</w>
+      <w>iekf</w>
+      <w>kalman</w>
+      <w>linearizes</w>
+      <w>renormalized</w>
     </words>
   </dictionary>
 </component>
