@@ -1,5 +1,5 @@
 # pyecca
-Python Estimation and Control library employing CAsadi
+**Py**thon **E**stimation and **C**ontrol library employing **C**sadi
 
 The goal of Pyecca is to enable high level development of estimation and
 control algorithms and rely on Casadi (casadi.org) for
