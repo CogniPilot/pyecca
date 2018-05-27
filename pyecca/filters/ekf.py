@@ -1,6 +1,7 @@
 import casadi as ca
 
 
+# noinspection PyPep8Naming
 class Ekf:
 
     def __init__(self, expr, n_x, n_u):
@@ -13,17 +14,20 @@ class Ekf:
         self.sigma_w = expr.sym('sigma_w', n_x)
         self.Q = ca.diag(self.sigma_w)
 
-    def predict(self, name, f):
+    def state_derivative(self, name, f):
+        dx = ca.simplify(f(self.expr, self.x, self.u))
+        return ca.Function(name, [self.x, self.u], [dx], ['x', 'u'], ['dx'])
+
+    def covariance_derivative(self, name, f):
         F = ca.jacobian(f(self.expr, self.x, self.u), self.x)
-        G = ca.jacobian(f(self.expr, self.x, self.u), self.u)
+        # G = ca.jacobian(f(self.expr, self.x, self.u), self.u)
         P = ca.triu2symm(self.PU)
         dP = ca.mtimes(F, P) + ca.mtimes(P, F.T) + self.Q
 
         # force symmetric
         dP = ca.simplify(ca.triu2symm(ca.triu(dP)))
-        dx = ca.simplify(f(self.expr, self.x, self.u))
-        return ca.Function(name, [self.x, self.u, self.PU, self.sigma_w], [dx, dP], ['x', 'u', 'PU', 'sigma_w'],
-                           ['dx', 'dP'])
+        return ca.Function(name, [self.x, self.u, self.PU, self.sigma_w], [dP],
+                           ['x', 'u', 'PU', 'sigma_w'], ['dP'])
 
     def correct(self, name, g):
         yv = g(self.expr, self.x)
