@@ -46,7 +46,7 @@ setup(
     classifiers=[_f for _f in CLASSIFIERS.split('\n') if _f],
     platforms=["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
     install_requires=[
-        'scipy', 'numpy', 'casadi'],
+        'scipy', 'numpy', 'casadi', 'pydot', 'matplotlib'],
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
     #entry_points={

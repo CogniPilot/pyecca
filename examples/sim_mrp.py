@@ -39,4 +39,6 @@ for k in hist.keys():
     hist[k] = np.array(hist[k])
 
 plt.plot(hist['t'], hist['x'])
+plt.xlabel('t')
+plt.ylabel('x')
 plt.show()
