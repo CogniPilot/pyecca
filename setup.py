@@ -6,8 +6,12 @@ the Casadi framework for algorithm differentiation.
 """
 
 from setuptools import setup, find_packages
+import sys
 
 import versioneer
+
+if sys.version_info < (3, 5):
+    raise SystemExit("requires  Python >= 3.5")
 
 DOCLINES = __doc__.split("\n")
 
