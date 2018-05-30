@@ -35,7 +35,10 @@ class Dcm(Expr):
         return Dcm(other * Expr(self))
 
     def __mul__(self, other: Expr) -> 'Dcm':
-        return Dcm(ca.mtimes(self, other))
+        if other.shape == (3, 3):
+            return Dcm(ca.mtimes(self, other))
+        else:
+            return ca.mtimes(self, other)
 
     def inv(self) -> 'Dcm':
         return Dcm(ca.inv(self))

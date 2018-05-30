@@ -198,6 +198,7 @@ def generate_code(eqs):
     if not os.path.exists(gen_dir):
         os.mkdir(gen_dir)
     gen.generate(gen_dir)
+    gen.generate('/home/jgoppert/git/phd/px4/src/modules/cei/')
 
 
 if __name__ == "__main__":

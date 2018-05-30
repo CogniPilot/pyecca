@@ -24,10 +24,13 @@ class Ekf:
         P = ca.triu2symm(self.PU)
         dP = ca.mtimes(F, P) + ca.mtimes(P, F.T) + self.Q
 
+        P0 = self.expr.sym('P0', ca.Sparsity.diag(self.n_x))
+        s = ca.mtimes(F, P0) + ca.mtimes(P, F.T) + self.Q  # type: self.Expr
+
         # force symmetric
-        dP = ca.simplify(ca.triu2symm(ca.triu(dP)))
-        return ca.Function(name, [self.x, self.u, self.PU, self.sigma_w], [dP],
-                           ['x', 'u', 'PU', 'sigma_w'], ['dP'])
+        dPU = ca.simplify(ca.triu(dP))
+        return ca.Function(name, [self.x, self.u, self.PU, self.sigma_w], [dPU],
+                           ['x', 'u', 'PU', 'sigma_w'], ['dPU'])
 
     def correct(self, name, g):
         yv = g(self.expr, self.x)
@@ -41,7 +44,7 @@ class Ekf:
         K = ca.mtimes([P, H.T, ca.inv(S)])
         P1 = ca.mtimes((self.expr.eye(self.n_x) - ca.mtimes(K, H)), P)
         # force symmetric
-        P1 = ca.simplify(ca.triu2symm(ca.triu(P1)))
+        P1 = ca.simplify(ca.triu(P1))
         r = y - ca.mtimes(H, self.x)
         x1 = ca.simplify(self.x + ca.mtimes(K, r))
         return ca.Function(name, [self.x, y, self.PU, sigma_v], [x1, P1], ['x', 'y', 'PU', 'sigma_v'], ['x1', 'P1'])

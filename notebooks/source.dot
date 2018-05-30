@@ -1,0 +1,34 @@
+digraph G {
+rankdir=BT;
+23258624 -> 0:f0;
+21845376 -> 0:f2;
+26122672 -> 0:f4;
+0 [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR><TD PORT='f0' BGCOLOR='#eeeeee'> <font color='#666666'>(0,0|0)</font> </TD><TD>.</TD><TD>.</TD><TD BGCOLOR='#eeeeee'>P_7</TD><TD>.</TD><TD>.</TD></TR><TR><TD>.</TD><TD PORT='f2' BGCOLOR='#eeeeee'> <font color='#666666'>(1,1|2)</font> </TD><TD>.</TD><TD>.</TD><TD BGCOLOR='#eeeeee'>P_9</TD><TD>.</TD></TR><TR><TD>.</TD><TD>.</TD><TD PORT='f4' BGCOLOR='#eeeeee'> <font color='#666666'>(2,2|4)</font> </TD><TD>.</TD><TD>.</TD><TD BGCOLOR='#eeeeee'>P_11</TD></TR><TR><TD BGCOLOR='#eeeeee'>P_7</TD><TD>.</TD><TD>.</TD><TD BGCOLOR='#eeeeee'>Q_3</TD><TD>.</TD><TD>.</TD></TR><TR><TD>.</TD><TD BGCOLOR='#eeeeee'>P_9</TD><TD>.</TD><TD>.</TD><TD BGCOLOR='#eeeeee'>Q_4</TD><TD>.</TD></TR><TR><TD>.</TD><TD>.</TD><TD BGCOLOR='#eeeeee'>P_11</TD><TD>.</TD><TD>.</TD><TD BGCOLOR='#eeeeee'>Q_5</TD></TR></TABLE>>, shape=plaintext];
+23258624 [label="+", shape=oval];
+23473184 -> 23258624;
+25511136 -> 23258624;
+21845376 [label="+", shape=oval];
+26806688 -> 21845376;
+17340848 -> 21845376;
+26959680 [label=P_6, shape=box, style=solid];
+18378816 [label=P_8, shape=box, style=solid];
+24931648 [label=Q_2, shape=box, style=solid];
+26122576 [label="+", shape=oval];
+16355504 -> 26122576;
+22925328 -> 26122576;
+22925328 [label=P_10, shape=box, style=solid];
+23473184 [label="+", shape=oval];
+16657904 -> 23473184;
+26959680 -> 23473184;
+26806688 [label="+", shape=oval];
+25121504 -> 26806688;
+18378816 -> 26806688;
+25511136 [label=Q_0, shape=box, style=solid];
+25121504 [label=P_3, shape=box, style=solid];
+26122672 [label="+", shape=oval];
+26122576 -> 26122672;
+24931648 -> 26122672;
+17340848 [label=Q_1, shape=box, style=solid];
+16355504 [label=P_5, shape=box, style=solid];
+16657904 [label=P_1, shape=box, style=solid];
+}
