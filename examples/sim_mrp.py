@@ -55,18 +55,26 @@ hist = {
     'y2': [],
     'q': [],
     'euler': [],
+    'bg': [],
+    'ba': [],
     'xh': [],
     'yh': [],
     'y2h': [],
     'qh': [],
     'eulerh': [],
+    'bgh': [],
+    'bah': [],
 }
 
 t = 0
-tf = 5
+tf = 100
 dt = 0.05
 
 x = np.array([0.5, -0.2, 0.3])
+bg = np.array([0.1, 0.2, 0.3])
+bgh = np.zeros(3)
+ba = np.array([0, 0, 0])
+bah = np.zeros(3)
 q = np.reshape(func['mrp_to_quat'](x), -1)
 xh = np.array([0, 0, 0])
 qh = np.reshape(func['mrp_to_quat'](xh), -1)
@@ -79,7 +87,7 @@ y2h = np.array([0, 0, 0])
 shadow = 0 # need to track shadow state to give a consistent quaternion
 shadowh = 0 # need to track shadow state to give a consistent quaternion
 
-omega = [1, 2, 3]
+omega = [0.1, 0.2, 0.3]
 i = 0
 
 
@@ -102,10 +110,11 @@ while t + dt < tf:
         y0=x)
     x = np.array(res['y'][:, -1])
     x, shadow, q = handle_shadow(x, shadow, q)
+    omega_meas = omega + bg
 
     # prediction
     resh = scipy.integrate.solve_ivp(
-        fun=func['dynamics'](omega), t_span=[t, t + dt],
+        fun=func['dynamics'](omega_meas - bgh), t_span=[t, t + dt],
         y0=xh)
     xh = np.array(resh['y'][:, -1])
     xh, shadowh, qh = handle_shadow(xh, shadowh, qh)
@@ -114,8 +123,10 @@ while t + dt < tf:
     if i % 1 == 0:
         y = func['measure_g'](x)
         yh = func['measure_g'](xh) + 0.1*np.random.randn(3)
-        K = 0.2
+        K = 0.5
+        Kb = 0.07
         omega_c_accel = np.reshape(func['correct_align'](xh, y, yh), -1)*K
+        bgh = bgh - Kb*omega_c_accel
         resh = scipy.integrate.solve_ivp(
             fun=func['dynamics'](omega_c_accel), t_span=[0, 1],
             y0=xh)
@@ -127,7 +138,9 @@ while t + dt < tf:
         y2 = func['measure_hdg'](x) + 0.1*np.random.randn(3)
         y2h = func['measure_hdg'](xh)
         K = 0.2
+        Kb = 0.07
         omega_c_mag = np.reshape(func['correct_align'](xh, y2, y2h), -1)*K
+        bgh = bgh - Kb*omega_c_mag
         resh = scipy.integrate.solve_ivp(
             fun=func['dynamics'](omega_c_mag), t_span=[0, 1],
             y0=xh)
@@ -143,12 +156,18 @@ while t + dt < tf:
     hist['y2'].append(np.reshape(y2, -1))
     hist['q'].append(np.reshape(q, -1))
     hist['euler'].append(np.reshape(func['quat_to_euler'](q), -1))
+    hist['bg'].append(np.reshape(bg, -1))
+    hist['ba'].append(np.reshape(ba, -1))
     hist['xh'].append(np.reshape(xh, -1))
     hist['yh'].append(np.reshape(yh, -1))
     hist['y2h'].append(np.reshape(y2h, -1))
     hist['qh'].append(np.reshape(qh, -1))
+    hist['bgh'].append(np.reshape(bgh, -1))
+    hist['bah'].append(np.reshape(bah, -1))
     hist['eulerh'].append(np.reshape(func['quat_to_euler'](qh), -1))
     t += dt
+
+print(hist['bgh'])
 
 for k in hist.keys():
     hist[k] = np.array(hist[k])
@@ -204,5 +223,27 @@ plt.xlabel('t, sec')
 plt.ylabel('y2')
 plt.gca().set_xlim(0, tf)
 plt.title('shadow')
+
+
+plt.figure()
+
+plt.subplot(311)
+print(hist['bgh'])
+plt.plot(hist['t'], hist['bg'], 'r--')
+plt.plot(hist['t'], hist['bgh'], 'k')
+plt.xlabel('t, sec')
+plt.ylabel('y')
+plt.gca().set_xlim(0, tf)
+plt.title('gyro bias')
+
+
+plt.subplot(312)
+plt.plot(hist['t'], hist['ba'], 'r--')
+plt.plot(hist['t'], hist['bah'], 'k')
+plt.xlabel('t, sec')
+plt.ylabel('y')
+plt.gca().set_xlim(0, tf)
+plt.title('accel bias')
+
 
 plt.show()
