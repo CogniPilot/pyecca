@@ -11,11 +11,13 @@ theta = sympy.symbols('theta', positive=True)
 A = sympy.sin(theta)/(theta)
 B = (1 - sympy.cos(theta))/(theta)**2
 C = (1 - A)/theta**2
+D = theta/(2*sympy.sin(theta))
 
 
 print('A', A.series(theta))
 print('B', B.series(theta))
 print('C', C.series(theta))
+print('D', D.series(theta))
 
 
 alpha_int = sympy.Integral(B.subs(theta, omega*t)*t**2, (t, 0, t))

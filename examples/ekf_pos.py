@@ -190,7 +190,7 @@ def plot(data):
 
 def generate_code(eqs):
     # code generation
-    gen = ca.CodeGenerator('casadi_ekf.c', {'main': False, 'mex': False, 'with_header': True})
+    gen = ca.CodeGenerator('casadi_ekf.c', {'main': False, 'mex': False, 'with_header': True, 'with_mem': True})
     gen.add(eqs['state_derivative'])
     gen.add(eqs['covariance_derivative'])
     gen.add(eqs['correct'])
@@ -198,7 +198,7 @@ def generate_code(eqs):
     if not os.path.exists(gen_dir):
         os.mkdir(gen_dir)
     gen.generate(gen_dir)
-    gen.generate('/home/jgoppert/git/phd/px4/src/modules/cei/')
+    gen.generate('/home/jgoppert/git/phd/px4/src/modules/cei/ekf/')
 
 
 if __name__ == "__main__":

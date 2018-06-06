@@ -7,7 +7,6 @@ can be avoided by switching to the shadow set. One of the two sets will always h
 import casadi as ca
 from pyecca.so3.quat import Quat
 from pyecca.so3.dcm import Dcm
-from pyecca.old_so3 import wedge as skew  # SO3 wedge is the R^3 -> R^3 X R^3 skew operator
 
 Expr = ca.SX  # the Casadi expression graph type
 
@@ -25,7 +24,6 @@ class Mrp(Expr):
         :param other: other MRP
         :return: result
         """
-        assert isinstance(other, Mrp)
         return Mrp(Expr(self) + Expr(other))
 
     def __sub__(self, other: 'Mrp') -> 'Mrp':
@@ -34,7 +32,6 @@ class Mrp(Expr):
         :param other: other MRP
         :return: result
         """
-        assert isinstance(other, Mrp)
         return Mrp(Expr(self) - Expr(other))
 
     def __neg__(self):
@@ -97,7 +94,7 @@ class Mrp(Expr):
         """
         a = self
         n_sq = ca.dot(a, a)
-        X = skew(a)
+        X = Dcm.wedge(a)
         return 0.25 * ((1 - n_sq) * Expr.eye(3) + 2 * X + 2 * ca.mtimes(a, ca.transpose(a)))
 
     def derivative(self, w: Expr) -> Expr:
@@ -111,14 +108,28 @@ class Mrp(Expr):
     def to_dcm(self) -> Dcm:
         """
         Convert to a DCM.
-        :return: The DCM.
+        :return: The equivalent DCM.
         """
-        X = skew(self)
+        X = Dcm.wedge(self)
         n_sq = ca.dot(self, self)
         X_sq = ca.mtimes(X, X)
         R = Expr.eye(3) + (8 * X_sq - 4 * (1 - n_sq) * X) / (1 + n_sq) ** 2
         # return transpose, due to convention difference in book
         return Dcm(R.T)
+
+    def to_quat(self) -> Quat:
+        """
+        Convert to a quaternion
+        :return: The equivalent quaternion.
+        """
+        q = ca.SX(4, 1)
+        n_sq = ca.dot(self, self)
+        den = 1 + n_sq
+        q[0] = (1 - n_sq)/den
+        for i in range(3):
+            q[i + 1] = 2*self[i]/den
+        return q
+        #return ca.if_else(q[0] > 0, q, q)
 
     @classmethod
     def exp(cls, w: Expr) -> 'Mrp':
@@ -154,9 +165,10 @@ class Mrp(Expr):
         """
         assert isinstance(q, Quat)
         x = Expr(3, 1)
-        x[0] = q[1] / (1 + q[0])
-        x[1] = q[2] / (1 + q[0])
-        x[2] = q[3] / (1 + q[0])
+        den = 1 + q[0]
+        x[0] = q[1] / den
+        x[1] = q[2] / den
+        x[2] = q[3] / den
         return cls(x)
 
     @classmethod
