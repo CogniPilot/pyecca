@@ -128,7 +128,7 @@ class Mrp(Expr):
         q[0] = (1 - n_sq)/den
         for i in range(3):
             q[i + 1] = 2*self[i]/den
-        return q
+        return Quat(q)
         #return ca.if_else(q[0] > 0, q, q)
 
     @classmethod

@@ -153,7 +153,7 @@ class Quat(Expr):
         R[2, 0] = 2 * (bd - ac)
         R[2, 1] = 2 * (cd + ab)
         R[2, 2] = aa + dd - bb - cc
-        return R
+        return Dcm(R)
 
     def to_euler(self) -> Expr:
         """
