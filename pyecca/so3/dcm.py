@@ -62,6 +62,10 @@ class Dcm(Expr):
         """
         return ca.mtimes(self, Dcm.wedge(w))
 
+    @property
+    def T(self) -> 'Dcm':
+        return Dcm(ca.transpose(self))
+
     # noinspection PyPep8Naming
     @classmethod
     def vee(cls, X):
