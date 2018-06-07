@@ -8,6 +8,7 @@ import casadi as ca
 from pyecca.so3.quat import Quat
 from pyecca.so3.dcm import Dcm
 
+eps = 1e-8 # tolerance for avoiding divide by 0
 Expr = ca.SX  # the Casadi expression graph type
 
 
@@ -85,7 +86,7 @@ class Mrp(Expr):
         """
         a = self
         n_sq = ca.dot(a, a)
-        return Mrp(-a / n_sq)
+        return ca.if_else(n_sq > eps, Mrp(-a / n_sq), Mrp([0, 0, 0]))
 
     def B(self) -> Expr:
         """

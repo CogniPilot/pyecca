@@ -11,40 +11,82 @@ import matplotlib.pyplot as plt
 import scipy.integrate
 
 
-def derive_functions():
+def measurement():
     a = Mrp(ca.SX.sym('a', 3, 1))
+    xh = Mrp(ca.SX.sym('xh', 3, 1))
+    x = Mrp(ca.SX.sym('x', 3, 1))
+    eta_L = (x.inv()*xh)
+    eta_L = ca.if_else(ca.norm_2(eta_L) > 1, eta_L.shadow(), eta_L)
+    eta_L = Mrp(eta_L).log()
+
+    eta_R = (xh*x.inv())
+    eta_R = ca.if_else(ca.norm_2(eta_R) > 1, eta_R.shadow(), eta_R)
+    eta_R = Mrp(eta_R).log()
+
     q = Quat(ca.SX.sym('q', 4, 1))
     w = ca.SX.sym('w', 3, 1)
     fun = ca.Function("dyn", [a, w], [a.derivative(w).T])
-    f_mrp_shadow = ca.Function('mrp_shadow', [a], [a.shadow()])
-    f_mrp_to_quat = ca.Function('mrp_to_quat', [a], [a.to_quat()])
-    f_quat_to_euler = ca.Function('quat_to_euler', [q], [q.to_euler()])
-    f_dynamics = lambda u: lambda t, x: fun(x, u)
-    f_measure_g = ca.Function('measure_g', [a], [a.to_dcm().T*ca.SX([0, 0, 1])])
-    f_measure_hdg = ca.Function('measure_hdg', [a], [a.to_dcm().T*ca.SX([1, 0, 0])])
+    return {
+        'left_correct': ca.Function('f_right_correct', [x, w], [Mrp.exp(ca.mtimes(x.to_dcm(), w))*x]),
+        'right_correct': ca.Function('f_left_correct', [x, w], [x*Mrp.exp(w)]),
+        'eta_L': ca.Function('eta_L', [x, xh], [eta_L]),
+        'eta_R': ca.Function('eta_R', [x, xh], [eta_R]),
+        'mrp_shadow': ca.Function('mrp_shadow', [a], [a.shadow()]),
+        'mrp_to_quat': ca.Function('mrp_to_quat', [a], [a.to_quat()]),
+        'quat_to_euler': ca.Function('quat_to_euler', [q], [q.to_euler()]),
+        'dynamics': lambda u: lambda t, x: fun(x, u),
+        'measure_g': ca.Function('measure_g', [a], [a.to_dcm().T*ca.SX([0, 0, 1])]),
+        'measure_hdg': ca.Function('measure_hdg', [a], [a.to_dcm().T*ca.SX([1, 0, 0])]),
+    }
 
-    # gravity alignment correction
+
+def alignment():
     y = ca.SX.sym('y', 3, 1)
     yh = ca.SX.sym('yh', 3, 1)
     c_vect = ca.cross(y, yh)/ca.norm_2(y)/ca.norm_2(yh)
     n_cvect = ca.norm_2(c_vect)
     omega_c = ca.if_else(n_cvect > 0, ca.asin(n_cvect)*c_vect/n_cvect, ca.SX([0, 0, 0]))
-    f_correct_align = ca.Function('correct_align', [a, y, yh], [omega_c])
-
-    # magnetic heading correction
-
+    f_correct_align = ca.Function('correct_align', [y, yh], [omega_c])
     return {
-        'mrp_shadow': f_mrp_shadow,
-        'mrp_to_quat': f_mrp_to_quat,
-        'quat_to_euler': f_quat_to_euler,
-        'dynamics': f_dynamics,
-        'measure_g': f_measure_g,
-        'measure_hdg': f_measure_hdg,
         'correct_align': f_correct_align
     }
 
 
+def jacobians():
+    eta_R = ca.SX.sym('eta_R', 6, 1)  # type: ca.SX
+    xh = ca.SX.sym('x_h', 6, 1)  # type: ca.SX
+    rh = Mrp.exp(xh[0:3])
+    re = Mrp.exp(eta_R[0:3])
+    be = eta_R[3:6]
+    dre = re.derivative(-ca.mtimes(re.to_dcm(), be))
+    f = ca.Function('f', [eta_R, xh], [ca.vertcat(dre, ca.SX.zeros(3))])
+    F = ca.Function('F', [eta_R, xh], [ca.jacobian(f(eta_R, xh), eta_R)])
+    Q = ca.SX.sym('Q', ca.Sparsity.diag(6))  # type: ca.SX
+    P0 = ca.SX.sym('P0', ca.Sparsity.diag(6))  # type: ca.SX
+    # find sparsity pattern of P
+    dP0 = ca.mtimes(F(eta_R, xh), P0) + ca.mtimes(P0, F(eta_R, xh).T) + Q  # type: ca.SX
+    PU = ca.SX.sym('P', ca.triu(dP0).sparsity())  # type: ca.SX
+    P = ca.triu2symm(PU)  # type: ca.SX
+    dP = ca.mtimes(F(eta_R, xh), P) + ca.mtimes(P, F(eta_R, xh).T) + Q  # type: ca.SX
+    dP = ca.substitute(dP, eta_R, ca.SX.zeros(6))  # type: ca.SX
+    f_dP = ca.Function('dP', [xh, PU, Q], [dP])
+    return {
+        'f': f,
+        'F': F,
+        'dP': f_dP
+    }
+
+
+def derive_functions():
+    funcs = {}
+    funcs.update(measurement())
+    funcs.update(alignment())
+    funcs.update(jacobians())
+    return funcs
+
+
 func = derive_functions()
+
 
 hist = {
     't': [],
@@ -64,14 +106,21 @@ hist = {
     'eulerh': [],
     'bgh': [],
     'bah': [],
+    'eta_L': [],
+    'eta_R': [],
 }
 
 t = 0
-tf = 100
-dt = 0.05
+tf = 1
+dt = 0.01
+std_accel = 0
+std_mag = 0
+freq = 0.1
+mod_accel = 10
+mod_mag = 10
 
-x = np.array([0.5, -0.2, 0.3])
-bg = np.array([0.1, 0.2, 0.3])
+x = np.array([0.4, 0.4, 0.4])
+bg = 1*np.array([0.1, 0.2, 0.3])
 bgh = np.zeros(3)
 ba = np.array([0, 0, 0])
 bah = np.zeros(3)
@@ -82,14 +131,16 @@ y = np.reshape(func['measure_g'](x), -1)
 y2 = np.reshape(func['measure_hdg'](x), -1)
 yh = np.array([0, 0, 0])
 y2h = np.array([0, 0, 0])
+eta_L = np.array([0, 0, 0])
+eta_R = np.array([0, 0, 0])
 
 
 shadow = 0 # need to track shadow state to give a consistent quaternion
 shadowh = 0 # need to track shadow state to give a consistent quaternion
 
-omega = [0.1, 0.2, 0.3]
 i = 0
 
+print('F', func['F']([1, 2, 3, 0, 0, 0], [1, 2, 3, 4, 5, 6]))
 
 def handle_shadow(x, s, q):
     if np.linalg.norm(x) > 1:
@@ -100,9 +151,25 @@ def handle_shadow(x, s, q):
         q *= -1
     return x, s, q
 
+P = np.eye(6)
+R_accel = 0.1 ** 2 * np.eye(2)
+R_mag = 0.1 ** 2
+
+
+H_mag = np.array([
+    [0, 0, 1, 0, 0 ,0]
+])
+H_accel = np.array([
+    [1, 0, 0, 0, 0, 0],
+    [0 ,1, 0, 0, 0, 0]
+])
+
+Q = np.diag([1, 1, 1, 0.01, 0.01, 0.01])**2
 
 while t + dt < tf:
     i += 1
+
+    omega = 1*np.array([0.1, 0.2, 0.3]) + 1*np.cos(2*np.pi*freq*t)
 
     # simulation
     res = scipy.integrate.solve_ivp(
@@ -119,32 +186,35 @@ while t + dt < tf:
     xh = np.array(resh['y'][:, -1])
     xh, shadowh, qh = handle_shadow(xh, shadowh, qh)
 
+    P += np.array(func['dP'](ca.vertcat(xh, bgh), P, Q)*dt)
+    #print(P)
+
     # correction for accel
-    if i % 1 == 0:
+    if i % mod_accel == 0:
         y = func['measure_g'](x)
-        yh = func['measure_g'](xh) + 0.1*np.random.randn(3)
-        K = 0.5
-        Kb = 0.07
-        omega_c_accel = np.reshape(func['correct_align'](xh, y, yh), -1)*K
-        bgh = bgh - Kb*omega_c_accel
-        resh = scipy.integrate.solve_ivp(
-            fun=func['dynamics'](omega_c_accel), t_span=[0, 1],
-            y0=xh)
-        xh = np.array(resh['y'][:, -1])
+        yh = func['measure_g'](xh) + std_accel*np.random.randn(3)
+        S = H_accel.dot(P).dot(H_accel.T) + R_accel
+        K = P.dot(H_accel.T).dot(np.linalg.inv(S))
+        #print('K accel', K[0, 0], K[3, 0], K)
+        # TODO, K_accel has two dimensions, same, gain though, how to handle?
+        P -= K.dot(H_accel).dot(P)
+        omega_c_accel = np.reshape(func['correct_align'](y, yh), -1)*K[0, 0]
+        bgh = bgh + K[3, 0]*omega_c_accel
+        xh = np.reshape(func['right_correct'](xh, omega_c_accel), -1)
         xh, shadowh, qh = handle_shadow(xh, shadowh, qh)
 
+
     # correction for mag
-    if i % 3 == 0:
-        y2 = func['measure_hdg'](x) + 0.1*np.random.randn(3)
+    if i % mod_mag == 0:
+        y2 = func['measure_hdg'](x) + std_mag*np.random.randn(3)
         y2h = func['measure_hdg'](xh)
-        K = 0.2
-        Kb = 0.07
-        omega_c_mag = np.reshape(func['correct_align'](xh, y2, y2h), -1)*K
-        bgh = bgh - Kb*omega_c_mag
-        resh = scipy.integrate.solve_ivp(
-            fun=func['dynamics'](omega_c_mag), t_span=[0, 1],
-            y0=xh)
-        xh = np.array(resh['y'][:, -1])
+        S = H_mag.dot(P).dot(H_mag.T) + R_mag
+        K = P.dot(H_mag.T).dot(np.linalg.inv(S))
+        P -= K.dot(H_mag).dot(P)
+        #print('K mag', K[2, 0], K[5, 0])
+        omega_c_mag = np.reshape(func['correct_align'](y2, y2h), -1)*K[2, 0]
+        bgh = bgh + K[5, 0]*omega_c_mag
+        xh = np.reshape(func['right_correct'](xh, omega_c_mag), -1)
         xh, shadowh, qh = handle_shadow(xh, shadowh, qh)
 
     # data
@@ -165,9 +235,9 @@ while t + dt < tf:
     hist['bgh'].append(np.reshape(bgh, -1))
     hist['bah'].append(np.reshape(bah, -1))
     hist['eulerh'].append(np.reshape(func['quat_to_euler'](qh), -1))
+    hist['eta_L'].append(np.reshape(func['eta_L'](x, xh), -1))
+    hist['eta_R'].append(np.reshape(func['eta_R'](x, xh), -1))
     t += dt
-
-print(hist['bgh'])
 
 for k in hist.keys():
     hist[k] = np.array(hist[k])
@@ -228,7 +298,6 @@ plt.title('shadow')
 plt.figure()
 
 plt.subplot(311)
-print(hist['bgh'])
 plt.plot(hist['t'], hist['bg'], 'r--')
 plt.plot(hist['t'], hist['bgh'], 'k')
 plt.xlabel('t, sec')
@@ -245,5 +314,9 @@ plt.ylabel('y')
 plt.gca().set_xlim(0, tf)
 plt.title('accel bias')
 
-
+plt.figure()
+plt.plot(hist['t'], hist['eta_L'], 'r', label='$\eta_L$', alpha=0.3)
+plt.plot(hist['t'], hist['eta_R'], 'k', label='$\eta_R$')
+plt.legend()
+plt.gca().set_xlim(0, tf)
 plt.show()
