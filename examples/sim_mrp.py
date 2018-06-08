@@ -1,6 +1,6 @@
 """
-Demonstrates use of Modified Rodrigues Paramaters (MRPs)
-for simulation of attitude kinematics.
+Attitude Kalman Filter using Modified Rodrigues Parameters,
+Lie group correction ideas from LG-EKF, and invariance ideas from IEKF.
 """
 from pyecca.so3.mrp import Mrp
 from pyecca.so3.quat import Quat
@@ -108,19 +108,37 @@ hist = {
     'bah': [],
     'eta_L': [],
     'eta_R': [],
+    'std': [],
 }
 
 t = 0
-tf = 1
-dt = 0.01
-std_accel = 0
-std_mag = 0
+tf = 5
+dt = 0.005
+
+accel_sqrt_N = 0.005
+mag_sqrt_N = 0.005
+
 freq = 0.1
 mod_accel = 10
 mod_mag = 10
 
-x = np.array([0.4, 0.4, 0.4])
-bg = 1*np.array([0.1, 0.2, 0.3])
+dt_mag = dt*mod_mag
+dt_accel = dt*mod_accel
+
+# initial covariance matrix
+P = np.diag([10.0, 10.0, 10.0, 1.0, 1.0, 1.0])**2
+
+# process noise
+Q_sqrt_N = np.diag([0.001, 0.001, 0.001, 0, 0, 0])
+Q = Q_sqrt_N**2/dt
+
+R_accel = np.eye(2)*accel_sqrt_N**2/dt_accel
+R_mag = mag_sqrt_N**2/dt_mag
+
+# initial conditions
+x = np.array([0.1, 0.2, 0.3])
+bg = 1*np.array([-0.5, 0, 0.5])
+
 bgh = np.zeros(3)
 ba = np.array([0, 0, 0])
 bah = np.zeros(3)
@@ -140,7 +158,6 @@ shadowh = 0 # need to track shadow state to give a consistent quaternion
 
 i = 0
 
-print('F', func['F']([1, 2, 3, 0, 0, 0], [1, 2, 3, 4, 5, 6]))
 
 def handle_shadow(x, s, q):
     if np.linalg.norm(x) > 1:
@@ -151,20 +168,15 @@ def handle_shadow(x, s, q):
         q *= -1
     return x, s, q
 
-P = np.eye(6)
-R_accel = 0.1 ** 2 * np.eye(2)
-R_mag = 0.1 ** 2
-
-
 H_mag = np.array([
     [0, 0, 1, 0, 0 ,0]
 ])
+
 H_accel = np.array([
     [1, 0, 0, 0, 0, 0],
     [0 ,1, 0, 0, 0, 0]
 ])
 
-Q = np.diag([1, 1, 1, 0.01, 0.01, 0.01])**2
 
 while t + dt < tf:
     i += 1
@@ -187,12 +199,12 @@ while t + dt < tf:
     xh, shadowh, qh = handle_shadow(xh, shadowh, qh)
 
     P += np.array(func['dP'](ca.vertcat(xh, bgh), P, Q)*dt)
-    #print(P)
 
     # correction for accel
     if i % mod_accel == 0:
         y = func['measure_g'](x)
-        yh = func['measure_g'](xh) + std_accel*np.random.randn(3)
+        # the measurement here is not in the angle errors, need to account for this
+        yh = func['measure_g'](xh) + np.sqrt(R_accel[0, 0])*np.random.randn(3)
         S = H_accel.dot(P).dot(H_accel.T) + R_accel
         K = P.dot(H_accel.T).dot(np.linalg.inv(S))
         #print('K accel', K[0, 0], K[3, 0], K)
@@ -206,7 +218,7 @@ while t + dt < tf:
 
     # correction for mag
     if i % mod_mag == 0:
-        y2 = func['measure_hdg'](x) + std_mag*np.random.randn(3)
+        y2 = func['measure_hdg'](x) + np.sqrt(R_mag)*np.random.randn(3)
         y2h = func['measure_hdg'](xh)
         S = H_mag.dot(P).dot(H_mag.T) + R_mag
         K = P.dot(H_mag.T).dot(np.linalg.inv(S))
@@ -237,6 +249,7 @@ while t + dt < tf:
     hist['eulerh'].append(np.reshape(func['quat_to_euler'](qh), -1))
     hist['eta_L'].append(np.reshape(func['eta_L'](x, xh), -1))
     hist['eta_R'].append(np.reshape(func['eta_R'](x, xh), -1))
+    hist['std'].append(np.sqrt(np.reshape(np.diag(P), -1)))
     t += dt
 
 for k in hist.keys():
@@ -245,8 +258,9 @@ for k in hist.keys():
 plt.figure()
 
 plt.subplot(311)
-plt.plot(hist['t'], hist['x'], 'r--')
+plt.plot(hist['t'], hist['x'], 'r')
 plt.plot(hist['t'], hist['xh'], 'k')
+plt.grid()
 plt.xlabel('t, sec')
 plt.ylabel('mrp')
 plt.gca().set_ylim(-1, 1)
@@ -254,69 +268,85 @@ plt.gca().set_xlim(0, tf)
 
 
 plt.subplot(312)
-plt.plot(hist['t'], hist['q'], 'r--')
+plt.plot(hist['t'], hist['q'], 'r')
 plt.plot(hist['t'], hist['qh'], 'k')
 plt.xlabel('t, sec')
 plt.ylabel('q')
+plt.grid()
 plt.gca().set_ylim(-1, 1)
 plt.gca().set_xlim(0, tf)
 
 plt.subplot(313)
-plt.plot(hist['t'], np.rad2deg(hist['euler']), 'r--')
+plt.plot(hist['t'], np.rad2deg(hist['euler']), 'r')
 plt.plot(hist['t'], np.rad2deg(hist['eulerh']), 'k')
 plt.xlabel('t, sec')
 plt.ylabel('euler, deg')
+plt.grid()
 plt.gca().set_ylim(-200, 200)
 plt.gca().set_xlim(0, tf)
 
 plt.figure()
 plt.subplot(311)
-plt.plot(hist['t'], hist['y'], 'r--')
+plt.plot(hist['t'], hist['y'], 'r')
 plt.plot(hist['t'], hist['yh'], 'k')
 plt.xlabel('t, sec')
 plt.ylabel('y')
 plt.gca().set_xlim(0, tf)
+plt.grid()
 plt.title('accel measurement')
 
 plt.subplot(312)
-plt.plot(hist['t'], hist['y2'], 'r--')
+plt.plot(hist['t'], hist['y2'], 'r')
 plt.plot(hist['t'], hist['y2h'], 'k')
 plt.xlabel('t, sec')
 plt.ylabel('y2')
 plt.gca().set_xlim(0, tf)
+plt.grid()
 plt.title('heading measurement')
 
 plt.subplot(313)
-plt.plot(hist['t'], hist['shadow'], 'r--')
+plt.plot(hist['t'], hist['shadow'], 'r')
 plt.plot(hist['t'], hist['shadowh'], 'k')
 plt.xlabel('t, sec')
 plt.ylabel('y2')
 plt.gca().set_xlim(0, tf)
+plt.grid()
 plt.title('shadow')
 
 
 plt.figure()
 
-plt.subplot(311)
-plt.plot(hist['t'], hist['bg'], 'r--')
-plt.plot(hist['t'], hist['bgh'], 'k')
+#plt.subplot(311)
+h_bg = plt.plot(hist['t'], np.rad2deg(hist['bg']), 'r')
+std_b =  hist['std'][:, 3:6]
+h_sig = plt.plot(hist['t'], np.rad2deg(bg + 3*std_b), 'g')
+plt.plot(hist['t'], np.rad2deg(bg -3*std_b), 'g')
+h_bgh = plt.plot(hist['t'], np.rad2deg(hist['bgh']), 'k')
 plt.xlabel('t, sec')
-plt.ylabel('y')
+plt.ylabel('bias, deg/s')
 plt.gca().set_xlim(0, tf)
 plt.title('gyro bias')
+plt.legend([h_bg[0], h_bgh[0], h_sig[0]], ['$b$', '$\hat{b}$', '3 $\sigma$'])
+plt.grid()
 
-
-plt.subplot(312)
-plt.plot(hist['t'], hist['ba'], 'r--')
-plt.plot(hist['t'], hist['bah'], 'k')
-plt.xlabel('t, sec')
-plt.ylabel('y')
-plt.gca().set_xlim(0, tf)
-plt.title('accel bias')
+#plt.subplot(312)
+#plt.plot(hist['t'], hist['ba'], 'r--')
+#plt.plot(hist['t'], hist['bah'], 'k')
+#plt.xlabel('t, sec')
+#plt.ylabel('y')
+#plt.gca().set_xlim(0, tf)
+#plt.title('accel bias')
 
 plt.figure()
-plt.plot(hist['t'], hist['eta_L'], 'r', label='$\eta_L$', alpha=0.3)
-plt.plot(hist['t'], hist['eta_R'], 'k', label='$\eta_R$')
-plt.legend()
+std_r =  hist['std'][:, 0:3]
+#plt.plot(hist['t'], hist['eta_L'], 'r', label='$\eta_L$', alpha=0.3)
+h_sig = plt.plot(hist['t'], np.rad2deg(3*std_r), 'g')
+plt.plot(hist['t'], np.rad2deg(-3*std_r), 'g')
+h_eta = plt.plot(hist['t'], np.rad2deg(hist['eta_R']), 'k')
+plt.gca().set_ylim(-20, 20)
+plt.ylabel('error, deg')
+plt.legend([h_eta[0], h_sig[0]], ['$\eta$', '3 $\sigma$'])
 plt.gca().set_xlim(0, tf)
+plt.grid()
+
 plt.show()
