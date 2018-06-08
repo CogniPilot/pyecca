@@ -9,6 +9,7 @@ import casadi as ca
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.integrate
+from draw_graph import draw_graph
 
 
 def measurement():
@@ -17,11 +18,11 @@ def measurement():
     x = Mrp(ca.SX.sym('x', 3, 1))
     eta_L = (x.inv()*xh)
     eta_L = ca.if_else(ca.norm_2(eta_L) > 1, eta_L.shadow(), eta_L)
-    eta_L = Mrp(eta_L).log()
+    log_eta_L = Mrp(eta_L).log()
 
     eta_R = (xh*x.inv())
     eta_R = ca.if_else(ca.norm_2(eta_R) > 1, eta_R.shadow(), eta_R)
-    eta_R = Mrp(eta_R).log()
+    log_eta_R = Mrp(eta_R).log()
 
     q = Quat(ca.SX.sym('q', 4, 1))
     w = ca.SX.sym('w', 3, 1)
@@ -29,8 +30,8 @@ def measurement():
     return {
         'left_correct': ca.Function('f_right_correct', [x, w], [Mrp.exp(ca.mtimes(x.to_dcm(), w))*x]),
         'right_correct': ca.Function('f_left_correct', [x, w], [x*Mrp.exp(w)]),
-        'eta_L': ca.Function('eta_L', [x, xh], [eta_L]),
-        'eta_R': ca.Function('eta_R', [x, xh], [eta_R]),
+        'log_eta_L': ca.Function('log_eta_L', [x, xh], [log_eta_L]),
+        'log_eta_R': ca.Function('log_eta_R', [x, xh], [log_eta_R]),
         'mrp_shadow': ca.Function('mrp_shadow', [a], [a.shadow()]),
         'mrp_to_quat': ca.Function('mrp_to_quat', [a], [a.to_quat()]),
         'quat_to_euler': ca.Function('quat_to_euler', [q], [q.to_euler()]),
@@ -53,8 +54,11 @@ def alignment():
 
 
 def jacobians():
-    eta_R = ca.SX.sym('eta_R', 6, 1)  # type: ca.SX
-    xh = ca.SX.sym('x_h', 6, 1)  # type: ca.SX
+    n_x = 6
+
+    # jacobian of dynamics
+    eta_R = ca.SX.sym('eta_R', n_x, 1)  # type: ca.SX
+    xh = ca.SX.sym('x_h', n_x, 1)  # type: ca.SX
     rh = Mrp.exp(xh[0:3])
     re = Mrp.exp(eta_R[0:3])
     be = eta_R[3:6]
@@ -62,27 +66,59 @@ def jacobians():
     f = ca.Function('f', [eta_R, xh], [ca.vertcat(dre, ca.SX.zeros(3))])
     F = ca.Function('F', [eta_R, xh], [ca.jacobian(f(eta_R, xh), eta_R)])
     Q = ca.SX.sym('Q', ca.Sparsity.diag(6))  # type: ca.SX
-    P0 = ca.SX.sym('P0', ca.Sparsity.diag(6))  # type: ca.SX
+
     # find sparsity pattern of P
+    P0 = ca.SX.sym('P0', ca.Sparsity.diag(6))  # type: ca.SX
     dP0 = ca.mtimes(F(eta_R, xh), P0) + ca.mtimes(P0, F(eta_R, xh).T) + Q  # type: ca.SX
     PU = ca.SX.sym('P', ca.triu(dP0).sparsity())  # type: ca.SX
+
+    # covariance prediction
     P = ca.triu2symm(PU)  # type: ca.SX
     dP = ca.mtimes(F(eta_R, xh), P) + ca.mtimes(P, F(eta_R, xh).T) + Q  # type: ca.SX
     dP = ca.substitute(dP, eta_R, ca.SX.zeros(6))  # type: ca.SX
     f_dP = ca.Function('dP', [xh, PU, Q], [dP])
+
+    # mag correction
+    H_mag = ca.SX(1, 6)
+    H_mag[0, 2] = 1
+    h_mag = ca.Function('h_mag', [xh], [rh.to_dcm().T * ca.SX([1, 0, 0])])
+    print(h_mag(xh))
+    print(h_mag)
+    yh_mag = rh.to_dcm().T * ca.SX([1, 0, 0])
+    plt.figure()
+    draw_graph(yh_mag)
+    plt.show()
+    f_measure_hdg = ca.Function('measure_hdg', [xh], [rh.to_dcm().T * ca.SX([1, 0, 0])])
+
+    R_mag = ca.SX.sym('R_mag', ca.Sparsity.diag(1))
+    S_mag = ca.mtimes([H_mag, P, H_mag.T]) + R_mag
+    K_mag = ca.mtimes([P, H_mag.T, ca.inv(S_mag)])
+    dP_mag = ca.mtimes([K_mag, H_mag, P])
+
+    # accel correction
+    H_accel = ca.SX(2, 6)
+    H_accel[0, 0] = 1
+    H_accel[1, 1] = 1
+    R_accel = ca.SX.sym('R_accel', ca.Sparsity.diag(2))
+    S_accel = ca.mtimes([H_accel, P, H_accel.T]) + R_accel
+    K_accel = ca.mtimes([P, H_accel.T, ca.inv(S_accel)])
+    dP_accel = ca.mtimes([K_accel, H_accel, P])
+
     return {
         'f': f,
         'F': F,
-        'dP': f_dP
+        'dP': f_dP,
+        'dP_accel': ca.Function('dP_accel', [PU, R_accel], [dP_accel]),
+        'dP_mag': ca.Function('dP_mag', [PU, R_mag], [dP_mag]),
     }
 
 
 def derive_functions():
-    funcs = {}
-    funcs.update(measurement())
-    funcs.update(alignment())
-    funcs.update(jacobians())
-    return funcs
+    f = {}
+    f.update(measurement())
+    f.update(alignment())
+    f.update(jacobians())
+    return f
 
 
 func = derive_functions()
@@ -106,13 +142,13 @@ hist = {
     'eulerh': [],
     'bgh': [],
     'bah': [],
-    'eta_L': [],
-    'eta_R': [],
+    'log_eta_L': [],
+    'log_eta_R': [],
     'std': [],
 }
 
 t = 0
-tf = 10
+tf = 1
 dt = 0.005
 
 accel_sqrt_N = 0.005
@@ -213,7 +249,8 @@ for t in tqdm(t_vals):
         K = P.dot(H_accel.T).dot(np.linalg.inv(S))
         #print('K accel', K[0, 0], K[3, 0], K)
         # TODO, K_accel has two dimensions, same, gain though, how to handle?
-        P -= K.dot(H_accel).dot(P)
+        P -= np.array(func['dP_accel'](P, R_accel))
+        #P -= K.dot(H_accel).dot(P)
         omega_c_accel = np.reshape(func['correct_align'](y, yh), -1)*K[0, 0]
         bgh = bgh + K[3, 0]*omega_c_accel
         xh = np.reshape(func['right_correct'](xh, omega_c_accel), -1)
@@ -226,7 +263,8 @@ for t in tqdm(t_vals):
         y2h = func['measure_hdg'](xh)
         S = H_mag.dot(P).dot(H_mag.T) + R_mag
         K = P.dot(H_mag.T).dot(np.linalg.inv(S))
-        P -= K.dot(H_mag).dot(P)
+        #P -= K.dot(H_mag).dot(P)
+        P -= np.array(func['dP_mag'](P, R_mag))
         #print('K mag', K[2, 0], K[5, 0])
         omega_c_mag = np.reshape(func['correct_align'](y2, y2h), -1)*K[2, 0]
         bgh = bgh + K[5, 0]*omega_c_mag
@@ -251,8 +289,8 @@ for t in tqdm(t_vals):
     hist['bgh'].append(np.reshape(bgh, -1))
     hist['bah'].append(np.reshape(bah, -1))
     hist['eulerh'].append(np.reshape(func['quat_to_euler'](qh), -1))
-    hist['eta_L'].append(np.reshape(func['eta_L'](x, xh), -1))
-    hist['eta_R'].append(np.reshape(func['eta_R'](x, xh), -1))
+    hist['log_eta_L'].append(np.reshape(func['log_eta_L'](x, xh), -1))
+    hist['log_eta_R'].append(np.reshape(func['log_eta_R'](x, xh), -1))
     hist['std'].append(np.sqrt(np.reshape(np.diag(P), -1)))
     t += dt
 
@@ -346,14 +384,14 @@ plt.legend([h_bg[0], h_bgh[0], h_sig[0]],
 
 plt.figure()
 std_r =  hist['std'][:, 0:3]
-#plt.plot(hist['t'], hist['eta_L'], 'r', label='$\eta_L$', alpha=0.3)
+#plt.plot(hist['t'], hist['log_eta_L'], 'r', label='$log(\eta_L)$', alpha=0.3)
 h_sig = plt.plot(hist['t'], np.rad2deg(3*std_r), 'g-.')
 plt.plot(hist['t'], np.rad2deg(-3*std_r), 'g-.')
-h_eta = plt.plot(hist['t'], np.rad2deg(hist['eta_R']), 'k')
+h_eta = plt.plot(hist['t'], np.rad2deg(hist['log_eta_R']), 'k')
 plt.gca().set_ylim(-20, 20)
 plt.ylabel('error, deg')
 plt.gca().set_xlim(0, tf)
 plt.grid()
-plt.legend([h_eta[0], h_sig[0]], ['$\eta$', '3 $\sigma$'], loc='best')
+plt.legend([h_eta[0], h_sig[0]], ['$log_G(\eta)$', '3 $\sigma$'], loc='best')
 
 plt.show()
