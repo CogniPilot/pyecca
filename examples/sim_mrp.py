@@ -112,7 +112,7 @@ hist = {
 }
 
 t = 0
-tf = 5
+tf = 10
 dt = 0.005
 
 accel_sqrt_N = 0.005
@@ -129,7 +129,7 @@ dt_accel = dt*mod_accel
 P = np.diag([10.0, 10.0, 10.0, 1.0, 1.0, 1.0])**2
 
 # process noise
-Q_sqrt_N = np.diag([0.001, 0.001, 0.001, 0, 0, 0])
+Q_sqrt_N = np.diag([0.001, 0.001, 0.001, 0.001, 0.001, 0.001])
 Q = Q_sqrt_N**2/dt
 
 R_accel = np.eye(2)*accel_sqrt_N**2/dt_accel
@@ -177,11 +177,15 @@ H_accel = np.array([
     [0 ,1, 0, 0, 0, 0]
 ])
 
+t_vals = np.arange(0, tf, dt)
 
-while t + dt < tf:
+from tqdm import tqdm
+for t in tqdm(t_vals):
     i += 1
 
-    omega = 1*np.array([0.1, 0.2, 0.3]) + 1*np.cos(2*np.pi*freq*t)
+    bg = 1 * np.array([-0.5, 0, 0.5]) + 0.02*np.array([1, -1, 1])* np.sin(2*np.pi*0.1*t)
+
+    omega = 1*np.array([0.1, 0.2, 0.3]) + 3*np.cos(2*np.pi*freq*t)
 
     # simulation
     res = scipy.integrate.solve_ivp(
@@ -317,17 +321,20 @@ plt.title('shadow')
 plt.figure()
 
 #plt.subplot(311)
-h_bg = plt.plot(hist['t'], np.rad2deg(hist['bg']), 'r')
+h_bg = plt.plot(hist['t'], np.rad2deg(hist['bg']), 'r--')
 std_b =  hist['std'][:, 3:6]
-h_sig = plt.plot(hist['t'], np.rad2deg(bg + 3*std_b), 'g')
-plt.plot(hist['t'], np.rad2deg(bg -3*std_b), 'g')
+h_sig = plt.plot(hist['t'], np.rad2deg(hist['bgh'] + 3*std_b), 'g-.')
+plt.plot(hist['t'], np.rad2deg(hist['bgh'] -3*std_b), 'g-.')
 h_bgh = plt.plot(hist['t'], np.rad2deg(hist['bgh']), 'k')
 plt.xlabel('t, sec')
 plt.ylabel('bias, deg/s')
 plt.gca().set_xlim(0, tf)
 plt.title('gyro bias')
-plt.legend([h_bg[0], h_bgh[0], h_sig[0]], ['$b$', '$\hat{b}$', '3 $\sigma$'])
+plt.gca().set_ylim(-50, 50)
 plt.grid()
+plt.legend([h_bg[0], h_bgh[0], h_sig[0]],
+           ['$b$', '$\hat{b}$', '3 $\sigma$'],
+           loc='best', ncol=3)
 
 #plt.subplot(312)
 #plt.plot(hist['t'], hist['ba'], 'r--')
@@ -340,13 +347,13 @@ plt.grid()
 plt.figure()
 std_r =  hist['std'][:, 0:3]
 #plt.plot(hist['t'], hist['eta_L'], 'r', label='$\eta_L$', alpha=0.3)
-h_sig = plt.plot(hist['t'], np.rad2deg(3*std_r), 'g')
-plt.plot(hist['t'], np.rad2deg(-3*std_r), 'g')
+h_sig = plt.plot(hist['t'], np.rad2deg(3*std_r), 'g-.')
+plt.plot(hist['t'], np.rad2deg(-3*std_r), 'g-.')
 h_eta = plt.plot(hist['t'], np.rad2deg(hist['eta_R']), 'k')
 plt.gca().set_ylim(-20, 20)
 plt.ylabel('error, deg')
-plt.legend([h_eta[0], h_sig[0]], ['$\eta$', '3 $\sigma$'])
 plt.gca().set_xlim(0, tf)
 plt.grid()
+plt.legend([h_eta[0], h_sig[0]], ['$\eta$', '3 $\sigma$'], loc='best')
 
 plt.show()
