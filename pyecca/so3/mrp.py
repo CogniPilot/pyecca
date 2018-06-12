@@ -130,7 +130,6 @@ class Mrp(Expr):
         for i in range(3):
             q[i + 1] = 2*self[i]/den
         return Quat(q)
-        #return ca.if_else(q[0] > 0, q, q)
 
     @classmethod
     def exp(cls, w: Expr) -> 'Mrp':
