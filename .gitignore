@@ -67,3 +67,4 @@ target/
 examples/gen/
 a.out
 source.dot
+results.csv
