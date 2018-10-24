@@ -1,0 +1,309 @@
+import casadi as ca
+
+
+Expr = ca.SX
+eps = 1e-8 # tolerance for avoiding divide by 0
+
+
+class Dcm(Expr):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        assert self.shape == (3, 3)
+
+    @classmethod
+    def from_quat(cls, q: 'Quat'):
+        """
+        Converts a quaternion to a DCM.
+        :return: The DCM.
+        """
+        assert isinstance(q, Quat)
+        R = Expr(3, 3)
+        a = q[0]
+        b = q[1]
+        c = q[2]
+        d = q[3]
+        aa = a * a
+        ab = a * b
+        ac = a * c
+        ad = a * d
+        bb = b * b
+        bc = b * c
+        bd = b * d
+        cc = c * c
+        cd = c * d
+        dd = d * d
+        R[0, 0] = aa + bb - cc - dd
+        R[0, 1] = 2 * (bc - ad)
+        R[0, 2] = 2 * (bd + ac)
+        R[1, 0] = 2 * (bc + ad)
+        R[1, 1] = aa + cc - bb - dd
+        R[1, 2] = 2 * (cd - ab)
+        R[2, 0] = 2 * (bd - ac)
+        R[2, 1] = 2 * (cd + ab)
+        R[2, 2] = aa + dd - bb - cc
+        return cls(R)
+
+    @classmethod
+    def from_mrp(cls, r: 'Mrp') -> 'Dcm':
+        """
+        Converts a Mrp to a Dcm.
+        :return: The Dcm.
+        """
+        assert isinstance(r, Mrp)
+        return cls.from_quat(Quat.from_mrp(r))
+
+    @classmethod
+    def from_euler(cls, e: 'Euler') -> 'Dcm':
+        """
+        Convert body 321 euler angles to a Dcm.
+        :return: The Dcm.
+        """
+        assert isinstance(e, Euler)
+        cosPhi = ca.cos(e.phi)
+        sinPhi = ca.sin(e.phi)
+        cosThe = ca.cos(e.theta)
+        sinThe = ca.sin(e.theta)
+        cosPsi = ca.cos(e.psi)
+        sinPsi = ca.sin(e.psi)
+
+        R = Expr(3, 3)
+        R[0, 0] = cosThe * cosPsi
+        R[0, 1] = -cosPhi * sinPsi + sinPhi * sinThe * cosPsi
+        R[0, 2] = sinPhi * sinPsi + cosPhi * sinThe * cosPsi
+
+        R[1, 0] = cosThe * sinPsi
+        R[1, 1] = cosPhi * cosPsi + sinPhi * sinThe * sinPsi
+        R[1, 2] = -sinPhi * cosPsi + cosPhi * sinThe * sinPsi
+
+        R[2, 0] = -sinThe
+        R[2, 1] = sinPhi * cosThe
+        R[2, 2] = cosPhi * cosThe
+
+        return cls(R)
+
+
+class Quat(Expr):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        assert self.shape == (4, 1)
+
+    @classmethod
+    def from_dcm(cls, R: Dcm) -> Expr:
+        """
+        Converts a direction cosine matrix to a quaternion.
+        :param R: A direction cosine matrix.
+        :return: The quaternion.
+        """
+        b1 = 0.5 * ca.sqrt(1 + R[0, 0] + R[1, 1] + R[2, 2])
+        b2 = 0.5 * ca.sqrt(1 + R[0, 0] - R[1, 1] - R[2, 2])
+        b3 = 0.5 * ca.sqrt(1 - R[0, 0] + R[1, 1] - R[2, 2])
+        b4 = 0.5 * ca.sqrt(1 - R[0, 0] - R[1, 1] - R[2, 2])
+
+        q1 = Expr(4, 1)
+        q1[0] = b1
+        q1[1] = (R[2, 1] - R[1, 2]) / (4 * b1)
+        q1[2] = (R[0, 2] - R[2, 0]) / (4 * b1)
+        q1[3] = (R[1, 0] - R[0, 1]) / (4 * b1)
+
+        q2 = Expr(4, 1)
+        q2[0] = (R[2, 1] - R[1, 2]) / (4 * b2)
+        q2[1] = b2
+        q2[2] = (R[0, 1] + R[1, 0]) / (4 * b2)
+        q2[3] = (R[0, 2] + R[2, 0]) / (4 * b2)
+
+        q3 = Expr(4, 1)
+        q3[0] = (R[0, 2] - R[2, 0]) / (4 * b3)
+        q3[1] = (R[0, 1] + R[1, 0]) / (4 * b3)
+        q3[2] = b3
+        q3[3] = (R[1, 2] + R[2, 1]) / (4 * b3)
+
+        q4 = Expr(4, 1)
+        q4[0] = (R[1, 0] - R[0, 1]) / (4 * b4)
+        q4[1] = (R[0, 2] + R[2, 0]) / (4 * b4)
+        q4[2] = (R[1, 2] + R[2, 1]) / (4 * b4)
+        q4[3] = b4
+
+        q = ca.if_else(
+            R[0, 0] > 0,
+            ca.if_else(R[1, 1] > 0, q1, q2),
+            ca.if_else(R[1, 1] > R[2, 2], q3, q4)
+        )
+        return cls(q)
+
+    @classmethod
+    def from_euler(cls, e: 'Euler') -> 'Quat':
+        assert isinstance(e, Euler)
+        cosPhi_2 = ca.cos(e.phi / 2)
+        cosTheta_2 = ca.cos(e.theta / 2)
+        cosPsi_2 = ca.cos(e.psi / 2)
+        sinPhi_2 = ca.sin(e.phi / 2)
+        sinTheta_2 = ca.sin(e.theta / 2)
+        sinPsi_2 = ca.sin(e.psi / 2)
+        q = Expr(4, 1)
+        q[0] = cosPhi_2 * cosTheta_2 * cosPsi_2 + sinPhi_2 * sinTheta_2 * sinPsi_2
+        q[1] = sinPhi_2 * cosTheta_2 * cosPsi_2 - cosPhi_2 * sinTheta_2 * sinPsi_2
+        q[2] = cosPhi_2 * sinTheta_2 * cosPsi_2 + sinPhi_2 * cosTheta_2 * sinPsi_2
+        q[3] = cosPhi_2 * cosTheta_2 * sinPsi_2 - sinPhi_2 * sinTheta_2 * cosPsi_2
+        return cls(q)
+
+    @classmethod
+    def from_mrp(cls, r: 'Mrp') -> 'Quat':
+        assert isinstance(r, Mrp)
+        q = Expr(4, 1)
+        n_sq = ca.dot(r, r)
+        den = 1 + n_sq
+        q[0] = (1 - n_sq)/den
+        for i in range(3):
+            q[i + 1] = 2*r[i]/den
+        return cls(q)
+
+
+class Mrp(Expr):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        assert self.shape == (3, 1)
+
+    def B(self) -> Expr:
+        """
+        A matrix used to compute the MRPs kinematics.
+        :return: The B matrix.
+        """
+        a = self
+        n_sq = ca.dot(a, a)
+        X = Dcm.wedge(a)
+        return 0.25 * ((1 - n_sq) * Expr.eye(3) + 2 * X + 2 * ca.mtimes(a, ca.transpose(a)))
+
+    def derivative(self, w: Expr) -> Expr:
+        """
+        The kinematic equation relating the time derivative of MRPs given the current MRPs and the angular velocity.
+        :param w: The angular velocity.
+        :return: The time derivative of the MRPs.
+        """
+        return ca.mtimes(self.B(), w)
+
+    def shadow(self) -> 'Mrp':
+        """
+        Convert MRPs to their shadow (the MRPs corresponding to the quaternion with opposite sign). Both the MRPs and
+        shadow MRPs represent the same attitude, but one of the two's magnitude is always less than 1, while the other's
+        magnitude can approach inf near a rotation of 2*pi. So this function is used to switch to the other set when an
+        MRP magnitude is greater than one to avoid the singularity.
+        :return: The shadow MRP
+        """
+        a = self
+        n_sq = ca.dot(a, a)
+        return ca.if_else(n_sq > eps, Mrp(-a / n_sq), Mrp([0, 0, 0]))
+
+    @classmethod
+    def from_quat(cls, q: Quat) -> 'Mrp':
+        """
+        Convert from a quaternion to MRPs.
+        :param q: The quaternion.
+        :return: The MRPs.
+        """
+        assert isinstance(q, Quat)
+        den = 1 + q[0]
+        r = Expr(3, 1)
+        r[0] = q[1] / den
+        r[1] = q[2] / den
+        r[2] = q[3] / den
+        return cls(r)
+
+    @classmethod
+    def from_euler(cls, e: 'Euler') -> 'Mrp':
+        assert isinstance(e, Euler)
+        return cls.from_quat(Quat.from_euler(e))
+
+    @classmethod
+    def from_dcm(cls, R: 'Dcm') -> 'Mrp':
+        assert isinstance(R, Dcm)
+        return cls.from_quat(Quat.from_dcm(R))
+
+class Euler(Expr):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        assert self.shape == (3, 1)
+
+    @property
+    def phi(self):
+        return self[0]
+
+    @property
+    def theta(self):
+        return self[1]
+
+    @property
+    def psi(self):
+        return self[2]
+
+    @classmethod
+    def from_quat(cls, q: Quat) -> 'Euler':
+        """
+        Converts a quaternion to B321 Euler angles.
+        :return: The B321 Euler angles (Phi [roll], Theta [pitch], Psi[heading])
+        """
+        return cls.from_dcm(Dcm.from_quat(q))
+
+    @classmethod
+    def from_dcm(cls, R: Dcm) -> 'Euler':
+        phi = ca.atan2(R[2, 1], R[2, 2])
+        theta = ca.asin(-R[2, 0])
+        psi = ca.atan2(R[1, 0], R[0, 0])
+        e = Expr(3, 1)
+        e[0] = ca.if_else(
+            ca.logic_or(ca.fabs(theta - ca.pi / 2) < eps, ca.fabs(theta + ca.pi / 2) < eps),
+            0, phi)
+        e[1] = theta
+        e[2] = ca.if_else(
+            ca.fabs(theta - ca.pi / 2) < eps,
+            ca.atan2(R[1, 2], R[0, 2]),
+            ca.if_else(
+                ca.fabs(theta + ca.pi / 2) < eps,
+                ca.atan2(-R[1, 2], -R[0, 2]),
+                psi))
+        return cls(e)
+
+    @classmethod
+    def from_mrp(cls, r: Mrp) -> 'Euler':
+        return cls.from_quat(Quat.from_mrp(r))
+
+e1 = Euler([0.1, 0.2, 0.3])
+q1 = Quat.from_euler(e1)
+r1 = Mrp.from_euler(e1)
+
+# test round trip conversions (DCM, Quat, Mrp, Euler), 6 total , 4*3/2
+assert ca.norm_fro(Euler.from_quat(Quat.from_euler(e1)) - e1) < 1e-6
+assert ca.norm_fro(Euler.from_dcm(Dcm.from_euler(e1)) - e1) < 1e-6
+assert ca.norm_fro(Euler.from_mrp(Mrp.from_euler(e1)) - e1) < 1e-6
+assert ca.norm_fro(Quat.from_dcm(Dcm.from_quat(q1)) - q1) < 1e-6
+assert ca.norm_fro(Quat.from_mrp(Mrp.from_quat(q1)) - q1) < 1e-6
+assert ca.norm_fro(Mrp.from_dcm(Dcm.from_mrp(r1)) - r1) < 1e-6
+
+#r = Mrp(ca.SX.sym('r', 3))
+#f = ca.Function('f', [r], [Euler.from_mrp(r).psi], ['r'], ['psi'])
+#J = ca.Function('J', [r], [ca.jacobian(f(r), r)])
+
+class SO3(Expr):
+    pass
+
+class so3(Expr):
+
+    @classmethod
+    def wedge(cls, v):
+        X = Expr(3, 3)
+        X[0, 1] = -v[2]
+        X[1, 0] = v[2]
+        X[0, 2] = v[1]
+        X[2, 0] = -v[1]
+        X[1, 2] = -v[0]
+        X[2, 1] = v[0]
+        return X
+
+R = Dcm(ca.SX.sym('R', 3, 3))
+r = Mrp(ca.SX.sym('r', 3, 1))
+R_r = Dcm.from_mrp(r)
+omega = ca.SX.sym('omega', 3)
+res = ca.mtimes(ca.jacobian(r.from_dcm(R), R), ca.reshape(ca.mtimes(R, so3.wedge(omega)), 9, 1))

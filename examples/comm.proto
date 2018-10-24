@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package comm;
+
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message VectorN {
+  repeated float x = 1;
+}
+
+message Imu {
+  float time = 1;
+  Vector3 gyro = 2;
+  Vector3 mag = 3;
+  Vector3 accel = 4;
+}
+
+message Est {
+  float time = 1;
+  repeated float x = 2;
+  repeated float P = 3;
+}
