@@ -7,7 +7,7 @@ def init_data(dtype):
 
 class Imu:
     dtype = [
-        ('time', 'i4'),  # timestamp
+        ('time', 'f4'),  # timestamp
         ('gyro', 'f4', 3),  # gyroscope measurement
         ('mag', 'f4', 3),  # magnetometer measurement
         ('accel', 'f4', 3),  # accelerometer measurement
@@ -17,10 +17,11 @@ class Imu:
         self.data = init_data(self.dtype)
 
 
-class SimState:
+class VehicleState:
     dtype = [
         ('time', 'i4'),  # timestamp
         ('q', 'f4', 4),  # quaternion
+        ('r', 'f4', 4),  # mrp
         ('omega', 'f4', 3),  # angular velocity
         ('pos', 'f4', 3),  # position
         ('vel', 'f4', 3),  # velocity
@@ -36,6 +37,7 @@ class EstimatorStatus():
     nP_max = int(20 * (20 - 1) / 2)
     dtype = [
         ('time', 'f4'),  # timestamp
+        ('elapsed', 'f4'),  # elapsed time
         ('n_x', 'i4'),  # number of states
         ('x', 'f4', n_max),  # states array
         ('P', 'f4', nP_max),  # P matrix upper triangle
@@ -49,13 +51,14 @@ class EstimatorStatus():
 
 
 class Params():
-    dtype = [
-        ('time', 'f4'),  # timestamp
-        ('logger/dt', 'f4')
-    ]
 
-    def __init__(self):
+    def __init__(self, core):
+        self.dtype = [('time', 'f4')]
+        for name, p in core._declared_params.items():
+            self.dtype.append((p.name, p.dtype))
         self.data = init_data(self.dtype)
+        for name, p in core._declared_params.items():
+            self.data[name] = p.value
 
 
 class Log():
@@ -63,7 +66,11 @@ class Log():
     def __init__(self, core):
         self.dtype = [('time', 'f4')]
         for topic, publisher in core._publishers.items():
-            self.dtype.append((topic, publisher.msg_type.dtype))
+            if not hasattr(publisher.msg_type, 'dtype'):
+                msg = publisher.msg_type(core)
+                self.dtype.append((topic, msg.dtype))
+            else:
+                self.dtype.append((topic, publisher.msg_type.dtype))
         self.data = init_data(self.dtype)
 
 

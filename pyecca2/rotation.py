@@ -89,6 +89,76 @@ class Quat(Expr):
         super().__init__(*args)
         assert self.shape == (4, 1)
 
+    def __add__(self, other: 'Quat') -> 'Quat':
+        """
+        Adds two quaternions element by element, should be avoided in general,
+        resultant quaternion will need to be renormalized.
+        :param other:
+        :return:
+        """
+        return Quat(Expr(self) + Expr(other))
+
+    def __sub__(self, other: 'Quat') -> 'Quat':
+        """
+        Subtract two quaternions element by element, should be avoided in
+        general, resultant quaternion will need to be renormalized.
+        :param other: quaternion to subtract
+        :return: result
+        """
+        return Quat(Expr(self) - Expr(other))
+
+    def __neg__(self):
+        """
+        Take the negative element by element of a quaternion. Gives the
+        shadow quaternion, which represents the same orientation. Generally no
+        need to do this.
+        :return: result
+        """
+        return Quat(-Expr(self))
+
+    def __rmul__(self, other: Expr) -> 'Quat':
+        """
+        Multiply by a scalar.
+        :param other: scalar
+        :return:
+        """
+        s = Expr(other)
+        assert s.shape == (1, 1)
+        return Quat(other * Expr(self))
+
+    def __mul__(self, other: 'Quat') -> 'Quat':
+        """
+        The product of two quaternions using the hamilton
+        convention, so that Dcm(A)*Dcm(B) = Dcm(A*B).
+        :param other: The second quaternion.
+        :return: The quaternion product.
+        """
+        assert isinstance(other, Quat)
+        a = self
+        b = other
+        r1 = a[0]
+        v1 = a[1:]
+        r2 = b[0]
+        v2 = b[1:]
+        res = Expr(4, 1)
+        res[0] = r1 * r2 - ca.dot(v1, v2)
+        res[1:] = r1 * v2 + r2 * v1 + ca.cross(v1, v2)
+        return Quat(res)
+
+    def derivative(self, w: Expr) -> Expr:
+        """
+        The kinematic equation relating the time derivative of quat given the current quat and the angular velocity
+        in the body frame.
+        :param w: The angular velocity in the body frame.
+        :return: The time derivative of the quat.
+        """
+        v = Expr(4, 1)
+        v[0] = 0
+        v[1] = w[0]
+        v[2] = w[1]
+        v[3] = w[2]
+        return 0.5 * self * Quat(v)
+
     @classmethod
     def from_dcm(cls, R: Dcm) -> Expr:
         """
@@ -151,12 +221,14 @@ class Quat(Expr):
     @classmethod
     def from_mrp(cls, r: 'Mrp') -> 'Quat':
         assert isinstance(r, Mrp)
+        a = r[0:3]
         q = Expr(4, 1)
-        n_sq = ca.dot(r, r)
+        n_sq = ca.dot(a, a)
         den = 1 + n_sq
         q[0] = (1 - n_sq)/den
         for i in range(3):
-            q[i + 1] = 2*r[i]/den
+            q[i + 1] = 2*a[i]/den
+        q = ca.if_else(r[3] == 0, q, -q)
         return cls(q)
 
 
@@ -164,25 +236,50 @@ class Mrp(Expr):
 
     def __init__(self, *args):
         super().__init__(*args)
-        assert self.shape == (3, 1)
+        assert self.shape == (4, 1)
+
+    def __add__(self, other: 'Mrp') -> 'Mrp':
+        """
+        Adds two MRPs element by element, should be avoided in general.
+        :param other:
+        :return:
+        """
+        return Quat(Expr(self) + Expr(other))
+
+    def __sub__(self, other: 'Mrp') -> 'Mrp':
+        """
+        Subtract two MRPs element by element, should be avoided in
+        general.
+        :param other: quaternion to subtract
+        :return: result
+        """
+        return Mrp(Expr(self) - Expr(other))
+
+    def __neg__(self):
+        """
+        Take the negative element by element of a Mrp.
+        :return: result
+        """
+        return Mrp(-Expr(self))
 
     def B(self) -> Expr:
         """
         A matrix used to compute the MRPs kinematics.
         :return: The B matrix.
         """
-        a = self
+        a = self[0:3]
         n_sq = ca.dot(a, a)
-        X = Dcm.wedge(a)
+        X = so3.wedge(a)
         return 0.25 * ((1 - n_sq) * Expr.eye(3) + 2 * X + 2 * ca.mtimes(a, ca.transpose(a)))
 
     def derivative(self, w: Expr) -> Expr:
         """
-        The kinematic equation relating the time derivative of MRPs given the current MRPs and the angular velocity.
-        :param w: The angular velocity.
+        The kinematic equation relating the time derivative of MRPs given the current MRPs and the angular velocity
+        in the body frame.
+        :param w: The angular velocity in the body frame.
         :return: The time derivative of the MRPs.
         """
-        return ca.mtimes(self.B(), w)
+        return ca.vertcat(ca.mtimes(self.B(), w), 0)
 
     def shadow(self) -> 'Mrp':
         """
@@ -192,9 +289,17 @@ class Mrp(Expr):
         MRP magnitude is greater than one to avoid the singularity.
         :return: The shadow MRP
         """
-        a = self
+        a = self[0:3]
         n_sq = ca.dot(a, a)
-        return ca.if_else(n_sq > eps, Mrp(-a / n_sq), Mrp([0, 0, 0]))
+        s = ca.if_else(self[3], 0, 1)  # toggle shadow state
+        return Mrp(ca.if_else(n_sq > eps, ca.vertcat(-a / n_sq, s), [0, 0, 0, 0]))
+
+    def shadow_if_required(self):
+        """
+        Performs the shadowing operation if required
+        :return: The MRP after possible shadowing
+        """
+        return Mrp(ca.if_else(ca.norm_fro(self[:3]) > 1, self.shadow(), self))
 
     @classmethod
     def from_quat(cls, q: Quat) -> 'Mrp':
@@ -205,10 +310,11 @@ class Mrp(Expr):
         """
         assert isinstance(q, Quat)
         den = 1 + q[0]
-        r = Expr(3, 1)
+        r = Expr(4, 1)
         r[0] = q[1] / den
         r[1] = q[2] / den
         r[2] = q[3] / den
+        r[3] = 0
         return cls(r)
 
     @classmethod
@@ -303,7 +409,7 @@ class so3(Expr):
         return X
 
 R = Dcm(ca.SX.sym('R', 3, 3))
-r = Mrp(ca.SX.sym('r', 3, 1))
+r = Mrp(ca.SX.sym('r', 4, 1))
 R_r = Dcm.from_mrp(r)
 omega = ca.SX.sym('omega', 3)
 res = ca.mtimes(ca.jacobian(r.from_dcm(R), R), ca.reshape(ca.mtimes(R, so3.wedge(omega)), 9, 1))

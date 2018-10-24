@@ -1,5 +1,5 @@
 import casadi as ca
-from examples.rotation import Mrp, Dcm, Quat, Euler
+from pyecca2.rotation import Mrp, Dcm, Quat, Euler
 
 Expr = ca.SX
 
