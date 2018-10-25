@@ -6,69 +6,84 @@ import matplotlib.pyplot as plt
 import pyecca2.msgs as msgs
 import pyecca2.system as sys
 import pyecca2.rotation as rot
+import pyecca2.util as util
 
 import casadi as ca
 import time
 
 
-def rk4(f, t, y, h):
-    """Runge Kuta 4th order integrator"""
-    k1 = h * f(t, y)
-    k2 = h * f(t + h / 2, y + k1 / 2)
-    k3 = h * f(t + h / 2, y + k2 / 2)
-    k4 = h * f(t + h, y + k3)
-    return ca.simplify(y + (k1 + 2 * k2 + 2 * k3 + k4) / 6)
-
-
 def mrp_derivation():
+    # mrp, RIEKF
+    # right invariant kalman filter with modified rodrigues parameters
+
+    # misc variables
+    omega = ca.SX.sym('omega', 3, 1)
+    w_g = ca.SX.sym('w_g', 3, 1)
+    w_b = ca.SX.sym('w_b', 3, 1)
+    t = ca.SX.sym('t')
+    dt = ca.SX.sym('dt')
+    std_gyro = ca.SX.sym('std_gyro')
+    sn_gyro_rw = ca.SX.sym('sn_gyro_rw')
+    std_gyro_rw = sn_gyro_rw / ca.sqrt(dt)
+    Q = ca.diag(ca.vertcat(std_gyro, std_gyro, std_gyro, std_gyro_rw, std_gyro_rw, std_gyro_rw) ** 2)
+
     # x, state (7)
     #-----------
     # r, mrp (3)
     # s, shadow, mrp shadow state (1)
     # b, gyro bias (3)
     x = ca.SX.sym('x', 7)
-
-    # e, error state (6)
-    #----------------
-    # er, so(3) lie algebra rotation error
-    # eb, R(3) lie algebra rotation error
-
-
     r = rot.Mrp(x[0:4])  # last state is shadow state
     b_g = x[4:7]
-
-    omega = ca.SX.sym('omega', 3, 1)
-    w_g = ca.SX.sym('w_g', 3, 1)
-    w_b = ca.SX.sym('w_b', 3, 1)
-    t = ca.SX.sym('t')
-    dt = ca.SX.sym('dt')
 
     # state derivative
     xdot = ca.vertcat(r.derivative(omega - b_g + w_g), w_b)
     f_xdot = ca.Function('xdot', [t, x, omega, w_g, w_b], [xdot], ['t', 'x', 'omega', 'w_g', 'w_b'], ['xdot'])
 
     # state prop with noise
-    x1_noise = rk4(lambda t, x: f_xdot(t, x, omega, w_g, w_b), t, x, dt)
-    x1_noise[:4] = rot.Mrp(x1_noise[:4]).shadow_if_required()
+    x1_sim = util.rk4(lambda t, x: f_xdot(t, x, omega, w_g, w_b), t, x, dt)
+    x1_sim[:4] = rot.Mrp(x1_sim[:4]).shadow_if_required()
 
     # state prop w/o noise
-    x1 = rk4(lambda t, x: f_xdot(t, x, omega, np.zeros(3), np.zeros(3)), t, x, dt)
+    x1 = util.rk4(lambda t, x: f_xdot(t, x, omega, np.zeros(3), np.zeros(3)), t, x, dt)
     x1[:4] = rot.Mrp(x1[:4]).shadow_if_required()
 
     # quaternion from mrp
     q = rot.Quat.from_mrp(rot.Mrp(x[:4]))
 
-    # constants
-    x0 = ca.DM.zeros(7)
+    # e, error state (6)
+    #----------------
+    # er, so(3) lie algebra rotation error
+    # eb, R(3) lie algebra rotation error
+    n_e = 6
+    eta = ca.SX.sym('eta', n_e, 1)  # (right)
 
-    #R = rot.Dcm.from_mrp(r)
+    # error dynamics
+    f = ca.Function('f', [omega, eta, x, w_b], [
+        ca.vertcat(-ca.mtimes(rot.Dcm.from_mrp(r), eta[3:6]), w_b)])
+
+    # linearized error dynamics
+    F = ca.sparsify(ca.substitute(ca.jacobian(f(omega, eta, x, w_b), eta), eta, ca.SX.zeros(n_e)))
+
+    # covariance propagation
+    W = ca.SX.sym('W', ca.Sparsity_lower(n_e))
+    f_W_dot_lt = ca.Function(
+        'W_dot_lt',
+        [x, W, std_gyro, sn_gyro_rw, omega, dt],
+        [ca.tril(util.sqrt_covariance_predict(W, F, Q))])
+    W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega, dt), t, W, dt)
+
+    # initial state
+    x0 = ca.DM.zeros(7)
+    W0 = 1e-3*np.eye(n_e)
+
     return {
-        'x1': ca.Function('f_x1', [t, x, omega, dt], [x1],
-                          ['t', 'x', 'omega', 'dt'], ['x1']),
-        'x1_noise': ca.Function('f_x1_noise', [t, x, omega, w_g, w_b, dt], [x1_noise],
+        'predict': ca.Function('predict', [t, x, W, omega, std_gyro, sn_gyro_rw, dt], [x1, W1],
+                          ['t', 'x', 'W', 'omega', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1']),
+        'simulate': ca.Function('simulate', [t, x, omega, w_g, w_b, dt], [x1_sim],
                           ['t', 'x', 'omega', 'w_g', 'w_b', 'dt'], ['x1']),
         'get_state': ca.Function('get_state', [x], [q, b_g], ['x'], ['q', 'b_g']),
-        'constants': ca.Function('constants', [], [x0], [], ['x0'])
+        'constants': ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
     }
 
 
@@ -76,41 +91,70 @@ mrp_eqs = mrp_derivation()
 
 
 def quat_derivation():
-    # x, state (7)
-    #-----------
-    # q, quaternion (4)
-    # b, gyro bias (3)
-    x = ca.SX.sym('x', 7)
+    # right invariant kalman filter with quaternions
 
-    q = rot.Quat(x[:4])
-    b_g = x[4:7]
-
+    # misc variables
     omega = ca.SX.sym('omega', 3, 1)
     w_g = ca.SX.sym('w_g', 3, 1)
     w_b = ca.SX.sym('w_b', 3, 1)
     t = ca.SX.sym('t')
     dt = ca.SX.sym('dt')
+    std_gyro = ca.SX.sym('std_gyro')
+    sn_gyro_rw = ca.SX.sym('sn_gyro_rw')
+    std_gyro_rw = sn_gyro_rw / ca.sqrt(dt)
+    Q = ca.diag(ca.vertcat(std_gyro, std_gyro, std_gyro, std_gyro_rw, std_gyro_rw, std_gyro_rw) ** 2)
+
+    # x, state (7)
+    #-----------
+    # q, quaternion (4)
+    # b, gyro bias (3)
+    x = ca.SX.sym('x', 7)
+    q = rot.Quat(x[:4])
+    b_g = x[4:7]
 
     # state derivative
     xdot = ca.vertcat(q.derivative(omega - b_g + w_g), w_b)
     f_xdot = ca.Function('xdot', [t, x, omega, w_g, w_b], [xdot], ['t', 'x', 'omega', 'w_g', 'w_b'], ['xdot'])
 
     # state prop w noise
-    x1_noise = rk4(lambda t, x: f_xdot(t, x, omega, w_g, w_b), t, x, dt)
+    x1_sim = util.rk4(lambda t, x: f_xdot(t, x, omega, w_g, w_b), t, x, dt)
 
     # state prop w/o noise
-    x1 = rk4(lambda t, x: f_xdot(t, x, omega, np.zeros(3), np.zeros(3)), t, x, dt)
+    x1 = util.rk4(lambda t, x: f_xdot(t, x, omega, np.zeros(3), np.zeros(3)), t, x, dt)
 
-    # constants
+    # e, error state (6)
+    #----------------
+    # er, so(3) lie algebra rotation error
+    # eb, R(3) lie algebra rotation error
+    n_e = 6
+    eta = ca.SX.sym('eta', n_e, 1)  # (right)
+
+    # error dynamics
+    f = ca.Function('f', [omega, eta, x, w_b], [
+        ca.vertcat(-ca.mtimes(rot.Dcm.from_quat(q), eta[3:6]), w_b)])
+
+    # linearized error dynamics
+    F = ca.sparsify(ca.substitute(ca.jacobian(f(omega, eta, x, w_b), eta), eta, ca.SX.zeros(n_e)))
+
+    # covariance propagation
+    W = ca.SX.sym('W', ca.Sparsity_lower(n_e))
+    f_W_dot_lt = ca.Function(
+        'W_dot_lt',
+        [x, W, std_gyro, sn_gyro_rw, omega, dt],
+        [ca.tril(util.sqrt_covariance_predict(W, F, Q))])
+    W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega, dt), t, W, dt)
+
+    # initial state
     x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
+    W0 = 1e-3*np.eye(n_e)
 
     return {
-        'x1': ca.Function('f_x1', [t, x, omega, dt], [x1],
-                          ['t', 'x', 'omega', 'dt'], ['x1']),
-        'x1_noise': ca.Function('f_x1_noise', [t, x, omega, w_g, w_b, dt], [x1],
+        'predict': ca.Function('predict', [t, x, W, omega, std_gyro, sn_gyro_rw, dt], [x1, W1],
+                          ['t', 'x', 'W', 'omega', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1']),
+        'simulate': ca.Function('simulate', [t, x, omega, w_g, w_b, dt], [x1],
                           ['t', 'x', 'omega', 'w_g', 'w_b', 'dt'], ['x1']),
         'get_state': ca.Function('get_state', [x], [q, b_g], ['x'], ['q', 'b_g']),
-        'constants': ca.Function('constants', [], [x0], [], ['x0'])
+        'constants': ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
     }
 
 
@@ -142,12 +186,12 @@ class Simulator:
 
             # integrate
             omega = np.array([
-                10*np.sin(2*np.pi*t + 1),
-                20*np.sin(2*np.pi*t + 2),
-                30*np.sin(2*np.pi*t + 3)])
+                10*np.sin(2*np.pi*1*t + 1),
+                20*np.sin(2*np.pi*2*t + 2),
+                30*np.sin(2*np.pi*3*t + 3)])
             w_g = np.random.randn(3)*1e-3
             w_b = np.random.randn(3)*1e-3
-            x = mrp_eqs['x1_noise'](t, x, omega, w_g, w_b, self.dt.get())
+            x = mrp_eqs['simulate'](t, x, omega, w_g, w_b, self.dt.get())
             q, b_g = mrp_eqs['get_state'](x)
 
             # publish sim state
@@ -180,7 +224,9 @@ class AttitudeEstimator:
         self.sub_params = sys.Subscriber(core, 'params', msgs.Params, self.params_callback)
         self.param_list = []
         self.x = eqs['constants']()['x0']
+        self.W = eqs['constants']()['W0']
         self.n_x = self.x.shape[0]
+        self.n_e = self.W.shape[0]
         self.t_last_imu = 0
         self.eqs = eqs
 
@@ -195,14 +241,18 @@ class AttitudeEstimator:
         dt = t - self.t_last_imu
         self.t_last_imu = t
         if dt <= 0:
-            dt = 0
+            dt = 1.0/200
 
         # estimate state
         omega = msg.data['gyro']
         start = time.clock()
-        self.x = self.eqs['x1'](t, self.x, omega, dt)
+        std_gyro = 1e-2
+        sn_gyro_rw = 1e-2
+        self.x, self.W = self.eqs['predict'](t, self.x, self.W, omega, std_gyro, sn_gyro_rw, dt)
         q, b_g = self.eqs['get_state'](self.x)
         elapsed = time.clock() - start
+
+        # correct
 
         # publish vehicle state
         self.msg_state.data['time'] = t
@@ -215,11 +265,13 @@ class AttitudeEstimator:
         self.msg_est_status.data['time'] = t
         self.msg_est_status.data['n_x'] = self.n_x
         self.msg_est_status.data['x'][:self.n_x] = self.x.T
+        W_vect = np.reshape(np.array(self.W)[np.triu_indices(self.n_e)], -1)
+        self.msg_est_status.data['P'][:len(W_vect)] = W_vect
         self.msg_est_status.data['elapsed'] = elapsed
         self.pub_est.publish(self.msg_est_status)
 
 
-def do_sim(name):
+def do_sim(name, tf=100):
     core = sys.Core()
     Simulator(core)
 
@@ -228,7 +280,7 @@ def do_sim(name):
 
     logger = sys.Logger(core)
 
-    core.run(until=2)
+    core.run(until=tf)
     return logger.get_log_as_array()
 
 
@@ -252,8 +304,8 @@ def plot():
     plt.title('q')
     plt.xlabel('time, sec')
     compare_field([
-        ('est1_state', 'est1', 'g'),
-        ('est2_state', 'est2', 'b'),
+        ('est1_state', 'mrp', 'g'),
+        ('est2_state', 'quat', 'b'),
         ('sim_state', 'true', 'k'),
     ], 'q', alpha=alpha)
     plt.show()
@@ -267,8 +319,8 @@ def plot():
     for d in data:
         n1 = np.linalg.norm(d['est1_state']['q'], axis=1) - 1
         n2 = np.linalg.norm(d['est2_state']['q'], axis=1) - 1
-        h_mrp = plt.plot(d['time'], n1, 'b', alpha=alpha)
-        h_quat = plt.plot(d['time'], n2, 'g', alpha=alpha)
+        h_mrp = plt.plot(d['time'], n1, 'g', alpha=alpha)
+        h_quat = plt.plot(d['time'], n2, 'b', alpha=alpha)
     plt.legend([h_mrp[0], h_quat[0]], ['mrp', 'quat'])
     plt.show()
 
@@ -277,8 +329,8 @@ def plot():
     plt.ylabel('cpu time, usec')
     plt.xlabel('time, sec')
     compare_field([
-        ('est1_status', 'est1', 'g'),
-        ('est2_status', 'est2', 'b')], 'elapsed',
+        ('est1_status', 'mrp', 'g'),
+        ('est2_status', 'quat', 'b')], 'elapsed',
         scale=1e6, alpha=alpha)
     plt.show()
 
@@ -295,10 +347,19 @@ def plot():
     plt.xlabel('time, sec')
     plt.ylabel('bias, rad/sec')
     compare_field([
-        ('est1_state', 'est1', 'g'),
-        ('est2_state', 'est2', 'b'),
+        ('est1_state', 'mrp', 'g'),
+        ('est2_state', 'quat', 'b'),
         ('sim_state', 'true', 'k'),
     ], 'b', alpha=alpha)
     plt.show()
 
+    plt.figure(6)
+    plt.title('covariance')
+    plt.xlabel('time, sec')
+    plt.ylabel('covariance')
+    compare_field([
+        ('est1_status', 'mrp', 'g'),
+        ('est2_status', 'quat', 'b'),
+    ], 'P', alpha=alpha)
+    plt.show()
 plot()
