@@ -34,13 +34,12 @@ class VehicleState:
 
 class EstimatorStatus():
     n_max = 20
-    nP_max = int(20 * (20 - 1) / 2)
     dtype = [
         ('time', 'f4'),  # timestamp
         ('elapsed', 'f4'),  # elapsed time
         ('n_x', 'i4'),  # number of states
         ('x', 'f4', n_max),  # states array
-        ('P', 'f4', nP_max),  # P matrix upper triangle
+        ('W', 'f4', n_max),  # W matrix diagonal (sqrt(P))
         ('beta_mag', 'f4'),  # magnetometer fault detection
         ('beta_accel', 'f4'),  # accelerometer fault detection
         ('beta_gyro', 'f4'),  # gyroscope fault detection
