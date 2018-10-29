@@ -9,6 +9,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import casadi as ca
 
+try:
+    p = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+    print('p', p)
+    sys.path.insert(0, p)
+except:
+    pass
+
 import pyecca2.msgs as msgs
 import pyecca2.system as sys
 import pyecca2.rotation as rot
@@ -557,3 +564,6 @@ def plot(data):
 def test_sim():
     data = mc_sim(tf=10, n=1)
     plot(data)
+
+if __name__ == "__main__":
+    test_sim()
