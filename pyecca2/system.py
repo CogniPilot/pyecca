@@ -92,7 +92,7 @@ class Logger:
 
     def __init__(self, core):
         self.core = core
-        self.dt = Param(core, 'logger/dt', 1.0/200, 'f4')
+        self.dt = Param(core, 'logger/dt', 1.0/10, 'f4')
         self.data_latest = None
         self.data_list = []
         simpy.Process(core, self.run())

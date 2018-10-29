@@ -9,8 +9,17 @@ class Imu:
     dtype = [
         ('time', 'f4'),  # timestamp
         ('gyro', 'f4', 3),  # gyroscope measurement
-        ('mag', 'f4', 3),  # magnetometer measurement
         ('accel', 'f4', 3),  # accelerometer measurement
+    ]
+
+    def __init__(self):
+        self.data = init_data(self.dtype)
+
+
+class Mag:
+    dtype = [
+        ('time', 'f4'),  # timestamp
+        ('mag', 'f4', 3),  # magnetometer measurement
     ]
 
     def __init__(self):
