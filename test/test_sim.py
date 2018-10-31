@@ -1,4 +1,3 @@
-#%%
 import sys
 import os
 import time
@@ -109,6 +108,7 @@ def derivation():
             'measure_mag': measure_mag,
             'measure_accel': measure_accel,
             'get_state': ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro']),
+            'get_dcm': ca.Function('quat_to_dcm', [x], [rot.Dcm.from_quat(q)], ['x'], ['C']),
             'constants': ca.Function('constants', [], [x0], [], ['x0'])
         }
 
@@ -314,7 +314,7 @@ class Simulator:
         self.std_accel = sys.Param(core, 'sim/std_accel', 1e-1, 'f4')
         self.std_gyro = sys.Param(core, 'sim/std_gyro', 1e-3, 'f4')
         self.sn_gyro_rw = sys.Param(core, 'sim/sn_gyro_rw', 1e-6, 'f4')
-        self.dt = sys.Param(core, 'sim/dt', 1.0/200, 'f4')
+        self.dt = sys.Param(core, 'sim/dt', 1.0/400, 'f4')
         self.mag_decl = sys.Param(core, 'sim/mag_decl', 0, 'f4')
         self.mag_incl = sys.Param(core, 'sim/mag_incl', 0, 'f4')
         self.mag_str = sys.Param(core, 'sim/mag_str', 1e-1, 'f4')
@@ -344,23 +344,29 @@ class Simulator:
         x = self.eqs['sim']['constants']()['x0']
         i = 0
 
-        # true angular velocity
-        v = np.random.randn(3)
-        v_unit = v/np.linalg.norm(v)
-        omega_t = 3*v_unit
-
         while True:
-            
+
             t = self.core.now
+
+            # true angular velocity, nav frame
+            omega_n = np.array([
+                10*np.sin(2*np.pi*0.1*t + 1),
+                11*np.sin(2*np.pi*0.2*t + 2),
+                12*np.sin(2*np.pi*0.3*t + 3)
+                ])
+
+            q, b_g = self.eqs['sim']['get_state'](x)
+            C_nb = np.array(self.eqs['sim']['get_dcm'](x))
+            omega_b = C_nb.T.dot(omega_n)
 
             # propagate
             w_gyro_rw = self.randn(3)
             if t != 0:
-                x = self.eqs['sim']['simulate'](t, x, omega_t,
+                x = self.eqs['sim']['simulate'](t, x, omega_b,
                     self.sn_gyro_rw.get(), w_gyro_rw, self.dt.get())
 
             # publish
-            if i % 1 == 0:
+            if i % 2 == 0:
                 q, b_g = self.eqs['sim']['get_state'](x)
 
                 # measure
@@ -368,7 +374,7 @@ class Simulator:
                 w_accel = self.randn(3)
                 w_mag = self.randn(3)
                 y_gyro = self.eqs['sim']['measure_gyro'](
-                    x, omega_t, self.std_gyro.get(), w_gyro).T
+                    x, omega_b, self.std_gyro.get(), w_gyro).T
                 y_accel = self.eqs['sim']['measure_accel'](
                     x, self.g.get(), self.std_accel.get(), w_accel).T
                 y_mag = self.eqs['sim']['measure_mag'](
@@ -379,7 +385,7 @@ class Simulator:
                 self.msg_sim_state.data['time'] = t
                 self.msg_sim_state.data['q'] = q.T
                 self.msg_sim_state.data['b'] = b_g.T
-                self.msg_sim_state.data['omega'] = omega_t
+                self.msg_sim_state.data['omega'] = omega_b.T
                 self.pub_sim.publish(self.msg_sim_state)
                 
 
@@ -436,8 +442,6 @@ class AttitudeEstimator:
         t = msg.data['time']
         dt = t - self.t_last_imu
         self.t_last_imu = t
-        if dt < 0:
-            return
 
         # estimate state
         omega = msg.data['gyro']
@@ -445,7 +449,9 @@ class AttitudeEstimator:
         start = time.thread_time()
         std_gyro = 1e-2
         sn_gyro_rw = 1e-2
-        self.x, self.W = self.eqs['predict'](t, self.x, self.W, omega, std_gyro, sn_gyro_rw, dt)
+
+        if dt > 0:
+            self.x, self.W = self.eqs['predict'](t, self.x, self.W, omega, std_gyro, sn_gyro_rw, dt)
         q, b_g = self.eqs['get_state'](self.x)
         end = time.thread_time()
         elapsed = end - start
@@ -470,7 +476,7 @@ class AttitudeEstimator:
 
 
 def do_sim(sim_name):
-    tf = 10
+    tf = 100
     eqs = derivation()
     core = sys.Core()
     Simulator(core, eqs)
@@ -629,7 +635,7 @@ def plot(data):
 
 
 def test_sim():
-    data = mc_sim(n=2)
+    data = mc_sim(n=1)
     plot(data)
     return data
 
