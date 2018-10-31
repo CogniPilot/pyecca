@@ -344,21 +344,14 @@ class Simulator:
         x = self.eqs['sim']['constants']()['x0']
         i = 0
 
+        # true angular velocity, nav frame
+        omega_b = np.random.randn(3)
+        omega_b = 40*omega_b/np.linalg.norm(omega_b)
+
         while True:
 
             t = self.core.now
-
-            # true angular velocity, nav frame
-            omega_n = np.array([
-                10*np.sin(2*np.pi*0.1*t + 1),
-                11*np.sin(2*np.pi*0.2*t + 2),
-                12*np.sin(2*np.pi*0.3*t + 3)
-                ])
-
-            q, b_g = self.eqs['sim']['get_state'](x)
-            C_nb = np.array(self.eqs['sim']['get_dcm'](x))
-            omega_b = C_nb.T.dot(omega_n)
-
+            
             # propagate
             w_gyro_rw = self.randn(3)
             if t != 0:
@@ -476,7 +469,7 @@ class AttitudeEstimator:
 
 
 def do_sim(sim_name):
-    tf = 100
+    tf = 10
     eqs = derivation()
     core = sys.Core()
     Simulator(core, eqs)
