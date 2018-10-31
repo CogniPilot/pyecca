@@ -314,7 +314,7 @@ class Simulator:
         self.std_accel = sys.Param(core, 'sim/std_accel', 1e-1, 'f4')
         self.std_gyro = sys.Param(core, 'sim/std_gyro', 1e-3, 'f4')
         self.sn_gyro_rw = sys.Param(core, 'sim/sn_gyro_rw', 1e-6, 'f4')
-        self.dt = sys.Param(core, 'sim/dt', 1.0/400, 'f4')
+        self.dt = sys.Param(core, 'sim/dt', 1.0/200, 'f4')
         self.mag_decl = sys.Param(core, 'sim/mag_decl', 0, 'f4')
         self.mag_incl = sys.Param(core, 'sim/mag_incl', 0, 'f4')
         self.mag_str = sys.Param(core, 'sim/mag_str', 1e-1, 'f4')
@@ -344,24 +344,24 @@ class Simulator:
         x = self.eqs['sim']['constants']()['x0']
         i = 0
 
+        # true angular velocity
+        v = np.random.randn(3)
+        v_unit = v/np.linalg.norm(v)
+        omega_t = 3*v_unit
+
         while True:
+            
             t = self.core.now
 
-            # true angular velocity
-            if t == 0:
-                omega_t = np.array([0, 0, 0])
-            else:
-                omega_t = np.array([10, 11, 12])
-
-            # noise
+            # propagate
             w_gyro_rw = self.randn(3)
-            x = self.eqs['sim']['simulate'](t, x, omega_t,
-                self.sn_gyro_rw.get(), w_gyro_rw, self.dt.get())
+            if t != 0:
+                x = self.eqs['sim']['simulate'](t, x, omega_t,
+                    self.sn_gyro_rw.get(), w_gyro_rw, self.dt.get())
 
             # publish
-            if i % 2 == 0:
+            if i % 1 == 0:
                 q, b_g = self.eqs['sim']['get_state'](x)
-
 
                 # measure
                 w_gyro = self.randn(3)
@@ -469,7 +469,9 @@ class AttitudeEstimator:
         self.pub_est.publish(self.msg_est_status)
 
 
-def do_sim(sim_name, eqs, tf):
+def do_sim(sim_name):
+    tf = 10
+    eqs = derivation()
     core = sys.Core()
     Simulator(core, eqs)
 
@@ -483,16 +485,12 @@ def do_sim(sim_name, eqs, tf):
     return logger.get_log_as_array()
 
 
-def mc_sim(tf, n=1):
-    eqs = derivation()
-    n_sim = 1
-
-    if n_sim == 1:
-        data = [do_sim(0, eqs, tf)]
+def mc_sim(n=1):
+    if n == 1:
+        data = [do_sim(0)]
     else:
         with mp.Pool(mp.cpu_count()) as pool:
-            data = np.array(pool.map(
-                lambda name, eqs=eqs, tf=tf: do_sim(name, eqs, tf), range(100)))
+            data = np.array(pool.map(do_sim, range(n)))
     return data
 
 
@@ -528,13 +526,12 @@ def plot(data):
                 h[topic] = plt.plot(d['time'], get_data(d, topic),
                                    *args, **est_style[label], **kwargs)
         plt.legend([ v[0] for k, v in h.items() ], [ label_map[topic] for topic in topics])
-        plt.grid()
 
     plt.figure()
     plt.title('quaternion normal error')
     plt.xlabel('time, sec')
     plt.ylabel('normal error')
-    plt.grid()
+    plt.grid(True)
     compare_topics(['est1_state', 'est2_state', 'est3_state'],
                    lambda data, topic: np.linalg.norm(data[topic]['q'], axis=1) - 1)
     plt.savefig('fig/quat_normal.png')
@@ -543,16 +540,15 @@ def plot(data):
     plt.title('cpu time')
     plt.ylabel('cpu time, usec')
     plt.xlabel('time, sec')
-    plt.grid()
     compare_topics(['est1_status', 'est2_status', 'est3_status'],
                    lambda data, topic: 1e6*data[topic]['elapsed'])
+    plt.grid(True)
     plt.savefig('fig/cpu_time.png')
 
     plt.figure()
     plt.title('rotation error')
     plt.xlabel('time, sec')
     plt.ylabel('error, deg')
-    plt.grid()
     def compare_rot_error(q1, q2):
         r = []
         for q1i, q2i in zip(q1, q2):
@@ -565,74 +561,75 @@ def plot(data):
         return r
     compare_topics(['est1_state', 'est2_state', 'est3_state'],
                    lambda data, topic: compare_rot_error(data[topic]['q'], data['sim_state']['q']))
+    plt.grid(True)
     plt.savefig('fig/rotation_error.png')
 
     plt.figure()
     plt.title('angular velocity')
     plt.xlabel('time, sec')
     plt.ylabel('angular velocity, deg/sec')
-    plt.grid()
     for d in data:
         plt.plot(d['time'], np.rad2deg(d['sim_state']['omega']))
+    plt.grid(True)
     plt.savefig('fig/angular_velocity.png')
 
     plt.figure()
     plt.title('q')
     plt.xlabel('time, sec')
     plt.ylabel('q')
-    plt.grid()
     compare_topics(['sim_state', 'est1_state', 'est2_state', 'est3_state'],
                    lambda data, topic: data[topic]['q'])
+    plt.grid(True)
     plt.savefig('fig/q.png')
 
     plt.figure()
     plt.title('bias')
     plt.xlabel('time, sec')
     plt.ylabel('bias, deg/sec')
-    plt.grid()
     compare_topics(['sim_state', 'est1_state', 'est2_state', 'est3_state'],
                    lambda data, topic: np.rad2deg(data[topic]['b']))
+    plt.grid(True)
     plt.savefig('fig/bias.png')
 
     plt.figure()
     plt.title('state uncertainty')
     plt.xlabel('time, sec')
     plt.ylabel('std. deviation')
-    plt.grid()
     compare_topics(['est1_status', 'est2_status', 'est3_status'],
                    lambda data, topic: data[topic]['W'][:, :3])
+    plt.grid(True)
     plt.savefig('fig/state_uncertainty.png')
 
     plt.figure()
     plt.title('mag')
     plt.xlabel('time, sec')
     plt.ylabel('magnetometer, normalized')
-    plt.grid()
     for d in data:
         plt.plot(d['time'], d['mag']['mag'])
+    plt.grid(True)
     plt.savefig('fig/mag.png')
 
     plt.figure()
     plt.title('accel')
     plt.xlabel('time, sec')
     plt.ylabel('accelerometer, m/s^2')
-    plt.grid()
     for d in data:
         plt.plot(d['time'], d['imu']['accel'])
+    plt.grid(True)
     plt.savefig('fig/accel.png')
 
     plt.figure()
     plt.title('gyro')
     plt.xlabel('time, sec')
     plt.ylabel('gyro, rad/s')
-    plt.grid()
     for d in data:
         plt.plot(d['time'], d['imu']['gyro'])
+    plt.grid(True)
     plt.savefig('fig/gyro.png')
 
 
 def test_sim():
-    data = mc_sim(tf=100, n=1)
+    data = mc_sim(n=2)
     plot(data)
     return data
 
