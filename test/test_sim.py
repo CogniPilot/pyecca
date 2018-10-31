@@ -312,7 +312,7 @@ class Simulator:
         # parameters
         self.std_mag = sys.Param(core, 'sim/std_mag', 1e-2, 'f4')
         self.std_accel = sys.Param(core, 'sim/std_accel', 1e-1, 'f4')
-        self.std_gyro = sys.Param(core, 'sim/std_gyro', 1e-3, 'f4')
+        self.std_gyro = sys.Param(core, 'sim/std_gyro', 1e-6, 'f4')
         self.sn_gyro_rw = sys.Param(core, 'sim/sn_gyro_rw', 1e-6, 'f4')
         self.dt = sys.Param(core, 'sim/dt', 1.0/400, 'f4')
         self.mag_decl = sys.Param(core, 'sim/mag_decl', 0, 'f4')
@@ -346,7 +346,7 @@ class Simulator:
 
         # true angular velocity, nav frame
         omega_b = np.random.randn(3)
-        omega_b = 40*omega_b/np.linalg.norm(omega_b)
+        omega_b = 20*omega_b/np.linalg.norm(omega_b)
 
         while True:
 
