@@ -159,6 +159,18 @@ class Quat(Expr):
         v[3] = w[2]
         return 0.5 * self * Quat(v)
 
+    def inv(self) -> 'Quat':
+        """
+        Inverse
+        """
+        v = Expr(4, 1)
+        n = ca.norm_2(self)
+        v[0] = self[0]/n
+        v[1] = -self[1]/n
+        v[2] = -self[2]/n
+        v[3] = -self[3]/n
+        return Quat(v)
+
     @classmethod
     def from_dcm(cls, R: Dcm) -> Expr:
         """

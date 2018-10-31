@@ -1,6 +1,6 @@
 #%%
 import sys
-import os.path
+import os
 import time
 import multiprocessing as mp
 
@@ -11,7 +11,6 @@ import casadi as ca
 
 try:
     p = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-    print('p', p)
     sys.path.insert(0, p)
 except:
     pass
@@ -25,24 +24,31 @@ import pyecca2.util as util
 def derivation():
 
     # misc variables
-    omega = ca.SX.sym('omega', 3, 1) # angular velocity in body frame
+    omega_t = ca.SX.sym('omega_t', 3, 1) # angular velocity in body frame, true
+    omega_m = ca.SX.sym('omega_m', 3, 1) # angular velocity in body frame, measured
     t = ca.SX.sym('t')  # time
     dt = ca.SX.sym('dt')  # integration time step
-
-    # magnetic field
-    decl = ca.SX.sym('decl')
-    incl = ca.SX.sym('incl')  # only useful for sim, neglected in correction
-
-    # noise
-    w_g = ca.SX.sym('w_g', 3, 1)
-    w_b = ca.SX.sym('w_b', 3, 1)
-    std_gyro = ca.SX.sym('std_gyro')
     std_mag = ca.SX.sym('std_mag')
+    std_gyro = ca.SX.sym('std_gyro')
+    std_accel = ca.SX.sym('std_accel')
     sn_gyro_rw = ca.SX.sym('sn_gyro_rw')
+
+    # constants
+    mag_decl = ca.SX.sym('mag_decl')
+    mag_incl = ca.SX.sym('mag_incl')  # only useful for sim, neglected in correction
+    mag_str = ca.SX.sym('mag_str')  # mag field strength
+    g = ca.SX.sym('g')
+
+    # noise, mean zero, variance 1
+    w_mag = ca.SX.sym('w_mag', 3, 1)
+    w_gyro = ca.SX.sym('w_gyro', 3, 1)
+    w_gyro_rw= ca.SX.sym('w_gyro_rw', 3, 1)
+    w_accel = ca.SX.sym('w_accel', 3, 1)
+
     std_gyro_rw = sn_gyro_rw / ca.sqrt(dt)
     Q = ca.diag(ca.vertcat(std_gyro, std_gyro, std_gyro, std_gyro_rw, std_gyro_rw, std_gyro_rw) ** 2)
 
-    e1 = ca.SX([1, 0, 0])
+    # e1 = ca.SX([1, 0, 0])
     e2 = ca.SX([0, 1, 0])
     e3 = ca.SX([0, 0, 1])
 
@@ -55,42 +61,54 @@ def derivation():
         # b, gyro bias (3)
         x = ca.SX.sym('x', 7)
         r = rot.Mrp(x[0:4])  # last state is shadow state
-        b_g = x[4:7]
+        b_gyro = x[4:7]
 
         # initial state
-        x0 = ca.DM.zeros(7)
+        x0 = ca.DM([0, 0, 0, 0, 0, 0, 0])
 
         # state derivative
-        xdot = ca.vertcat(r.derivative(omega - b_g + w_g), w_b)
-        f_xdot = ca.Function('xdot', [t, x, omega, w_g, w_b], [xdot], ['t', 'x', 'omega', 'w_g', 'w_b'], ['xdot'])
+        xdot = ca.vertcat(r.derivative(omega_t), std_gyro_rw*w_gyro_rw)
+        f_xdot = ca.Function('xdot', [t, x, omega_t, sn_gyro_rw, w_gyro_rw],
+            [xdot], ['t', 'x', 'omega_t', 'sn_gyro_rw', 'w_gyro_rw'], ['xdot'])
 
         # state prop with noise
-        x1_sim = util.rk4(lambda t, x: f_xdot(t, x, omega, w_g, w_b), t, x, dt)
+        x1_sim = util.rk4(lambda t, x: f_xdot(t, x, omega_t, sn_gyro_rw, w_gyro_rw), t, x, dt)
         x1_sim[:4] = rot.Mrp(x1_sim[:4]).shadow_if_required()
-
-        # state prop w/o noise
-        x1 = util.rk4(lambda t, x: f_xdot(t, x, omega, np.zeros(3), np.zeros(3)), t, x, dt)
-        x1[:4] = rot.Mrp(x1[:4]).shadow_if_required()
+        simulate = ca.Function('simulate', [t, x, omega_t, sn_gyro_rw,
+            w_gyro_rw, dt], [x1_sim],
+            ['t', 'x', 'omega_t', 'sn_gyro_rw', 
+                'w_gyro_rw', 'dt'], ['x1'])
 
         # quaternion from mrp
         q = rot.Quat.from_mrp(rot.Mrp(x[:4]))
         C_nb = rot.Dcm.from_mrp(r)
 
+        # measure gyro
+        measure_gyro = ca.Function('measure_gyro', [x, omega_t, std_gyro, w_gyro],
+            [omega_t + b_gyro + w_gyro*std_gyro],
+            ['x', 'omega_t', 'std_gyro', 'w_gyro'], ['y'])
+
         # measure_mag
-        B_n = ca.mtimes(rot.SO3.exp(decl * e3) * rot.SO3.exp(-incl * e2), ca.SX([1, 0, 0]))
+        C_nm = rot.SO3.exp(mag_decl * e3) * rot.SO3.exp(-mag_incl * e2)
+        B_n = mag_str*ca.mtimes(C_nm, ca.SX([1, 0, 0]))
         measure_mag = ca.Function(
-            'measure_mag', [x, decl, incl], [ca.mtimes(C_nb.T, B_n)], ['x', 'decl', 'incl'], ['y'])
+            'measure_mag', [x, mag_str, mag_decl, mag_incl, std_mag, w_mag],
+            [ca.mtimes(C_nb.T, B_n) + w_mag*std_mag],
+            ['x', 'mag_str', 'mag_decl', 'mag_incl', 'std_mag', 'w_mag'], ['y'])
 
         # measure accel
         measure_accel = ca.Function(
-            'measure_accel', [x], [ca.mtimes(C_nb.T, ca.SX([0, 0, -9.8]))], ['x'], ['y'])
+            'measure_accel',
+            [x, g, std_accel, w_accel],
+            [g*ca.mtimes(C_nb.T, ca.SX([0, 0, -1])) + w_accel*std_accel],
+            ['x', 'g', 'std_accel', 'w_accel'], ['y'])
 
         return {
-            'simulate': ca.Function('simulate', [t, x, omega, w_g, w_b, dt], [x1_sim],
-                              ['t', 'x', 'omega', 'w_g', 'w_b', 'dt'], ['x1']),
+            'simulate': simulate,
+            'measure_gyro': measure_gyro,
             'measure_mag': measure_mag,
             'measure_accel': measure_accel,
-            'get_state': ca.Function('get_state', [x], [q, b_g], ['x'], ['q', 'b_g']),
+            'get_state': ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro']),
             'constants': ca.Function('constants', [], [x0], [], ['x0'])
         }
 
@@ -106,17 +124,18 @@ def derivation():
         # b, gyro bias (3)
         x = ca.SX.sym('x', 7)
         r = rot.Mrp(x[0:4])  # last state is shadow state
-        b_g = x[4:7]
+        b_gyro = x[4:7]
 
         # state derivative
-        xdot = ca.vertcat(r.derivative(omega - b_g + w_g), w_b)
-        f_xdot = ca.Function('xdot', [t, x, omega, w_g, w_b], [xdot], ['t', 'x', 'omega', 'w_g', 'w_b'], ['xdot'])
+        xdot = ca.vertcat(r.derivative(omega_m - b_gyro), std_gyro_rw*w_gyro_rw)
+        f_xdot = ca.Function('xdot', [t, x, omega_m, std_gyro, sn_gyro_rw, w_gyro, w_gyro_rw],
+            [xdot], ['t', 'x', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'w_gyro', 'w_gyro_rw'], ['xdot'])
 
         # state prop w/o noise
-        x1 = util.rk4(lambda t, x: f_xdot(t, x, omega, np.zeros(3), np.zeros(3)), t, x, dt)
+        x1 = util.rk4(lambda t, x: f_xdot(t, x, omega_m, 0, 0, np.zeros(3), np.zeros(3)), t, x, dt)
         x1[:4] = rot.Mrp(x1[:4]).shadow_if_required()
 
-        # quaternion from mrp
+        # quaternion from mrpxdot
         q = rot.Quat.from_mrp(rot.Mrp(x[:4]))
 
         # e, error state (6)
@@ -127,28 +146,28 @@ def derivation():
         eta = ca.SX.sym('eta', n_e, 1)  # (right)
 
         # error dynamics
-        f = ca.Function('f', [omega, eta, x, w_b], [
-            ca.vertcat(-ca.mtimes(rot.Dcm.from_mrp(r), eta[3:6]), w_b)])
+        f = ca.Function('f', [omega_m, eta, x, w_gyro_rw], [
+            ca.vertcat(-ca.mtimes(rot.Dcm.from_mrp(r), eta[3:6]), w_gyro_rw)])
 
         # linearized error dynamics
-        F = ca.sparsify(ca.substitute(ca.jacobian(f(omega, eta, x, w_b), eta), eta, ca.SX.zeros(n_e)))
+        F = ca.sparsify(ca.substitute(ca.jacobian(f(omega_m, eta, x, w_gyro_rw), eta), eta, ca.SX.zeros(n_e)))
 
         # covariance propagation
         W = ca.SX.sym('W', ca.Sparsity_lower(n_e))
         f_W_dot_lt = ca.Function(
             'W_dot_lt',
-            [x, W, std_gyro, sn_gyro_rw, omega, dt],
+            [x, W, std_gyro, sn_gyro_rw, omega_m, dt],
             [ca.tril(util.sqrt_covariance_predict(W, F, Q))])
-        W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega, dt), t, W, dt)
+        W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega_m, dt), t, W, dt)
 
         # initial state
         x0 = ca.DM.zeros(7)
         W0 = 1e-3*np.eye(n_e)
 
         return {
-            'predict': ca.Function('predict', [t, x, W, omega, std_gyro, sn_gyro_rw, dt], [x1, W1],
-                              ['t', 'x', 'W', 'omega', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1']),
-            'get_state': ca.Function('get_state', [x], [q, b_g], ['x'], ['q', 'b_g']),
+            'predict': ca.Function('predict', [t, x, W, omega_m, std_gyro, sn_gyro_rw, dt], [x1, W1],
+                              ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1']),
+            'get_state': ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro']),
             'constants': ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
         }
 
@@ -161,14 +180,15 @@ def derivation():
         # b, gyro bias (3)
         x = ca.SX.sym('x', 7)
         q = rot.Quat(x[:4])
-        b_g = x[4:7]
+        b_gyro = x[4:7]
 
         # state derivative
-        xdot = ca.vertcat(q.derivative(omega - b_g + w_g), w_b)
-        f_xdot = ca.Function('xdot', [t, x, omega, w_g, w_b], [xdot], ['t', 'x', 'omega', 'w_g', 'w_b'], ['xdot'])
+        xdot = ca.vertcat(q.derivative(omega_m - b_gyro + w_gyro), w_gyro_rw)
+        f_xdot = ca.Function('xdot', [t, x, omega_m, w_gyro, w_gyro_rw],
+            [xdot], ['t', 'x', 'omega_m', 'w_gyro', 'w_gyro_rw'], ['xdot'])
 
         # state prop w/o noise
-        x1 = util.rk4(lambda t, x: f_xdot(t, x, omega, np.zeros(3), np.zeros(3)), t, x, dt)
+        x1 = util.rk4(lambda t, x: f_xdot(t, x, omega_m, np.zeros(3), np.zeros(3)), t, x, dt)
         n_q1 = ca.norm_2(x1[:4])
 
         # normalize quaternion
@@ -182,28 +202,28 @@ def derivation():
         eta = ca.SX.sym('eta', n_e, 1)  # (right)
 
         # error dynamics
-        f = ca.Function('f', [omega, eta, x, w_b], [
-            ca.vertcat(-ca.mtimes(rot.Dcm.from_quat(q), eta[3:6]), w_b)])
+        f = ca.Function('f', [omega_m, eta, x, w_gyro_rw], [
+            ca.vertcat(-ca.mtimes(rot.Dcm.from_quat(q), eta[3:6]), w_gyro_rw)])
 
         # linearized error dynamics
-        F = ca.sparsify(ca.substitute(ca.jacobian(f(omega, eta, x, w_b), eta), eta, ca.SX.zeros(n_e)))
+        F = ca.sparsify(ca.substitute(ca.jacobian(f(omega_m, eta, x, w_gyro_rw), eta), eta, ca.SX.zeros(n_e)))
 
         # covariance propagation
         W = ca.SX.sym('W', ca.Sparsity_lower(n_e))
         f_W_dot_lt = ca.Function(
             'W_dot_lt',
-            [x, W, std_gyro, sn_gyro_rw, omega, dt],
+            [x, W, std_gyro, sn_gyro_rw, omega_m, dt],
             [ca.tril(util.sqrt_covariance_predict(W, F, Q))])
-        W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega, dt), t, W, dt)
+        W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega_m, dt), t, W, dt)
 
         # initial state
         x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
         W0 = 1e-3*np.eye(n_e)
 
         return {
-            'predict': ca.Function('predict', [t, x, W, omega, std_gyro, sn_gyro_rw, dt], [x1, W1],
-                              ['t', 'x', 'W', 'omega', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1']),
-            'get_state': ca.Function('get_state', [x], [q, b_g], ['x'], ['q', 'b_g']),
+            'predict': ca.Function('predict', [t, x, W, omega_m, std_gyro, sn_gyro_rw, dt], [x1, W1],
+                              ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1']),
+            'get_state': ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro']),
             'constants': ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
         }
 
@@ -216,14 +236,15 @@ def derivation():
         # b, gyro bias (3)
         x = ca.SX.sym('x', 7)
         q = rot.Quat(x[:4])
-        b_g = x[4:7]
+        b_gyro = x[4:7]
 
         # state derivative
-        xdot = ca.vertcat(q.derivative(omega - b_g + w_g), w_b)
-        f_xdot = ca.Function('xdot', [t, x, omega, w_g, w_b], [xdot], ['t', 'x', 'omega', 'w_g', 'w_b'], ['xdot'])
+        xdot = ca.vertcat(q.derivative(omega_m - b_gyro + w_gyro), w_gyro_rw)
+        f_xdot = ca.Function('xdot', [t, x, omega_m, w_gyro, w_gyro_rw],
+            [xdot], ['t', 'x', 'omega_m', 'w_gyro', 'w_gyro_rw'], ['xdot'])
 
         # state prop w/o noise
-        x1 = util.rk4(lambda t, x: f_xdot(t, x, omega, np.zeros(3), np.zeros(3)), t, x, dt)
+        x1 = util.rk4(lambda t, x: f_xdot(t, x, omega_m, np.zeros(3), np.zeros(3)), t, x, dt)
 
         # normalize quaternion
         n_q1 = ca.norm_2(x1[:4])
@@ -240,28 +261,30 @@ def derivation():
 
         # error dynamics
         eta_R = rot.SO3.exp(eta_r)
-        f = ca.Function('f', [omega, eta, x, w_b], [
-            ca.vertcat(-ca.mtimes(np.eye(3) - eta_R, omega - b_g) - ca.mtimes(eta_R, eta_b), w_b)])
+        f = ca.Function('f', [omega_m, eta, x, w_gyro_rw], [
+            ca.vertcat(-ca.mtimes(np.eye(3) - eta_R, omega_m - b_gyro) - ca.mtimes(eta_R, eta_b),
+                       w_gyro_rw)])
 
         # linearized error dynamics
-        F = ca.sparsify(ca.substitute(ca.jacobian(f(omega, eta, x, w_b), eta), eta, ca.SX.zeros(n_e)))
+        F = ca.sparsify(ca.substitute(ca.jacobian(
+            f(omega_m, eta, x, w_gyro_rw), eta), eta, ca.SX.zeros(n_e)))
 
         # covariance propagation
         W = ca.SX.sym('W', ca.Sparsity_lower(n_e))
         f_W_dot_lt = ca.Function(
             'W_dot_lt',
-            [x, W, std_gyro, sn_gyro_rw, omega, dt],
+            [x, W, std_gyro, sn_gyro_rw, omega_m, dt],
             [ca.tril(util.sqrt_covariance_predict(W, F, Q))])
-        W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega, dt), t, W, dt)
+        W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega_m, dt), t, W, dt)
 
         # initial state
         x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
         W0 = 1e-3 * np.eye(n_e)
 
         return {
-            'predict': ca.Function('predict', [t, x, W, omega, std_gyro, sn_gyro_rw, dt], [x1, W1],
-                                   ['t', 'x', 'W', 'omega', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1']),
-            'get_state': ca.Function('get_state', [x], [q, b_g], ['x'], ['q', 'b_g']),
+            'predict': ca.Function('predict', [t, x, W, omega_m, std_gyro, sn_gyro_rw, dt], [x1, W1],
+                                   ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1']),
+            'get_state': ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro']),
             'constants': ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
         }
 
@@ -287,11 +310,15 @@ class Simulator:
         self.sub_params = sys.Subscriber(core, 'params', msgs.Params, self.params_callback)
 
         # parameters
-        self.w_gyro = sys.Param(core, 'sim/w_gyro', 1e-6, 'f4')
-        self.w_gyro_rw = sys.Param(core, 'sim/w_gyro_rw', 1e-6, 'f4')
-        self.dt = sys.Param(core, 'sim/dt', 1.0/200, 'f4')
-        self.decl = sys.Param(core, 'sim/decl', 0, 'f4')
-        self.incl = sys.Param(core, 'sim/incl', 0, 'f4')
+        self.std_mag = sys.Param(core, 'sim/std_mag', 1e-2, 'f4')
+        self.std_accel = sys.Param(core, 'sim/std_accel', 1e-1, 'f4')
+        self.std_gyro = sys.Param(core, 'sim/std_gyro', 1e-3, 'f4')
+        self.sn_gyro_rw = sys.Param(core, 'sim/sn_gyro_rw', 1e-6, 'f4')
+        self.dt = sys.Param(core, 'sim/dt', 1.0/400, 'f4')
+        self.mag_decl = sys.Param(core, 'sim/mag_decl', 0, 'f4')
+        self.mag_incl = sys.Param(core, 'sim/mag_incl', 0, 'f4')
+        self.mag_str = sys.Param(core, 'sim/mag_str', 1e-1, 'f4')
+        self.g = sys.Param(core, 'sim/g', 9.8, 'f4')
 
         # msgs
         self.msg_sim_state = msgs.VehicleState()
@@ -300,7 +327,8 @@ class Simulator:
 
         # misc
         self.enable_noise = True
-        self.param_list = [self.w_gyro]
+        self.param_list = [self.std_accel, self.std_gyro, self.sn_gyro_rw, \
+            self.dt, self.mag_decl, self.mag_incl, self.mag_str, self.g]
         self.eqs = eqs
         np.random.seed()
         simpy.Process(core, self.run())
@@ -315,38 +343,58 @@ class Simulator:
     def run(self):
         x = self.eqs['sim']['constants']()['x0']
         i = 0
+
         while True:
             t = self.core.now
+
+            # true angular velocity
+            if t == 0:
+                omega_t = np.array([0, 0, 0])
+            else:
+                omega_t = np.array([10, 11, 12])
+
+            # noise
+            w_gyro_rw = self.randn(3)
+            x = self.eqs['sim']['simulate'](t, x, omega_t,
+                self.sn_gyro_rw.get(), w_gyro_rw, self.dt.get())
+
+            # publish
+            if i % 2 == 0:
+                q, b_g = self.eqs['sim']['get_state'](x)
+
+
+                # measure
+                w_gyro = self.randn(3)
+                w_accel = self.randn(3)
+                w_mag = self.randn(3)
+                y_gyro = self.eqs['sim']['measure_gyro'](
+                    x, omega_t, self.std_gyro.get(), w_gyro).T
+                y_accel = self.eqs['sim']['measure_accel'](
+                    x, self.g.get(), self.std_accel.get(), w_accel).T
+                y_mag = self.eqs['sim']['measure_mag'](
+                    x, self.mag_str.get(), self.mag_decl.get(), self.mag_incl.get(),
+                    self.std_mag.get(), w_mag).T
+
+                # publish sim state
+                self.msg_sim_state.data['time'] = t
+                self.msg_sim_state.data['q'] = q.T
+                self.msg_sim_state.data['b'] = b_g.T
+                self.msg_sim_state.data['omega'] = omega_t
+                self.pub_sim.publish(self.msg_sim_state)
+                
+
+                # publish imu
+                self.msg_imu.data['time'] = t
+                self.msg_imu.data['gyro'] = y_gyro
+                self.msg_imu.data['accel'] = y_accel
+                self.pub_imu.publish(self.msg_imu)
+
+                # publish mag
+                self.msg_mag.data['time'] = t
+                self.msg_mag.data['mag'] = y_mag
+                self.pub_mag.publish(self.msg_mag)
+            
             i += 1
-
-            # integrate
-            omega = np.array([
-                10*(1 + np.sin(2*np.pi*1*t + 1)),
-                11*(1 + np.sin(2*np.pi*2*t + 2)),
-                12*(1 + np.sin(2*np.pi*3*t + 3))])
-            w_g = self.randn(3)*self.w_gyro.get()
-            w_b = self.randn(3)*self.w_gyro_rw.get()
-            x = self.eqs['sim']['simulate'](t, x, omega, w_g, w_b, self.dt.get())
-            q, b_g = self.eqs['sim']['get_state'](x)
-
-            # publish sim state
-            self.msg_sim_state.data['time'] = t
-            self.msg_sim_state.data['q'] = q.T
-            self.msg_sim_state.data['b'] = b_g.T
-            self.msg_sim_state.data['omega'] = omega
-            self.pub_sim.publish(self.msg_sim_state)
-
-            # publish imu
-            self.msg_imu.data['time'] = t
-            self.msg_imu.data['gyro'] = omega + w_g
-            self.msg_imu.data['accel'] = self.eqs['sim']['measure_accel'](x).T
-            self.pub_imu.publish(self.msg_imu)
-
-            # publish mag
-            self.msg_mag.data['time'] = t
-            self.msg_mag.data['mag'] = self.eqs['sim']['measure_mag'](x, self.decl.get(), self.incl.get()).T
-            self.pub_mag.publish(self.msg_mag)
-
             yield simpy.Timeout(self.core, self.dt.get())
 
 
@@ -388,11 +436,12 @@ class AttitudeEstimator:
         t = msg.data['time']
         dt = t - self.t_last_imu
         self.t_last_imu = t
-        if dt <= 0:
-            dt = 1.0/200
+        if dt < 0:
+            return
 
         # estimate state
         omega = msg.data['gyro']
+
         start = time.thread_time()
         std_gyro = 1e-2
         sn_gyro_rw = 1e-2
@@ -442,13 +491,15 @@ def mc_sim(tf, n=1):
         data = [do_sim(0, eqs, tf)]
     else:
         with mp.Pool(mp.cpu_count()) as pool:
-            data = np.array(pool.map(do_sim, range(100), eqs, tf))
+            data = np.array(pool.map(
+                lambda name, eqs=eqs, tf=tf: do_sim(name, eqs, tf), range(100)))
     return data
 
 
 def plot(data):
 
-    import os
+    plt.close('all')
+
     if not os.path.exists('fig'):
         os.mkdir('fig')
 
@@ -505,9 +556,9 @@ def plot(data):
     def compare_rot_error(q1, q2):
         r = []
         for q1i, q2i in zip(q1, q2):
-            R1 = rot.Dcm.from_quat(rot.Quat(q1i))
-            R2 = rot.Dcm.from_quat(rot.Quat(q2i))
-            dR = rot.SO3(R1.T*R2)
+            q1i = rot.Quat(q1i)
+            q2i = rot.Quat(q2i)
+            dR = rot.SO3(rot.Dcm.from_quat(q1i.inv()*q2i))
             ri = np.linalg.norm(ca.DM(rot.SO3.log(dR)))
             r.append(ri)
         r = np.rad2deg(np.array(r))
@@ -526,6 +577,15 @@ def plot(data):
     plt.savefig('fig/angular_velocity.png')
 
     plt.figure()
+    plt.title('q')
+    plt.xlabel('time, sec')
+    plt.ylabel('q')
+    plt.grid()
+    compare_topics(['sim_state', 'est1_state', 'est2_state', 'est3_state'],
+                   lambda data, topic: data[topic]['q'])
+    plt.savefig('fig/q.png')
+
+    plt.figure()
     plt.title('bias')
     plt.xlabel('time, sec')
     plt.ylabel('bias, deg/sec')
@@ -535,7 +595,7 @@ def plot(data):
     plt.savefig('fig/bias.png')
 
     plt.figure()
-    plt.title('fig/state uncertainty')
+    plt.title('state uncertainty')
     plt.xlabel('time, sec')
     plt.ylabel('std. deviation')
     plt.grid()
@@ -561,9 +621,20 @@ def plot(data):
         plt.plot(d['time'], d['imu']['accel'])
     plt.savefig('fig/accel.png')
 
+    plt.figure()
+    plt.title('gyro')
+    plt.xlabel('time, sec')
+    plt.ylabel('gyro, rad/s')
+    plt.grid()
+    for d in data:
+        plt.plot(d['time'], d['imu']['gyro'])
+    plt.savefig('fig/gyro.png')
+
+
 def test_sim():
-    data = mc_sim(tf=10, n=1)
+    data = mc_sim(tf=100, n=1)
     plot(data)
+    return data
 
 if __name__ == "__main__":
-    test_sim()
+    data = test_sim()
