@@ -4,7 +4,17 @@ import pyecca2.rotation as rot
 import pyecca2.util as util
 
 
+"""
+This module derives various attitude estimators using casadi.
+"""
+
+
 def derivation():
+    """
+    This function derives various attitude estimators. The common problem parameters are at the
+    top and these variables can be shared, but each estimator has it's own scope.
+    :return: dict of various derivations
+    """
     # misc variables
     omega_t = ca.SX.sym('omega_t', 3, 1)  # angular velocity in body frame, true
     omega_m = ca.SX.sym('omega_m', 3, 1)  # angular velocity in body frame, measured
@@ -35,6 +45,11 @@ def derivation():
     e3 = ca.SX([0, 0, 1])
 
     def sim_derivation():
+        """
+        The equations required for simulation.
+        :return: dict of equations
+        """
+
         # x, state (7)
         # -----------
         # r, mrp (3)
@@ -96,8 +111,11 @@ def derivation():
         }
 
     def mrp_derivation():
-        # mrp, RIEKF
-        # right invariant kalman filter with modified rodrigues parameters
+        """
+        A right invariant extended kalman filter parameterized with
+        modified rodrigues parameters
+        :return: dict of equations
+        """
 
         # x, state (7)
         # -----------
@@ -156,6 +174,7 @@ def derivation():
         B_n = mag_str * ca.mtimes(C_nm, ca.SX([1, 0, 0]))
         yh_mag = ca.mtimes(C_nb.T, B_n)
         y_mag = ca.SX.sym('y_mag', 3, 1)
+        H = ca.jacobian(yh_mag, x)
         correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.5 * W])
 
         # accel correction
@@ -176,7 +195,10 @@ def derivation():
         }
 
     def quat_derivation():
-        # right invariant kalman filter with quaternions
+        """
+        right invariant kalman filter with quaternions
+        :return: dict of equations
+        """
 
         # x, state (7)
         # -----------
@@ -247,7 +269,10 @@ def derivation():
         }
 
     def mekf_derivation():
-        # multiplicative kalman filter with quaternions
+        """
+        multiplicative kalman filter with quaternions
+        :return: dict of equations
+        """
 
         # x, state (7)
         # -----------

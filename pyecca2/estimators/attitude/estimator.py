@@ -7,6 +7,9 @@ import pyecca2.uros as uros
 
 
 class AttitudeEstimator:
+    """
+    An attitude estimator node for uros
+    """
 
     def __init__(self, core, name, eqs):
         self.core = core

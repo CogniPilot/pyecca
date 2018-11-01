@@ -97,7 +97,7 @@ class Simulator:
                 self.msg_imu.data['accel'] = y_accel
                 self.pub_imu.publish(self.msg_imu)
 
-                if i % 20 == 0:
+                if i % 200 == 0:
                     # publish mag
                     self.msg_mag.data['time'] = t
                     self.msg_mag.data['mag'] = y_mag
