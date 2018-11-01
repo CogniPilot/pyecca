@@ -5,8 +5,13 @@ import multiprocessing as mp
 
 import simpy
 import numpy as np
+import matplotlib
+matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 import casadi as ca
+
+
+
 
 try:
     p = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
@@ -160,6 +165,9 @@ def derivation():
             [ca.tril(util.sqrt_covariance_predict(W, F, Q))])
         W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega_m, dt), t, W, dt)
 
+        # correction
+
+        
         # initial state
         x0 = ca.DM.zeros(7)
         W0 = 1e-3*np.eye(n_e)
@@ -625,6 +633,8 @@ def plot(data):
         plt.plot(d['time'], d['imu']['gyro'])
     plt.grid(True)
     plt.savefig('fig/gyro.png')
+
+    plt.close('all')
 
 
 def test_sim():
