@@ -1,7 +1,9 @@
-import simpy
-import pyecca2.msgs as msgs
-import numpy as np
 import copy
+
+import numpy as np
+import simpy
+
+import pyecca2.msgs as msgs
 
 
 class Core(simpy.Environment):
@@ -92,7 +94,7 @@ class Logger:
 
     def __init__(self, core):
         self.core = core
-        self.dt = Param(core, 'logger/dt', 1.0/10, 'f4')
+        self.dt = Param(core, 'logger/dt', 1.0 / 10, 'f4')
         self.data_latest = None
         self.data_list = []
         simpy.Process(core, self.run())
@@ -120,4 +122,3 @@ class Logger:
 
     def get_log_as_array(self):
         return np.array(self.data_list, dtype=self.data_latest.dtype)
-

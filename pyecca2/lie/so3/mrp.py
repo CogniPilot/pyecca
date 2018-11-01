@@ -1,5 +1,5 @@
 import casadi as ca
-from  .. import so3
+from pyecca2.lie import so3
 from . import quat
 
 
