@@ -36,7 +36,7 @@ class Simulator:
 
         # misc
         self.enable_noise = True
-        self.param_list = [self.std_accel, self.std_gyro, self.sn_gyro_rw, \
+        self.param_list = [self.std_accel, self.std_gyro, self.sn_gyro_rw,
                            self.dt, self.mag_decl, self.mag_incl, self.mag_str, self.g]
         self.eqs = eqs
         np.random.seed()

@@ -218,7 +218,7 @@ with the python package.
 These both work as expected when using modern setuptools. When using
 setuptools-18.5 or earlier, however, certain operations will cause
 `pkg_resources.DistributionNotFound` errors when running the entrypoint
-script, which must be resolved by re-installing the package. This happens
+scripts, which must be resolved by re-installing the package. This happens
 when the install happens with one version, then the egg_info data is
 regenerated while a different version is checked out. Many setup.py commands
 cause egg_info to be rebuilt (including `sdist`, `wheel`, and installing into
@@ -256,7 +256,7 @@ To upgrade your project to a new release of Versioneer, do the following:
 
 This tool is designed to make it easily extended to other version-control
 systems: all VCS-specific components are in separate directories like
-src/git/ . The top-level `versioneer.py` script is assembled from these
+src/git/ . The top-level `versioneer.py` scripts is assembled from these
 components by running make-versioneer.py . In the future, make-versioneer.py
 will take a VCS name as an argument, and will construct a version of
 `versioneer.py` that is specific to the given VCS. It might also take the

@@ -28,8 +28,7 @@ label_map = {
 def plot(data, fig_dir):
     plt.close('all')
 
-    if not os.path.exists(fig_dir):
-        os.mkdir(fig_dir)
+    os.makedirs(fig_dir, exist_ok=True)
 
     def compare_topics(topics, get_data, *args, **kwargs):
         h = {}
@@ -111,5 +110,3 @@ def plot(data, fig_dir):
     for d in data:
         plt.plot(d['time'], d['imu']['gyro'])
     plot_handling('gyro', 'time, sec', 'gyro, rad/s', 'gyro.png')
-
-    plt.show()
