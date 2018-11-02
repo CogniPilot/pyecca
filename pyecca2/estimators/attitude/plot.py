@@ -3,17 +3,19 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-import casadi as ca
-
 from .derivation import derivation
 
 eqs = derivation()
 
+plt.rcParams['lines.linewidth'] = 2
+plt.rcParams['lines.markersize'] = 7
+plt.rcParams['lines.markeredgewidth'] = 1
+
 est_style = {
-    'true': {'color': 'k', 'linewidth': 2, 'linestyle': '-', 'alpha': 0.5},
-    'mrp': {'color': 'b', 'linewidth': 2, 'linestyle': '-.', 'alpha': 0.5},
-    'quat': {'color': 'g', 'linewidth': 2, 'linestyle': ':', 'alpha': 0.5},
-    'mekf': {'color': 'r', 'linewidth': 2, 'linestyle': '--', 'alpha': 0.5},
+    'true': {'color': 'k', 'linestyle': '-', 'marker': 'x', 'markevery': 1, 'alpha': 0.5},
+    'mrp': {'color': 'b', 'linestyle': '-', 'marker': 'o', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
+    'quat': {'color': 'g', 'linestyle': '-', 'marker': '+', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
+    'mekf': {'color': 'r', 'linestyle': '-', 'marker': 's', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
 }
 
 label_map = {
@@ -83,6 +85,22 @@ def plot(data, fig_dir):
     compare_topics(est_state_topics,
                    lambda data, topic: compare_rot_error(data[topic]['q'], data['sim_state']['q']))
     plot_handling('rotation error', 'time, sec', 'error, deg', 'rotation_error.png')
+
+
+    plt.figure()
+
+    def compare_rot_error_norm(q1, q2):
+        r = []
+        for q1i, q2i in zip(q1, q2):
+            ri = np.linalg.norm(eqs['sim']['rotation_error'](q1i, q2i)[0, :])
+            r.append(ri)
+        r = np.rad2deg(np.array(r))
+        return r
+
+    compare_topics(est_state_topics,
+                   lambda data, topic: compare_rot_error_norm(data[topic]['q'], data['sim_state']['q']))
+    plot_handling('rotation error norm', 'time, sec', 'error, deg', 'rotation_error_norm.png')
+
 
     plt.figure()
     for d in data:

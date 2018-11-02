@@ -228,7 +228,7 @@ def derivation():
         n_q1 = ca.norm_2(x1[:4])
 
         # normalize quaternion
-        x1[0:4] = ca.if_else(ca.fabs(n_q1 - 1) > 1e-6, x1[:4] / n_q1, x1[:4])
+        x1[0:4] = ca.if_else(ca.fabs(n_q1 - 1) > 2e-7, x1[:4] / n_q1, x1[:4])
 
         # e, error state (6)
         # ----------------
@@ -302,7 +302,7 @@ def derivation():
 
         # normalize quaternion
         n_q1 = ca.norm_2(x1[:4])
-        x1[0:4] = ca.if_else(ca.fabs(n_q1 - 1) > 1e-6, x1[:4] / n_q1, x1[:4])
+        x1[0:4] = ca.if_else(ca.fabs(n_q1 - 1) > 2e-7, x1[:4] / n_q1, x1[:4])
 
         # e, error state (6)
         # ----------------
