@@ -34,7 +34,7 @@ def log(R):
     return so3.vee(C3(theta) * (R - R.T))
 
 
-def derivative(R, w):
+def kinematics(R, w):
     assert R.shape == (3, 3)
     assert w.shape == (3, 1)
     return ca.mtimes(R, so3.wedge(w))
@@ -69,8 +69,9 @@ def from_quat(q):
     return R
 
 
-def from_mrp(a):
-    assert a.shape == (3, 1)
+def from_mrp(r):
+    assert r.shape == (4, 1)
+    a = r[:3]
     X = so3.wedge(a)
     n_sq = ca.dot(a, a)
     X_sq = ca.mtimes(X, X)

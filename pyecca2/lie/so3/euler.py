@@ -3,7 +3,7 @@ from . import quat
 
 
 def from_quat(q):
-    assert q.shape == (4, 1)
+    assert q.shape == (4, 1) or q.shape == (4,)
     e = ca.SX(3, 1)
     a = q[0]
     b = q[1]
@@ -21,5 +21,5 @@ def from_dcm(R):
 
 
 def from_mrp(a):
-    assert a.shape == (3, 1)
+    assert a.shape == (4, 1) or a.shape == (4,)
     return from_quat(quat.from_mrp(a))

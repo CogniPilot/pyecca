@@ -1,11 +1,9 @@
 import casadi as ca
 
-SHAPE = (4, 1)
-
 
 def product(a, b):
-    assert a.shape == SHAPE
-    assert b.shape == SHAPE
+    assert a.shape == (4, 1) or a.shape == (4,)
+    assert b.shape == (4, 1) or b.shape == (4,)
     r1 = a[0]
     v1 = a[1:]
     r2 = b[0]
@@ -17,49 +15,69 @@ def product(a, b):
 
 
 def inv(q):
-    assert q.shape == SHAPE
+    assert q.shape == (4, 1) or q.shape == (4,)
     qi = ca.SX(4, 1)
     n = ca.norm_2(q)
     qi[0] = q[0]/n
     qi[1] = -q[1]/n
     qi[2] = -q[2]/n
     qi[3] = -q[3]/n
-    return qi
+    return ca.if_else(n > 0, qi, ca.DM([1, 0, 0, 0]))
 
 
 def exp(v):
-    assert v.shape == (3, 1)
+    assert v.shape == (3, 1) or q.shape == (3,)
     q = ca.SX(4, 1)
     theta = ca.norm_2(v)
     q[0] = ca.cos(theta/2)
     c = ca.sin(theta/2)
-    v_norm = ca.norm_2(v)
-    q[1] = c*v[0]/v_norm
-    q[2] = c*v[1]/v_norm
-    q[3] = c*v[2]/v_norm
-    return q
+    n = ca.norm_2(v)
+    q[1] = c*v[0]/n
+    q[2] = c*v[1]/n
+    q[3] = c*v[2]/n
+    return ca.if_else(n > 0, q, ca.DM([1, 0, 0, 0]))
 
 
 def log(q):
-    assert q.shape == SHAPE
+    assert q.shape == (4, 1) or q.shape == (4,)
     v = ca.SX(3, 1)
+    norm_q = ca.norm_2(q)
     theta = 2*ca.acos(q[0])
     c = ca.sin(theta/2)
     v[0] = theta*q[1]/c
     v[1] = theta*q[2]/c
     v[2] = theta*q[3]/c
-    return v
+    return ca.if_else(ca.logic_or(ca.fabs(q[0]) >= 1, norm_q == 0), ca.SX([0, 0, 0]), v)
 
 
-def from_mrp(a):
-    assert a.shape == (3, 1)
+def kinematics(q, w):
+    """
+    The kinematic equation relating the time derivative of quat given the current quat and the angular velocity
+    in the body frame.
+    :param w: The angular velocity in the body frame.
+    :return: The time derivative of the quat.
+    """
+    assert q.shape == (4, 1) or q.shape == (4,)
+    assert w.shape == (3, 1) or w.shape == (3,)
+    v = ca.SX(4, 1)
+    v[0] = 0
+    v[1] = w[0]
+    v[2] = w[1]
+    v[3] = w[2]
+    return 0.5 * product(q, v)
+
+
+def from_mrp(r):
+    assert r.shape == (4, 1) or r.shape == (4,)
+    a = r[:3]
     q = ca.SX(4, 1)
     n_sq = ca.dot(a, a)
     den = 1 + n_sq
     q[0] = (1 - n_sq)/den
     for i in range(3):
         q[i + 1] = 2*a[i]/den
-    return q
+    res = ca.if_else(den > 0, q, ca.SX([1, 0, 0, 0]))
+    return ca.if_else(r[3], -res, res)
 
 
 def from_dcm(R):
@@ -102,7 +120,7 @@ def from_dcm(R):
 
 
 def from_euler(e):
-    assert e.shape == (3, 1)
+    assert e.shape == (3, 1) or e.shape == (3,)
     q = ca.SX(4, 1)
     cosPhi_2 = ca.cos(e[0]/2)
     cosTheta_2 = ca.cos(e[1]/2)

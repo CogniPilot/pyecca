@@ -5,7 +5,9 @@ import numpy as np
 
 import casadi as ca
 
-import pyecca2.rotation as rot
+from .derivation import derivation
+
+eqs = derivation()
 
 est_style = {
     'true': {'color': 'k', 'linewidth': 2, 'linestyle': '-', 'alpha': 0.5},
@@ -73,11 +75,7 @@ def plot(data, fig_dir):
     def compare_rot_error(q1, q2):
         r = []
         for q1i, q2i in zip(q1, q2):
-            q1i = rot.Quat(q1i)
-            q2i = rot.Quat(q2i)
-            dq = q1i.inv()*q2i
-            dR = rot.SO3(rot.Dcm.from_quat(q1i.inv() * q2i))
-            ri = np.linalg.norm(ca.DM(rot.SO3.log(dR)))
+            ri = eqs['sim']['rotation_error'](q1i, q2i)[0, :]
             r.append(ri)
         r = np.rad2deg(np.array(r))
         return r
@@ -97,7 +95,7 @@ def plot(data, fig_dir):
     plot_handling('quaternion', 'time, sec', 'quaternion component', 'quaternion.png')
 
     plt.figure()
-    compare_topics(est_state_topics,
+    compare_topics(['sim_state'] +  est_state_topics,
                    lambda data, topic: 3600 * np.rad2deg(data[topic]['b']))
     plot_handling('bias', 'time, sec', 'bias, deg/hr', 'bias.png')
 

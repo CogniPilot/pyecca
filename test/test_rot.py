@@ -7,6 +7,7 @@ eps = 1e-10
 
 def test_so3():
 
+    r = ca.DM([0.1, 0.2, 0.3, 0])
     v = ca.DM([0.1, 0.2, 0.3])
     q1 = ca.DM([1, 0, 0, 0])
     R = ca.SX.eye(3)
@@ -21,9 +22,9 @@ def test_so3():
     assert ca.norm_2(quat.from_mrp(mrp.from_quat(q1)) - q1) < eps
     assert ca.norm_2(quat.from_euler(euler.from_quat(q1)) - q1) < eps
 
-    assert ca.norm_2(mrp.from_dcm(dcm.from_mrp(v)) - v) < eps
-    assert ca.norm_2(mrp.from_quat(quat.from_mrp(v)) - v) < eps
-    assert ca.norm_2(mrp.from_euler(euler.from_mrp(v)) - v) < eps
+    assert ca.norm_2(mrp.from_dcm(dcm.from_mrp(r)) - r) < eps
+    assert ca.norm_2(mrp.from_quat(quat.from_mrp(r)) - r) < eps
+    assert ca.norm_2(mrp.from_euler(euler.from_mrp(r)) - r) < eps
 
     assert ca.norm_fro(dcm.from_quat(quat.from_dcm(R)) - R) < eps
     assert ca.norm_fro(dcm.from_mrp(mrp.from_dcm(R)) - R) < eps
@@ -40,14 +41,3 @@ def test_r3():
         print(m1.exp(v), m2.exp(v))
 
     f(so3.quat, r3)
-
-
-class DirectProduct(ca.SX):
-
-    def __init__(self, groups):
-        self.groups = groups
-
-    def product(self, a, b):
-        n = 0
-        for g in self.group:
-            g.product(a[n:g.n], b[n:g.n])
