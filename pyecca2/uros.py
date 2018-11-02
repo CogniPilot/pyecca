@@ -17,6 +17,9 @@ class Core(simpy.Environment):
         self.pub_sub_locked = False
         self.pub_params = Publisher(self, 'params', msgs.Params)
 
+    def init_params(self):
+        self._params = msgs.Params(self)
+
     def get_param(self, name):
         return self._params.data[name]
 
@@ -30,7 +33,8 @@ class Core(simpy.Environment):
         self._declared_params[param.name] = param
 
     def run(self, *args, **kwargs):
-        self._params = msgs.Params(self)
+        if self._params is None:
+            self.init_params()
         self.pub_params.publish(self._params)
         super().run(*args, **kwargs)
 
@@ -94,7 +98,7 @@ class Logger:
 
     def __init__(self, core):
         self.core = core
-        self.dt = Param(core, 'logger/dt', 1.0 / 10, 'f4')
+        self.dt = Param(core, 'logger/dt', 1.0 / 200, 'f8')
         self.data_latest = None
         self.data_list = []
         simpy.Process(core, self.run())

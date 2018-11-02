@@ -175,11 +175,11 @@ def derivation():
         yh_mag = ca.mtimes(C_nb.T, B_n)
         y_mag = ca.SX.sym('y_mag', 3, 1)
         H = ca.jacobian(yh_mag, x)
-        correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.5 * W])
+        correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.9 * W])
 
         # accel correction
         y_accel = ca.SX.sym('y_accel', 3, 1)
-        correct_accel = ca.Function('correct_accel', [x, W, y_accel], [x, 0.1 * W])
+        correct_accel = ca.Function('correct_accel', [x, W, y_accel], [x, 0.9 * W])
 
         # constants
         x0 = ca.DM.zeros(7)
@@ -249,11 +249,11 @@ def derivation():
 
         # mag correction
         y_mag = ca.SX.sym('y_mag', 3, 1)
-        correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.5 * W])
+        correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.9 * W])
 
         # accel correction
         y_accel = ca.SX.sym('y_accel', 3, 1)
-        correct_accel = ca.Function('correct_accel', [x, W, y_accel], [x, 0.5 * W])
+        correct_accel = ca.Function('correct_accel', [x, W, y_accel], [x, 0.9 * W])
 
         # constants
         x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
@@ -328,11 +328,11 @@ def derivation():
 
         # mag correction
         y_mag = ca.SX.sym('y_mag', 3, 1)
-        correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.5 * W])
+        correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.9 * W])
 
         # accel correction
         y_accel = ca.SX.sym('y_accel', 3, 1)
-        correct_accel = ca.Function('correct_accel', [x, W, y_accel], [x, 0.5 * W])
+        correct_accel = ca.Function('correct_accel', [x, W, y_accel], [x, 0.9 * W])
 
         # initial state
         x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])

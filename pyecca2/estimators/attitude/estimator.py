@@ -57,7 +57,7 @@ class AttitudeEstimator:
         sn_gyro_rw = 1e-2
 
         if dt > 0:
-            self.x, self.W = self.eqs['predict'](t, self.x, self.W, omega, std_gyro, sn_gyro_rw, dt)
+            self.x, self.W = self.eqs['predict'](0*t, self.x, self.W, omega, 0*std_gyro, 0*sn_gyro_rw, dt)
         q, b_g = self.eqs['get_state'](self.x)
         end = time.thread_time()
         elapsed = end - start

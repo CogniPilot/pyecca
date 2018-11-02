@@ -15,10 +15,20 @@ def launch_sim(params):
     core = uros.Core()
     Simulator(core, eqs)
 
-    for name, eqs in [('est1', eqs['mekf']), ('est2', eqs['quat']), ('est3', eqs['mrp'])]:
+    estimators = [
+        ('est1', eqs['mekf']),
+        ('est2', eqs['quat']),
+        ('est3', eqs['mrp'])
+    ]
+
+    for name, eqs in estimators:
         AttitudeEstimator(core, name, eqs)
 
     logger = uros.Logger(core)
+
+    core.init_params()
+    core.set_param('logger/dt', 1.0/200)
+    core.set_param('sim/enable_noise', True)
 
     core.run(until=tf)
     print(sim_name, 'done')
@@ -29,7 +39,7 @@ def launch_monte_carlo_sim(params):
     tf = params['tf']
     n = params['n']
     if params['n'] == 1:
-        data = [launch_sim(0, tf)]
+        data = [launch_sim({'name': 0, 'tf': tf})]
     else:
         new_params = []
         for i in range(n):

@@ -31,15 +31,19 @@ def plot(data, fig_dir):
     os.makedirs(fig_dir, exist_ok=True)
 
     def compare_topics(topics, get_data, *args, **kwargs):
-        h = {}
+        handles = []
+        labels = []
         for d in data:
             for topic in topics:
                 label = label_map[topic]
-                h[topic] = plt.plot(d['time'], get_data(d, topic),
-                                    *args, **est_style[label], **kwargs)
+                try:
+                    handles.append(plt.plot(d['time'], get_data(d, topic),
+                                        *args, **est_style[label], **kwargs)[0])
+                    labels.append(label)
+                except ValueError as e:
+                    print(e)
         plt.legend(
-            [v[0] for k, v in h.items()], [label_map[topic] for topic in topics],
-            loc='best')
+            handles, labels, loc='best')
 
     def plot_handling(title, xlabel, ylabel, file_name):
         plt.title(title)
@@ -49,13 +53,16 @@ def plot(data, fig_dir):
         plt.tight_layout()
         plt.savefig(os.path.join(fig_dir, file_name))
 
+    est_state_topics = ['est1_state', 'est2_state', 'est3_state']
+    est_status_topics = ['est1_status', 'est2_status', 'est3_status']
+
     plt.figure()
-    compare_topics(['est1_state', 'est2_state', 'est3_state'],
+    compare_topics(est_state_topics,
                    lambda data, topic: np.linalg.norm(data[topic]['q'], axis=1) - 1)
     plot_handling('quaternion normal error', 'time, sec', 'normal error', 'quat_normal.png')
 
     plt.figure()
-    compare_topics(['est1_status', 'est2_status', 'est3_status'],
+    compare_topics(est_status_topics,
                    lambda data, topic: 1e6 * data[topic]['elapsed'])
     plot_handling('cpu time', 'time, sec', 'cpu time, usec', 'cpu_time.png')
 
@@ -66,13 +73,14 @@ def plot(data, fig_dir):
         for q1i, q2i in zip(q1, q2):
             q1i = rot.Quat(q1i)
             q2i = rot.Quat(q2i)
+            dq = q1i.inv()*q2i
             dR = rot.SO3(rot.Dcm.from_quat(q1i.inv() * q2i))
             ri = np.linalg.norm(ca.DM(rot.SO3.log(dR)))
             r.append(ri)
         r = np.rad2deg(np.array(r))
         return r
 
-    compare_topics(['est1_state', 'est2_state', 'est3_state'],
+    compare_topics(est_state_topics,
                    lambda data, topic: compare_rot_error(data[topic]['q'], data['sim_state']['q']))
     plot_handling('rotation error', 'time, sec', 'error, deg', 'rotation_error.png')
 
@@ -82,17 +90,17 @@ def plot(data, fig_dir):
     plot_handling('angular velocity', 'time, sec', 'angular velocity, deg/s', 'angular_velocity.png')
 
     plt.figure()
-    compare_topics(['sim_state', 'est1_state', 'est2_state', 'est3_state'],
+    compare_topics(['sim_state'] + est_state_topics,
                    lambda data, topic: data[topic]['q'])
     plot_handling('quaternion', 'time, sec', 'quaternion component', 'quaternion.png')
 
     plt.figure()
-    compare_topics(['sim_state', 'est1_state', 'est2_state', 'est3_state'],
+    compare_topics(est_state_topics,
                    lambda data, topic: 3600 * np.rad2deg(data[topic]['b']))
     plot_handling('bias', 'time, sec', 'bias, deg/hr', 'bias.png')
 
     plt.figure()
-    compare_topics(['est1_status', 'est2_status', 'est3_status'],
+    compare_topics(est_status_topics,
                    lambda data, topic: data[topic]['W'][:, :3])
     plot_handling('estimation uncertainty', 'time, sec', 'std. dev.', 'est_uncertainty.png')
 

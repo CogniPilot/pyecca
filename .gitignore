@@ -2,5 +2,6 @@
 *.pyc
 *egg-info/
 fig/
+test/results
 __pycache__/
 
