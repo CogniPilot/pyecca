@@ -60,6 +60,7 @@ class EstimatorStatus():
         ('r_accel', float_type),  # accelerometer residual
         ('r_std_accel', float_type),  # accelerometer residual standard deviation
         ('beta_accel', float_type),  # accelerometer fault detection
+        ('accel_ret', 'i8'),  # accelerometer return code
     ]
 
     def __init__(self):
