@@ -22,7 +22,7 @@ def test_sim():
             'sim/dt_sim': 1.0/400,
             'sim/dt_mag': 1.0/2,
             'logger/dt': tf/30,
-            'sim/enable_noise': False
+            'sim/enable_noise': True
         }
     })
 

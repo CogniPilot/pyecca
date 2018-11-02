@@ -3,7 +3,8 @@ import casadi as ca
 
 class R3:
 
-    SHAPE = (3, 1)
+    group_params = 3
+    algebra_params = 3
 
     def __init__(self):
         raise RuntimeError('this class is just for scoping, do not instantiate')
@@ -14,22 +15,22 @@ class R3:
 
     @classmethod
     def product(cls, a, b):
-        assert a.shape == cls.SHAPE
-        assert b.shape == cls.SHAPE
+        assert a.shape[0] == cls.group_params
+        assert b.shape[0] == cls.group_params
         return a + b
 
     @classmethod
     def inv(cls, a):
-        assert a.shape == cls.SHAPE
+        assert a.shape[0] == cls.group_params
         return -a
 
     @classmethod
     def exp(cls, v):
-        assert v.shape == cls.SHAPE
+        assert v.shape[0] == cls.algebra_params
         return v
 
     @classmethod
-    def log(cls, v):
-        assert v.shape == cls.SHAPE
-        return v
+    def log(cls, a):
+        assert a.shape[0] == cls.group_params
+        return a
 

@@ -20,12 +20,7 @@ def wedge(v):
     return X
 
 
-ALGEBRA_DIM = 3
 eps = 1e-8  # tolerance for avoiding divide by 0
-
-
-def check_algebra_vector(a):
-    assert a.shape == (ALGEBRA_DIM, 1) or a.shape == (ALGEBRA_DIM,)
 
 
 class Dcm:
@@ -37,6 +32,8 @@ class Dcm:
     del x
 
     group_shape = (3, 3)
+    group_params = 9
+    algebra_params = 3
 
     def __init__(self):
         raise RuntimeError('this class is just for scoping, do not instantiate')
@@ -119,7 +116,10 @@ class Dcm:
 
 
 class Mrp:
-    SHAPE = (4, 1)
+
+    group_shape = (4, 1)
+    group_params = 4
+    algebra_params = 3
 
     def __init__(self):
         raise RuntimeError('this class is just for scoping, do not instantiate')
@@ -204,7 +204,9 @@ class Mrp:
 
 class Quat:
 
-    SHAPE = (4, 1)
+    group_shape = (4, 1)
+    group_params = 4
+    algebra_params = 3
 
     def __init__(self):
         raise RuntimeError('this class is just for scoping, do not instantiate')
@@ -349,7 +351,9 @@ class Quat:
 
 
 class Euler:
-    SHAPE = (3, 1)
+
+    group_params = 3
+    algebra_params = 3
 
     @classmethod
     def from_quat(cls, q):

@@ -53,9 +53,13 @@ class EstimatorStatus():
         ('n_x', 'i4'),  # number of states
         ('x', float_type, n_max),  # states array
         ('W', float_type, n_max),  # W matrix diagonal (sqrt(P))
+        ('r_mag', float_type),  # magnetometer residual
+        ('r_std_mag', float_type),  # magnetometer residual standard deviation
         ('beta_mag', float_type),  # magnetometer fault detection
+        ('mag_ret', 'i8'),  # mag return code
+        ('r_accel', float_type),  # accelerometer residual
+        ('r_std_accel', float_type),  # accelerometer residual standard deviation
         ('beta_accel', float_type),  # accelerometer fault detection
-        ('beta_gyro', float_type),  # gyroscope fault detection
     ]
 
     def __init__(self):

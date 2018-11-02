@@ -40,7 +40,14 @@ class AttitudeEstimator:
 
     def mag_callback(self, msg):
         y = np.array([1, 2, 3])
-        self.x, self.W = self.eqs['correct_mag'](self.x, self.W, y)
+        #[x, W, y_b, decl, std_mag, beta_mag_c],
+
+        self.x, self.W, beta_mag, r_mag, r_std_mag, mag_ret = self.eqs['correct_mag'](
+            self.x, self.W, y, 0, 0.1, 0.1)
+        self.msg_est_status.data['beta_mag'] = beta_mag
+        self.msg_est_status.data['r_mag'] = r_mag
+        self.msg_est_status.data['r_std_mag'] = r_std_mag
+
 
     def imu_callback(self, msg):
 
@@ -62,7 +69,10 @@ class AttitudeEstimator:
         end = time.thread_time()
         elapsed = end - start
 
-        # correct
+        # correct accel
+        self.x, self.W, beta_accel, r_accel, r_std_mag, accel_ret = self.eqs['correct_accel'](
+            self.x, self.W, msg.data['accel'], 0.1, 0.1, 0.1, 0.1)
+        self.msg_est_status.data['beta_accel'] = beta_accel
 
         # publish vehicle state
         self.msg_state.data['time'] = t

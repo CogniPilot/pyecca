@@ -25,11 +25,16 @@ def derivation():
     std_gyro = ca.SX.sym('std_gyro')
     std_accel = ca.SX.sym('std_accel')
     sn_gyro_rw = ca.SX.sym('sn_gyro_rw')
+    std_accel = ca.SX.sym('std_accel')
+    std_accel_omega = ca.SX.sym('std_accel_omega')
 
     # constants
     mag_decl = ca.SX.sym('mag_decl')
     mag_incl = ca.SX.sym('mag_incl')  # only useful for sim, neglected in correction
     mag_str = ca.SX.sym('mag_str')  # mag field strength
+    beta_mag_c = ca.SX.sym('beta_mag_c')  # normalizes beta mag so that 1 represents exceeding thresh
+    beta_accel_c = ca.SX.sym('beta_accel_c')  # normalizes beta mag so that 1 represents exceeding thresh
+
     g = ca.SX.sym('g')
 
     # noise, mean zero, variance 1
@@ -130,7 +135,7 @@ def derivation():
         # mrp (4)  (3 parameters and 1 shadow state)
         # b, gyro bias (3)
         G = DirectProduct([Mrp, R3])
-        x = ca.SX.sym('x', *G.group_shape)
+        x = ca.SX.sym('x', G.group_params)
         r = G.subgroup(x, 0)
         b_gyro = G.subgroup(x, 1)
 
@@ -178,16 +183,33 @@ def derivation():
         C_nb = Dcm.from_mrp(r)
 
         # mag correction
-        C_nm = Dcm.product(Dcm.exp(mag_decl * e3), Dcm.exp(-mag_incl * e2))
-        B_n = mag_str * ca.mtimes(C_nm, ca.SX([1, 0, 0]))
-        yh_mag = ca.mtimes(C_nb.T, B_n)
         y_mag = ca.SX.sym('y_mag', 3, 1)
-        H = ca.jacobian(yh_mag, x)
-        correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.9 * W])
+        x_mag = x
+        W_mag = W
+        beta_mag = 1
+        r_mag = 0
+        r_std_mag = 0.1
+        mag_ret = 0
+        correct_mag = ca.Function(
+            'correct_mag',
+            [x, W, y_mag, mag_decl, std_mag, beta_mag_c],
+            [x_mag, W_mag, beta_mag, r_mag, r_std_mag, mag_ret],
+            ['x', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c'],
+            ['x_mag', 'W_mag', 'beta_mag', 'r_mag', 'r_std_mag', 'error_code'])
 
         # accel correction
         y_accel = ca.SX.sym('y_accel', 3, 1)
-        correct_accel = ca.Function('correct_accel', [x, W, y_accel], [x, 0.9 * W])
+        x_accel = x
+        W_accel = W
+        beta_accel = 1
+        r_accel = 0
+        r_std_accel = 0.1
+        accel_ret = 0
+        correct_accel = ca.Function(
+            'correct_accel', [x, W, y_accel, omega_m, std_accel, std_accel_omega, beta_accel_c],
+            [x_accel, W_accel, beta_accel, r_accel, r_std_accel, accel_ret],
+            ['x', 'W', 'y_b', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
+            ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
 
         # constants
         x0 = ca.DM.zeros(7)
@@ -213,7 +235,7 @@ def derivation():
         # q, quaternion (4)
         # b, gyro bias (3)
         G = DirectProduct([Quat, R3])
-        x = ca.SX.sym('x', *G.group_shape)
+        x = ca.SX.sym('x', G.group_params)
         q = G.subgroup(x, 0)
         b_gyro = G.subgroup(x, 1)
         get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
@@ -258,11 +280,32 @@ def derivation():
 
         # mag correction
         y_mag = ca.SX.sym('y_mag', 3, 1)
-        correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.9 * W])
+        x_mag = x
+        W_mag = W
+        beta_mag = 1
+        r_mag = 0
+        r_std_mag = 0
+        mag_ret = 1
+        correct_mag = ca.Function(
+            'correct_mag',
+            [x, W, y_mag, mag_decl, std_mag, beta_mag_c],
+            [x_mag, W_mag, beta_mag, r_mag, r_std_mag, mag_ret],
+            ['x_h', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c'],
+            ['x_mag', 'W_mag', 'beta_mag', 'r_mag', 'r_std_mag', 'error_code'])
 
         # accel correction
         y_accel = ca.SX.sym('y_accel', 3, 1)
-        correct_accel = ca.Function('correct_accel', [x, W, y_accel], [x, 0.9 * W])
+        x_accel = x
+        W_accel = W
+        beta_accel = 1
+        r_accel = 0
+        r_std_accel = 0.1
+        accel_ret = 0
+        correct_accel = ca.Function(
+            'correct_accel', [x, W, y_accel, omega_m, std_accel, std_accel_omega, beta_accel_c],
+            [x_accel, W_accel, beta_accel, r_accel, r_std_accel, accel_ret],
+            ['x', 'W', 'y_b', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
+            ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
 
         # constants
         x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
@@ -337,11 +380,32 @@ def derivation():
 
         # mag correction
         y_mag = ca.SX.sym('y_mag', 3, 1)
-        correct_mag = ca.Function('correct_mag', [x, W, y_mag], [x, 0.9 * W])
+        x_mag = x
+        W_mag = W
+        beta_mag = 1
+        r_mag = 0
+        r_std_mag = 0
+        mag_ret = 1
+        correct_mag = ca.Function(
+            'correct_mag',
+            [x, W, y_mag, mag_decl, std_mag, beta_mag_c],
+            [x_mag, W_mag, beta_mag, r_mag, r_std_mag, mag_ret],
+            ['x_h', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c'],
+            ['x_mag', 'W_mag', 'beta_mag', 'r_mag', 'r_std_mag', 'error_code'])
 
         # accel correction
         y_accel = ca.SX.sym('y_accel', 3, 1)
-        correct_accel = ca.Function('correct_accel', [x, W, y_accel], [x, 0.9 * W])
+        x_accel = x
+        W_accel = W
+        beta_accel = 1
+        r_accel = 0
+        r_std_accel = 0.1
+        accel_ret = 0
+        correct_accel = ca.Function(
+            'correct_accel', [x, W, y_accel, omega_m, std_accel, std_accel_omega, beta_accel_c],
+            [x_accel, W_accel, beta_accel, r_accel, r_std_accel, accel_ret],
+            ['x', 'W', 'y_b', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
+            ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
 
         # initial state
         x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
