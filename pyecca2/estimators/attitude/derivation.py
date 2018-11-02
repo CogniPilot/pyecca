@@ -2,6 +2,8 @@ import casadi as ca
 
 import pyecca2.util as util
 from pyecca2.lie.so3 import Quat, Mrp, Dcm
+from pyecca2.lie.r3 import R3
+from pyecca2.lie.util import DirectProduct
 
 """
 This module derives various attitude estimators using casadi.
@@ -125,12 +127,12 @@ def derivation():
 
         # x, state (7)
         # -----------
-        # r, mrp (3)
-        # s, shadow, mrp shadow state (1)
+        # mrp (4)  (3 parameters and 1 shadow state)
         # b, gyro bias (3)
-        x = ca.SX.sym('x', 7)
-        r = x[0:4]  # last state is shadow state
-        b_gyro = x[4:7]
+        G = DirectProduct([Mrp, R3])
+        x = ca.SX.sym('x', *G.group_shape)
+        r = G.subgroup(x, 0)
+        b_gyro = G.subgroup(x, 1)
 
         # quaternion from mrp
         q = Quat.from_mrp(r)
@@ -210,9 +212,10 @@ def derivation():
         # -----------
         # q, quaternion (4)
         # b, gyro bias (3)
-        x = ca.SX.sym('x', 7)
-        q = x[:4]
-        b_gyro = x[4:7]
+        G = DirectProduct([Quat, R3])
+        x = ca.SX.sym('x', *G.group_shape)
+        q = G.subgroup(x, 0)
+        b_gyro = G.subgroup(x, 1)
         get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
 
         # state derivative

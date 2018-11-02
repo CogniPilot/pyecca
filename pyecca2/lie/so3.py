@@ -21,6 +21,7 @@ def wedge(v):
 
 
 ALGEBRA_DIM = 3
+eps = 1e-8  # tolerance for avoiding divide by 0
 
 
 def check_algebra_vector(a):
@@ -29,12 +30,11 @@ def check_algebra_vector(a):
 
 class Dcm:
 
-    eps = 1e-8 # tolerance for avoiding divide by 0
-
     x = ca.SX.sym('x')
     C1 = ca.Function('a', [x], [ca.if_else(x < eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
     C2 = ca.Function('b', [x], [ca.if_else(x < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
     C3 = ca.Function('d', [x], [ca.if_else(x < eps, 0.5 + x**2/12 + 7*x**4/720, x/(2*ca.sin(x)))])
+    del x
 
     group_shape = (3, 3)
 
@@ -120,7 +120,6 @@ class Dcm:
 
 class Mrp:
     SHAPE = (4, 1)
-    eps = 1e-8  # tolerance for avoiding divide by 0
 
     def __init__(self):
         raise RuntimeError('this class is just for scoping, do not instantiate')
@@ -149,7 +148,7 @@ class Mrp:
         assert v.shape == (3, 1) or v.shape == (3,)
         angle = ca.norm_2(v)
         res = ca.SX(4, 1)
-        res[:3] = ca.if_else(angle < cls.eps, ca.DM([0, 0, 0]), ca.tan(angle / 4) * v / angle)
+        res[:3] = ca.if_else(angle < eps, ca.DM([0, 0, 0]), ca.tan(angle / 4) * v / angle)
         res[3] = 0
         return res
 
@@ -157,14 +156,14 @@ class Mrp:
     def log(cls, r):
         assert r.shape == (4, 1) or r.shape == (4,)
         n = ca.norm_2(r[:3])
-        return ca.if_else(n < cls.eps, ca.DM([0, 0, 0]), 4 * ca.atan(n) * r[:3] / n)
+        return ca.if_else(n < eps, ca.DM([0, 0, 0]), 4 * ca.atan(n) * r[:3] / n)
 
     @classmethod
     def shadow(cls, r):
         assert r.shape == (4, 1) or r.shape == (4,)
         n_sq = ca.dot(r[:3], r[:3])
         res = ca.SX(4, 1)
-        res[:3] = ca.if_else(n_sq > cls.eps, -r[:3] / n_sq, [0, 0, 0])
+        res[:3] = ca.if_else(n_sq > eps, -r[:3] / n_sq, [0, 0, 0])
         res[3] = ca.logic_not(r[3])
         return res
 
