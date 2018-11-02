@@ -1,7 +1,7 @@
 import casadi as ca
 
 import pyecca2.util as util
-from pyecca2.lie.so3 import quat, mrp, dcm
+from pyecca2.lie.so3 import Quat, Mrp, Dcm
 
 """
 This module derives various attitude estimators using casadi.
@@ -57,24 +57,24 @@ def derivation():
         x = ca.SX.sym('x', 7)
         r = x[0:4]  # last state is shadow state
         b_gyro = x[4:7]
-        q = quat.from_mrp(r)
+        q = Quat.from_mrp(r)
         get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
 
         # state derivative
-        xdot = ca.vertcat(mrp.kinematics(r, omega_t), std_gyro_rw * w_gyro_rw)
+        xdot = ca.vertcat(Mrp.kinematics(r, omega_t), std_gyro_rw * w_gyro_rw)
         f_xdot = ca.Function('xdot', [t, x, omega_t, sn_gyro_rw, w_gyro_rw],
                              [xdot], ['t', 'x', 'omega_t', 'sn_gyro_rw', 'w_gyro_rw'], ['xdot'])
 
         # state prop with noise
         x1_sim = util.rk4(lambda t, x: f_xdot(t, x, omega_t, sn_gyro_rw, w_gyro_rw), t, x, dt)
-        x1_sim[:4] = mrp.shadow_if_necessary(x1_sim[:4])
+        x1_sim[:4] = Mrp.shadow_if_necessary(x1_sim[:4])
         simulate = ca.Function('simulate', [t, x, omega_t, sn_gyro_rw,
                                             w_gyro_rw, dt], [x1_sim],
                                ['t', 'x', 'omega_t', 'sn_gyro_rw',
                                 'w_gyro_rw', 'dt'], ['x1'])
 
         # get dcm from mrp
-        C_nb = dcm.from_mrp(r)
+        C_nb = Dcm.from_mrp(r)
 
         # measure gyro
         measure_gyro = ca.Function('measure_gyro', [x, omega_t, std_gyro, w_gyro],
@@ -82,7 +82,7 @@ def derivation():
                                    ['x', 'omega_t', 'std_gyro', 'w_gyro'], ['y'])
 
         # measure_mag
-        C_nm = dcm.product(dcm.exp(mag_decl*e3), dcm.exp(-mag_incl * e2))
+        C_nm = Dcm.product(Dcm.exp(mag_decl*e3), Dcm.exp(-mag_incl * e2))
         B_n = mag_str * ca.mtimes(C_nm, ca.SX([1, 0, 0]))
         measure_mag = ca.Function(
             'measure_mag', [x, mag_str, mag_decl, mag_incl, std_mag, w_mag],
@@ -103,7 +103,7 @@ def derivation():
         # rotation error
         q1 = ca.SX.sym('q1', 4, 1)
         q2 = ca.SX.sym('q2', 4, 1)
-        xi = quat.log(quat.product(quat.inv(q1), q2))
+        xi = Quat.log(Quat.product(Quat.inv(q1), q2))
         rotation_error = ca.Function('rotation_error', [q1, q2], [xi], ['q1', 'q2'], ['xi'])
 
         return {
@@ -133,18 +133,18 @@ def derivation():
         b_gyro = x[4:7]
 
         # quaternion from mrp
-        q = quat.from_mrp(r)
+        q = Quat.from_mrp(r)
         get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
 
         # state derivative
-        xdot = ca.vertcat(mrp.kinematics(r, omega_m - b_gyro), std_gyro_rw * w_gyro_rw)
+        xdot = ca.vertcat(Mrp.kinematics(r, omega_m - b_gyro), std_gyro_rw * w_gyro_rw)
         f_xdot = ca.Function('xdot', [t, x, omega_m, std_gyro, sn_gyro_rw, w_gyro, w_gyro_rw],
                              [xdot], ['t', 'x', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'w_gyro', 'w_gyro_rw'], ['xdot'])
 
         # state prop w/o noise
         x1 = util.rk4(lambda t, x: f_xdot(
             t, x, omega_m, 0, 0, ca.DM.zeros(3), ca.DM.zeros(3)), t, x, dt)
-        x1[:4] = mrp.shadow_if_necessary(x1[:4])
+        x1[:4] = Mrp.shadow_if_necessary(x1[:4])
 
         # e, error state (6)
         # ----------------
@@ -155,7 +155,7 @@ def derivation():
 
         # error dynamics
         f = ca.Function('f', [omega_m, eta, x, w_gyro_rw], [
-            ca.vertcat(-ca.mtimes(dcm.from_mrp(r), eta[3:6]), w_gyro_rw)])
+            ca.vertcat(-ca.mtimes(Dcm.from_mrp(r), eta[3:6]), w_gyro_rw)])
 
         # linearized error dynamics
         F = ca.sparsify(ca.substitute(ca.jacobian(f(omega_m, eta, x, w_gyro_rw), eta), eta, ca.SX.zeros(n_e)))
@@ -173,10 +173,10 @@ def derivation():
                               ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1'])
 
         # get dcm from mrp
-        C_nb = dcm.from_mrp(r)
+        C_nb = Dcm.from_mrp(r)
 
         # mag correction
-        C_nm = dcm.product(dcm.exp(mag_decl * e3), dcm.exp(-mag_incl * e2))
+        C_nm = Dcm.product(Dcm.exp(mag_decl * e3), Dcm.exp(-mag_incl * e2))
         B_n = mag_str * ca.mtimes(C_nm, ca.SX([1, 0, 0]))
         yh_mag = ca.mtimes(C_nb.T, B_n)
         y_mag = ca.SX.sym('y_mag', 3, 1)
@@ -216,7 +216,7 @@ def derivation():
         get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
 
         # state derivative
-        xdot = ca.vertcat(quat.kinematics(q, omega_m - b_gyro + w_gyro), w_gyro_rw)
+        xdot = ca.vertcat(Quat.kinematics(q, omega_m - b_gyro + w_gyro), w_gyro_rw)
         f_xdot = ca.Function('xdot', [t, x, omega_m, w_gyro, w_gyro_rw],
                              [xdot], ['t', 'x', 'omega_m', 'w_gyro', 'w_gyro_rw'], ['xdot'])
 
@@ -236,7 +236,7 @@ def derivation():
 
         # error dynamics
         f = ca.Function('f', [omega_m, eta, x, w_gyro_rw], [
-            ca.vertcat(-ca.mtimes(dcm.from_quat(q), eta[3:6]), w_gyro_rw)])
+            ca.vertcat(-ca.mtimes(Dcm.from_quat(q), eta[3:6]), w_gyro_rw)])
 
         # linearized error dynamics
         F = ca.sparsify(ca.substitute(ca.jacobian(f(omega_m, eta, x, w_gyro_rw), eta), eta, ca.SX.zeros(n_e)))
@@ -290,7 +290,7 @@ def derivation():
         get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
 
         # state derivative
-        xdot = ca.vertcat(quat.kinematics(q, omega_m - b_gyro + w_gyro), w_gyro_rw)
+        xdot = ca.vertcat(Quat.kinematics(q, omega_m - b_gyro + w_gyro), w_gyro_rw)
         f_xdot = ca.Function('xdot', [t, x, omega_m, w_gyro, w_gyro_rw],
                              [xdot], ['t', 'x', 'omega_m', 'w_gyro', 'w_gyro_rw'], ['xdot'])
 
@@ -311,7 +311,7 @@ def derivation():
         eta_b = eta[3:6]
 
         # error dynamics
-        eta_R = dcm.exp(eta_r)
+        eta_R = Dcm.exp(eta_r)
         f = ca.Function('f', [omega_m, eta, x, w_gyro_rw], [
             ca.vertcat(-ca.mtimes(ca.DM.eye(3) - eta_R, omega_m - b_gyro) - ca.mtimes(eta_R, eta_b),
                        w_gyro_rw)])

@@ -1,26 +1,35 @@
 import casadi as ca
 
 
-SHAPE = (3, 1)
+class R3:
 
+    SHAPE = (3, 1)
 
-def product(a, b):
-    assert a.shape == SHAPE
-    assert b.shape == SHAPE
-    return a + b
+    def __init__(self):
+        raise RuntimeError('this class is just for scoping, do not instantiate')
 
+    @classmethod
+    def identity(cls):
+        return ca.DM([0, 0, 0])
 
-def inv(a):
-    assert a.shape == SHAPE
-    return -a
+    @classmethod
+    def product(cls, a, b):
+        assert a.shape == cls.SHAPE
+        assert b.shape == cls.SHAPE
+        return a + b
 
+    @classmethod
+    def inv(cls, a):
+        assert a.shape == cls.SHAPE
+        return -a
 
-def exp(v):
-    assert v.shape == SHAPE
-    return v
+    @classmethod
+    def exp(cls, v):
+        assert v.shape == cls.SHAPE
+        return v
 
-
-def log(v):
-    assert v.shape == SHAPE
-    return v
+    @classmethod
+    def log(cls, v):
+        assert v.shape == cls.SHAPE
+        return v
 
