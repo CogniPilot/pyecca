@@ -1,4 +1,5 @@
 import os
+import pickle
 
 from pyecca2.estimators.attitude.derivation import derivation
 from pyecca2.estimators.attitude.launch import launch_monte_carlo_sim
@@ -12,9 +13,21 @@ def test_derivation():
 
 def test_sim():
     script_dir = os.path.abspath(os.path.dirname(__file__))
-    fig_dir = os.path.join(script_dir, 'results', 'attitude')
-    data = launch_monte_carlo_sim({'n': 1, 'tf': 1})
-    plot(data, fig_dir)
+    results_dir = os.path.join(script_dir, 'results', 'attitude')
+    data = launch_monte_carlo_sim({
+        'n_monte_carlo': 1,
+        'tf': 10,
+        'params': {
+            'sim/dt_mag': 1.0/1,
+            'logger/dt': 1.0/200,
+            'sim/enable_noise': False
+        }
+    })
+
+    with open(os.path.join(results_dir, 'data.pkl'), 'wb') as f:
+        pickle.dump(data, f)
+
+    plot(data, results_dir)
     return data
 
 

@@ -33,13 +33,15 @@ def plot(data, fig_dir):
     def compare_topics(topics, get_data, *args, **kwargs):
         handles = []
         labels = []
-        for d in data:
+        for i, d in enumerate(data):
             for topic in topics:
                 label = label_map[topic]
                 try:
-                    handles.append(plt.plot(d['time'], get_data(d, topic),
-                                        *args, **est_style[label], **kwargs)[0])
-                    labels.append(label)
+                    h = plt.plot(d['time'], get_data(d, topic),
+                                        *args, **est_style[label], **kwargs)[0]
+                    if i == 0:
+                        handles.append(h)
+                        labels.append(label)
                 except ValueError as e:
                     print(e)
         plt.legend(
