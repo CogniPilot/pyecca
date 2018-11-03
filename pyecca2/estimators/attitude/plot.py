@@ -127,6 +127,11 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
     plot_handling('bias', 'time, sec', 'bias, deg/min', 'bias.png')
 
     plt.figure()
+    compare_topics(est_state_topics,
+                   lambda data, topic: np.rad2deg(data[topic]['b'] - data[gt_state]['b']))
+    plot_handling('bias error', 'time, sec', 'bias error, deg/min', 'bias_error.png')
+
+    plt.figure()
     compare_topics(est_status_topics,
                    lambda data, topic: data[topic]['W'][:, :3])
     plot_handling('estimation uncertainty', 'time, sec', 'std. dev.', 'est_uncertainty.png')

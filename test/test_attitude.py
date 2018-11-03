@@ -21,7 +21,7 @@ def test_sim():
         'estimators': ['mrp'],
         'params': {
             'sim/dt_sim': 1.0/400,
-            'sim/dt_mag': 1.0/1,
+            'sim/dt_mag': 1.0/50,
             'logger/dt': tf/100,
             'sim/enable_noise': False
         }

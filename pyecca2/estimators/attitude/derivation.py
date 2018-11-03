@@ -108,7 +108,7 @@ def derivation():
 
         # constants
         def constants():
-            x0 = ca.DM([0, 0, 0.1, 0, 0, 0, 0])
+            x0 = ca.DM([0, 0, 0.1, 0, 0, 0, 0.01])
             return ca.Function('constants', [], [x0], [], ['x0'])
 
         # rotation error
@@ -159,7 +159,7 @@ def derivation():
 
         def constants():
             x0 = ca.DM.zeros(7)
-            W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-6, 1e-6, 1e-6])
+            W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         def predict():
@@ -328,7 +328,7 @@ def derivation():
             beta_mag = 1
             r_mag = 0
             r_std_mag = 0
-            mag_ret = 1
+            mag_ret = 0
             return ca.Function(
                 'correct_mag',
                 [x, W, y_mag, mag_decl, std_mag, beta_mag_c],
@@ -352,7 +352,7 @@ def derivation():
 
         def constants():
             x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
-            W0 = 1e-3 * ca.DM.eye(n_e)
+            W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         return {
@@ -431,7 +431,7 @@ def derivation():
             beta_mag = 1
             r_mag = 0
             r_std_mag = 0
-            mag_ret = 1
+            mag_ret = 0
             return ca.Function(
                 'correct_mag',
                 [x, W, y_mag, mag_decl, std_mag, beta_mag_c],
@@ -455,7 +455,7 @@ def derivation():
 
         def constants():
             x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
-            W0 = 1e-3 * ca.DM.eye(n_e)
+            W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         return {
