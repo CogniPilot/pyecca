@@ -38,10 +38,13 @@ class AttitudeEstimator:
 
         self.std_mag = add_param('std_mag', 1e-3, 'f8')
         self.std_accel = add_param('std_accel', 1e-3, 'f8')
+        self.std_accel_omega = add_param('std_accel_omega', 1e-6, 'f8')
+
         self.std_gyro = add_param('std_gyro', 1e-6, 'f8')
         self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-6, 'f8')
         self.mag_decl = add_param('mag_decl', 0, 'f8')
         self.beta_mag_c = add_param('beta_mag_c', 100, 'f8')
+        self.beta_accel_c = add_param('beta_accel_c', 100, 'f8')
         self.g = add_param('g', 9.8, 'f8')
 
         # misc
@@ -63,8 +66,8 @@ class AttitudeEstimator:
         self.x, self.W, beta_mag, r_mag, r_std_mag, mag_ret = self.eqs['correct_mag'](
             self.x, self.W, y, self.mag_decl.get(), self.std_mag.get(), self.beta_mag_c.get())
         self.msg_est_status.data['beta_mag'] = beta_mag
-        self.msg_est_status.data['r_mag'] = r_mag
-        self.msg_est_status.data['r_std_mag'] = r_std_mag
+        self.msg_est_status.data['r_mag'][:r_mag.shape[0]] = r_mag
+        self.msg_est_status.data['r_std_mag'][:r_std_mag.shape[0]] = r_std_mag
         self.msg_est_status.data['mag_ret'] = mag_ret
 
     def imu_callback(self, msg):
@@ -85,11 +88,14 @@ class AttitudeEstimator:
         elapsed = end - start
 
         # correct accel
+        # out: ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
+        # in: ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
         self.x, self.W, beta_accel, r_accel, r_std_accel, accel_ret = self.eqs['correct_accel'](
-            self.x, self.W, msg.data['accel'], 0.1, 0.1, 0.1, 0.1)
+            self.x, self.W, msg.data['accel'], self.g.get(), omega,
+            self.std_accel.get(), self.std_accel_omega.get(), self.beta_accel_c.get())
         self.msg_est_status.data['beta_accel'] = beta_accel
-        self.msg_est_status.data['r_accel'] = r_accel
-        self.msg_est_status.data['r_std_accel'] = r_std_accel
+        self.msg_est_status.data['r_accel'][:r_accel.shape[0]] = r_accel.T
+        self.msg_est_status.data['r_std_accel'][:r_accel.shape[0]] = r_std_accel.T
         self.msg_est_status.data['accel_ret'] = accel_ret
 
         # publish vehicle state

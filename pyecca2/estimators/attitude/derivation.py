@@ -108,7 +108,7 @@ def derivation():
 
         # constants
         def constants():
-            x0 = ca.DM([0, 0, 0.1, 0, 0, 0, 0.01])
+            x0 = ca.DM([0.1, 0.2, 0.3, 0, 0, 0, 0.01])
             return ca.Function('constants', [], [x0], [], ['x0'])
 
         # rotation error
@@ -214,6 +214,7 @@ def derivation():
             std_rot = std_mag + 0.2 * ca.norm_2(
                 ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
             Rs_mag = 2 * ca.asin(std_rot / (2 * h))
+            #Rs_mag = std_mag
 
             W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
             S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
@@ -244,17 +245,50 @@ def derivation():
                 ['x_mag', 'W_mag', 'beta_mag', 'r_mag', 'r_std_mag', 'error_code'])
 
         def correct_accel():
-            y_accel = ca.SX.sym('y_accel', 3, 1)
-            x_accel = x
-            W_accel = W
-            beta_accel = 1
-            r_accel = 0
-            r_std_accel = 0.1
-            accel_ret = 0
+            H_accel = ca.SX(2, 6)
+            H_accel[0, 0] = 1
+            H_accel[1, 1] = 1
+
+            f_measure_accel = ca.Function('measure_accel', [x],
+                [g*ca.mtimes(C_nb.T, ca.SX([0, 0, -1]))], ['x'],
+                                          ['y'])
+            yh_accel = f_measure_accel(x)
+            y_b = ca.SX.sym('y_b', 3)
+            n3 = ca.SX([0, 0, 1])
+            y_n = ca.mtimes(C_nb, -y_b)
+            v_n = ca.cross(y_n, n3) / ca.norm_2(y_b) / ca.norm_2(n3)
+            norm_v = ca.norm_2(v_n)
+            vh_n = v_n / norm_v
+            omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
+
+            #std_accel = ca.SX.sym('std_accel')
+            #std_accel_omega = ca.SX.sym('std_accel_omega')
+
+            Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
+
+            W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
+            S_accel = ca.mtimes(Ss_accel, Ss_accel.T)
+            r_accel = omega_c_accel_n[0:2]
+            r_std_accel = ca.diag(Ss_accel)
+            beta_accel = ca.mtimes([r_accel.T, ca.inv(S_accel), r_accel]) / beta_accel_c
+            x_accel = G.product(G.exp(ca.mtimes(K_accel, r_accel)), x)
+            x_accel[3] = x[3] # keep shadow state the same
+            x_accel = ca.sparsify(x_accel)
+
+            # ignore correction when near singular point
+            accel_ret = ca.if_else(
+                ca.fabs(ca.norm_2(y_b) - g) > 1.0,  # accel magnitude not close to g,
+                1,
+                0
+            )
+
+            x_accel = ca.if_else(accel_ret == 0, x_accel, x)
+            W_accel = ca.if_else(accel_ret == 0, W_accel, W)
+
             return ca.Function(
-                'correct_accel', [x, W, y_accel, omega_m, std_accel, std_accel_omega, beta_accel_c],
+                'correct_accel', [x, W, y_b, g, omega_m, std_accel, std_accel_omega, beta_accel_c],
                 [x_accel, W_accel, beta_accel, r_accel, r_std_accel, accel_ret],
-                ['x', 'W', 'y_b', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
+                ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
                 ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
 
         return {

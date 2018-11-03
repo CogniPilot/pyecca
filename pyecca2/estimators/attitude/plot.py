@@ -95,6 +95,21 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
                    lambda data, topic: data[topic]['beta_mag'])
     plot_handling('mag beta', 'time, sec', 'beta', 'mag_beta.png')
 
+    plt.figure()
+    compare_topics(est_status_topics,
+                   lambda data, topic: data[topic]['accel_ret'])
+    plot_handling('accel ret', 'time, sec', 'return code', 'accel_ret.png')
+
+    plt.figure()
+    compare_topics(est_status_topics,
+                   lambda data, topic: data[topic]['r_accel'])
+    plot_handling('accel innovation', 'time, sec', 'innovation, m/s^2', 'accel_innov.png')
+
+    plt.figure()
+    compare_topics(est_status_topics,
+                   lambda data, topic: data[topic]['beta_accel'])
+    plot_handling('accel beta', 'time, sec', 'beta', 'accel_beta.png')
+
 
     plt.figure()
     compare_topics(est_state_topics,

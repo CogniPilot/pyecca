@@ -21,9 +21,9 @@ def test_sim():
         'estimators': ['mrp'],
         'params': {
             'sim/dt_sim': 1.0/400,
-            'sim/dt_mag': 1.0/50,
+            'sim/dt_mag': 1.0/1,
             'logger/dt': tf/100,
-            'sim/enable_noise': False
+            'sim/enable_noise': True
         }
     }
     data = launch_monte_carlo_sim(params)

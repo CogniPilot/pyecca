@@ -66,7 +66,7 @@ class Simulator:
 
         # true angular velocity, nav frame
         #omega_b = np.random.randn(3)
-        #omega_b = 1*omega_b/np.linalg.norm(omega_b)
+        #omega_b = 20*omega_b/np.linalg.norm(omega_b)
         omega_b = np.array([0, 0, 1])
 
         eps = 1e-7
