@@ -21,15 +21,21 @@ def test_sim():
         'params': {
             'sim/dt_sim': 1.0/400,
             'sim/dt_mag': 1.0,
-            'logger/dt': 1.0/100,
-            'sim/enable_noise': True
+            'logger/dt': tf/100,
+            'sim/enable_noise': False
         }
     })
 
     with open(os.path.join(results_dir, 'data.pkl'), 'wb') as f:
         pickle.dump(data, f)
 
-    plot(data, results_dir)
+    plot(data, ground_truth_name='sim', est_names=['mrp', 'mekf', 'quat', 'quat2'], est_style={
+        'sim': {'color': 'k', 'linestyle': '-', 'alpha': 0.5},
+        'mrp': {'color': 'b', 'linestyle': '--', 'alpha': 0.5},
+        'quat': {'color': 'g', 'linestyle': ':', 'alpha': 0.5},
+        'mekf': {'color': 'r', 'linestyle': '-.', 'alpha': 0.5},
+        'default': {'color': 'c', 'linestyle': '-.', 'alpha': 0.5}
+        }, fig_dir=results_dir)
     return data
 
 

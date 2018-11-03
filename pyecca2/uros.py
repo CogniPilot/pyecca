@@ -29,7 +29,10 @@ class Core(simpy.Environment):
 
     def declare_param(self, param):
         assert not self.pub_sub_locked
-        assert param.name not in self._declared_params
+        if self.pub_sub_locked:
+            raise ValueError("cannot declare parameters after logger initialized")
+        if param.name in self._declared_params:
+            raise ValueError("{:s} already declared".format(param.name))
         self._declared_params[param.name] = param
 
     def run(self, *args, **kwargs):

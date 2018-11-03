@@ -108,7 +108,7 @@ def derivation():
 
         # constants
         def constants():
-            x0 = ca.DM([0, 0, 0, 0, 0, 0, 0])
+            x0 = ca.DM([0.01, 0, 0, 0, 0, 0, 0])
             return ca.Function('constants', [], [x0], [], ['x0'])
 
         # rotation error
@@ -159,7 +159,7 @@ def derivation():
 
         def constants():
             x0 = ca.DM.zeros(7)
-            W0 = 1e-3 * ca.DM.eye(n_e)
+            W0 = ca.diag([0.1, 0.1, 0.1, 0, 0, 0])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         def predict():

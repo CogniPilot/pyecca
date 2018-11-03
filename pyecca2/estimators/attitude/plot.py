@@ -11,26 +11,11 @@ plt.rcParams['lines.linewidth'] = 2
 plt.rcParams['lines.markersize'] = 7
 plt.rcParams['lines.markeredgewidth'] = 1
 
-est_style = {
-    'true': {'color': 'k', 'linestyle': '-', 'marker': '', 'markevery': 1, 'alpha': 0.5},
-    'mrp': {'color': 'b', 'linestyle': '--', 'marker': '', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
-    'quat': {'color': 'g', 'linestyle': ':', 'marker': '', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
-    'mekf': {'color': 'r', 'linestyle': '-.', 'marker': '', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
-}
 
-label_map = {
-    'sim_state': 'true',
-    'est1_state': 'mekf',
-    'est2_state': 'quat',
-    'est3_state': 'mrp',
-    'est1_status': 'mekf',
-    'est2_status': 'quat',
-    'est3_status': 'mrp',
-}
-
-
-def plot(data, fig_dir):
+def plot(data, ground_truth_name, est_names, est_style, fig_dir):
     plt.close('all')
+
+    gt_state = ground_truth_name + '_state'
 
     os.makedirs(fig_dir, exist_ok=True)
 
@@ -39,10 +24,16 @@ def plot(data, fig_dir):
         labels = []
         for i, d in enumerate(data):
             for topic in topics:
-                label = label_map[topic]
+                label = topic.split('_')[0]
+                if label in est_style:
+                    style = est_style[label]
+                elif 'default' in est_style:
+                    style = est_style['default']
+                else:
+                    style = {}
                 try:
                     h = plt.plot(d['time'], get_data(d, topic),
-                                        *args, **est_style[label], **kwargs)[0]
+                                        *args, **style, **kwargs)[0]
                     if i == 0:
                         handles.append(h)
                         labels.append(label)
@@ -59,8 +50,8 @@ def plot(data, fig_dir):
         plt.tight_layout()
         plt.savefig(os.path.join(fig_dir, file_name))
 
-    est_state_topics = ['est1_state', 'est2_state', 'est3_state']
-    est_status_topics = ['est1_status', 'est2_status', 'est3_status']
+    est_state_topics = [name + '_state' for name in est_names]
+    est_status_topics = [name + '_status' for name in est_names]
 
     plt.figure()
     compare_topics(est_state_topics,
@@ -83,7 +74,7 @@ def plot(data, fig_dir):
         return r
 
     compare_topics(est_state_topics,
-                   lambda data, topic: compare_rot_error(data[topic]['q'], data['sim_state']['q']))
+                   lambda data, topic: compare_rot_error(data[topic]['q'], data[gt_state]['q']))
     plot_handling('rotation error', 'time, sec', 'error, deg', 'rotation_error.png')
 
 
@@ -98,24 +89,24 @@ def plot(data, fig_dir):
         return r
 
     compare_topics(est_state_topics,
-                   lambda data, topic: compare_rot_error_norm(data[topic]['q'], data['sim_state']['q']))
+                   lambda data, topic: compare_rot_error_norm(data[topic]['q'], data[gt_state]['q']))
     plot_handling('rotation error norm', 'time, sec', 'error, deg', 'rotation_error_norm.png')
 
 
     plt.figure()
     for d in data:
-        plt.plot(d['time'], np.rad2deg(d['sim_state']['omega']))
+        plt.plot(d['time'], np.rad2deg(d[gt_state]['omega']))
     plot_handling('angular velocity', 'time, sec', 'angular velocity, deg/s', 'angular_velocity.png')
 
     plt.figure()
-    compare_topics(['sim_state'] + est_state_topics,
+    compare_topics([gt_state] + est_state_topics,
                    lambda data, topic: data[topic]['q'])
     plot_handling('quaternion', 'time, sec', 'quaternion component', 'quaternion.png')
 
     plt.figure()
-    compare_topics(['sim_state'] +  est_state_topics,
-                   lambda data, topic: 3600 * np.rad2deg(data[topic]['b']))
-    plot_handling('bias', 'time, sec', 'bias, deg/hr', 'bias.png')
+    compare_topics([gt_state] +  est_state_topics,
+                   lambda data, topic: 60 * np.rad2deg(data[topic]['b']))
+    plot_handling('bias', 'time, sec', 'bias, deg/min', 'bias.png')
 
     plt.figure()
     compare_topics(est_status_topics,

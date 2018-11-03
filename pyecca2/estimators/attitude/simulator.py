@@ -19,18 +19,25 @@ class Simulator:
         self.sub_params = uros.Subscriber(core, 'params', msgs.Params, self.params_callback)
 
         # parameters
-        self.std_mag = uros.Param(core, 'sim/std_mag', 1e-2, 'f8')
-        self.std_accel = uros.Param(core, 'sim/std_accel', 1e-3, 'f8')
-        self.std_gyro = uros.Param(core, 'sim/std_gyro', 1e-6, 'f8')
-        self.sn_gyro_rw = uros.Param(core, 'sim/sn_gyro_rw', 1e-6, 'f8')
-        self.dt_sim = uros.Param(core, 'sim/dt_sim', 1.0 / 400, 'f8')
-        self.dt_mag = uros.Param(core, 'sim/dt_mag', 1.0 / 50, 'f8')
-        self.dt_imu = uros.Param(core, 'sim/dt_imu', 1.0 / 200, 'f8')
-        self.mag_decl = uros.Param(core, 'sim/mag_decl', 0, 'f8')
-        self.mag_incl = uros.Param(core, 'sim/mag_incl', 0, 'f8')
-        self.mag_str = uros.Param(core, 'sim/mag_str', 1e-1, 'f8')
-        self.g = uros.Param(core, 'sim/g', 9.8, 'f8')
-        self.enable_noise = uros.Param(core, 'sim/enable_noise', True, '?')
+        self.param_list = []
+
+        def add_param(name, value, type):
+            p = uros.Param(self.core, 'sim/' + name, value, type)
+            self.param_list.append(p)
+            return p
+
+        self.std_mag = add_param('std_mag', 1e-3, 'f8')
+        self.std_accel = add_param('std_accel', 1e-3, 'f8')
+        self.std_gyro = add_param('std_gyro', 1e-6, 'f8')
+        self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-6, 'f8')
+        self.dt_sim = add_param('dt_sim', 1.0 / 400, 'f8')
+        self.dt_mag = add_param('dt_mag', 1.0 / 50, 'f8')
+        self.dt_imu = add_param('dt_imu', 1.0 / 200, 'f8')
+        self.mag_decl = add_param('mag_decl', 0, 'f8')
+        self.mag_incl = add_param('mag_incl', 0, 'f8')
+        self.mag_str = add_param('mag_str', 1e-1, 'f8')
+        self.g = add_param('g', 9.8, 'f8')
+        self.enable_noise = add_param('enable_noise', True, '?')
 
         # msgs
         self.msg_sim_state = msgs.VehicleState()
@@ -41,10 +48,7 @@ class Simulator:
         self.t_last_sim = 0
         self.t_last_imu = 0
         self.t_last_mag = 0
-        self.param_list = [self.std_mag, self.std_accel, self.std_gyro, self.sn_gyro_rw,
-                           self.dt_sim, self.dt_mag, self.dt_imu,
-                           self.mag_decl, self.mag_incl, self.mag_str,
-                           self.g, self.enable_noise]
+
         self.eqs = eqs
         np.random.seed()
         simpy.Process(core, self.run())
@@ -62,7 +66,7 @@ class Simulator:
 
         # true angular velocity, nav frame
         omega_b = np.random.randn(3)
-        omega_b = 20*omega_b/np.linalg.norm(omega_b)
+        omega_b = 1*omega_b/np.linalg.norm(omega_b)
 
         eps = 1e-7
 

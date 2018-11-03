@@ -13,6 +13,7 @@ class AttitudeEstimator:
 
     def __init__(self, core, name, eqs):
         self.core = core
+        self.name = name
 
         # subscriptions
         self.sub_imu = uros.Subscriber(core, 'imu', msgs.Imu, self.imu_callback)
@@ -26,7 +27,23 @@ class AttitudeEstimator:
         self.msg_state = msgs.VehicleState()
 
         self.sub_params = uros.Subscriber(core, 'params', msgs.Params, self.params_callback)
+
+        # parameters
         self.param_list = []
+
+        def add_param(name, value, type):
+            p = uros.Param(self.core, self.name + '/' + name, value, type)
+            self.param_list.append(p)
+            return p
+
+        self.std_mag = add_param('std_mag', 1e-3, 'f8')
+        self.std_accel = add_param('std_accel', 1e-3, 'f8')
+        self.std_gyro = add_param('std_gyro', 1e-6, 'f8')
+        self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-6, 'f8')
+        self.mag_decl = add_param('mag_decl', 0, 'f8')
+        self.g = add_param('g', 9.8, 'f8')
+
+        # misc
         self.x = eqs['constants']()['x0']
         self.W = eqs['constants']()['W0']
         self.n_x = self.x.shape[0]
@@ -58,7 +75,7 @@ class AttitudeEstimator:
         omega = msg.data['gyro']
         start = time.thread_time()
         if dt > 0:
-            self.x, self.W = self.eqs['predict'](0*t, self.x, self.W, omega, 0, 0, dt)
+            self.x, self.W = self.eqs['predict'](0*t, self.x, self.W, omega, 1e-6, 1e-6, dt)
         q, b_g = self.eqs['get_state'](self.x)
         end = time.thread_time()
         elapsed = end - start

@@ -24,9 +24,10 @@ def launch_sim(params):
     Simulator(core, eqs)
 
     estimators = [
-        ('est1', eqs['mekf']),
-        ('est2', eqs['quat']),
-        ('est3', eqs['mrp'])
+        ('mekf', eqs['mekf']),
+        ('quat', eqs['quat']),
+        ('quat2', eqs['quat']),
+        ('mrp', eqs['mrp'])
     ]
 
     for name, eqs in estimators:
