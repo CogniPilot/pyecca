@@ -40,17 +40,19 @@ def test_so3():
 
 
 def test_direct_product():
-    MrpxR3xR3xR3 = DirectProduct([Mrp, R3, R3, R3])
-    g1 = ca.SX.sym('g1', MrpxR3xR3xR3.group_params)
-    g2 = ca.SX.sym('g1', MrpxR3xR3xR3.group_params)
-    print(MrpxR3xR3xR3.product(g1, g2))
-
-
     G = DirectProduct([R3, R3])
     v1 = ca.SX([1, 2, 3, 4, 5 ,6])
     v2 = G.product(v1, v1)
     assert ca.norm_2(v2 - 2*v1) < eps
 
+    G = DirectProduct([Mrp, R3])
+    a = ca.SX([0.1, 0.2, 0.3, 0, 5, 6, 7])
+    b = ca.SX([0, 0, 0, 0, 1, 2, 3])
+    c = ca.SX([0.1, 0.2, 0.3, 0, 6, 8, 10])
+    assert ca.norm_2(c - G.product(a, b)) < eps
+
+    v = ca.SX([0.1, 0.2, 0.3, 4, 5, 6])
+    assert ca.norm_2(v - G.log(G.exp(v))) < eps
 
 def test_r3():
     v1 = ca.SX([1, 2, 3])

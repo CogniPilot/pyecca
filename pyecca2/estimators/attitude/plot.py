@@ -50,6 +50,23 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
         plt.tight_layout()
         plt.savefig(os.path.join(fig_dir, file_name))
 
+    def compare_rot_error(q1, q2):
+        r = []
+        for q1i, q2i in zip(q1, q2):
+            ri = np.array(eqs['sim']['rotation_error'](q1i, q2i))[:, 0]
+            r.append(ri)
+        r = np.rad2deg(np.array(r))
+        return r
+
+    def compare_rot_error_norm(q1, q2):
+        r = []
+        for q1i, q2i in zip(q1, q2):
+            ri = np.linalg.norm((eqs['sim']['rotation_error'](q1i, q2i)))
+            r.append(ri)
+        r = np.rad2deg(np.array(r))
+        return r
+
+
     est_state_topics = [name + '_state' for name in est_names]
     est_status_topics = [name + '_status' for name in est_names]
 
@@ -64,34 +81,30 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
     plot_handling('cpu time', 'time, sec', 'cpu time, usec', 'cpu_time.png')
 
     plt.figure()
+    compare_topics(est_status_topics,
+                   lambda data, topic: data[topic]['mag_ret'])
+    plot_handling('mag ret', 'time, sec', 'return code', 'mag_ret.png')
 
-    def compare_rot_error(q1, q2):
-        r = []
-        for q1i, q2i in zip(q1, q2):
-            ri = eqs['sim']['rotation_error'](q1i, q2i)[0, :]
-            r.append(ri)
-        r = np.rad2deg(np.array(r))
-        return r
+    plt.figure()
+    compare_topics(est_status_topics,
+                   lambda data, topic: data[topic]['r_mag'])
+    plot_handling('mag innovation', 'time, sec', 'innovation', 'mag_innov.png')
 
+    plt.figure()
+    compare_topics(est_status_topics,
+                   lambda data, topic: data[topic]['beta_mag'])
+    plot_handling('mag beta', 'time, sec', 'beta', 'mag_beta.png')
+
+
+    plt.figure()
     compare_topics(est_state_topics,
                    lambda data, topic: compare_rot_error(data[topic]['q'], data[gt_state]['q']))
     plot_handling('rotation error', 'time, sec', 'error, deg', 'rotation_error.png')
 
-
     plt.figure()
-
-    def compare_rot_error_norm(q1, q2):
-        r = []
-        for q1i, q2i in zip(q1, q2):
-            ri = np.linalg.norm(eqs['sim']['rotation_error'](q1i, q2i)[0, :])
-            r.append(ri)
-        r = np.rad2deg(np.array(r))
-        return r
-
     compare_topics(est_state_topics,
                    lambda data, topic: compare_rot_error_norm(data[topic]['q'], data[gt_state]['q']))
     plot_handling('rotation error norm', 'time, sec', 'error, deg', 'rotation_error_norm.png')
-
 
     plt.figure()
     for d in data:
@@ -102,6 +115,11 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
     compare_topics([gt_state] + est_state_topics,
                    lambda data, topic: data[topic]['q'])
     plot_handling('quaternion', 'time, sec', 'quaternion component', 'quaternion.png')
+
+    plt.figure()
+    compare_topics([gt_state] + est_state_topics,
+                   lambda data, topic: data[topic]['r'])
+    plot_handling('modified rodrigues params', 'time, sec', 'mrp component', 'mrp.png')
 
     plt.figure()
     compare_topics([gt_state] +  est_state_topics,

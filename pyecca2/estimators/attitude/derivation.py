@@ -67,7 +67,7 @@ def derivation():
         b_gyro = x[4:7]
         q = Quat.from_mrp(r)
         C_nb = Dcm.from_mrp(r)
-        get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
+        get_state = ca.Function('get_state', [x], [q, r, b_gyro], ['x'], ['q', 'r', 'b_gyro'])
 
         def simulate():
             # state derivative
@@ -108,7 +108,7 @@ def derivation():
 
         # constants
         def constants():
-            x0 = ca.DM([0.01, 0, 0, 0, 0, 0, 0])
+            x0 = ca.DM([0, 0, 0.1, 0, 0, 0, 0])
             return ca.Function('constants', [], [x0], [], ['x0'])
 
         # rotation error
@@ -147,7 +147,7 @@ def derivation():
         # get state
         q = Quat.from_mrp(r)
         C_nb = Dcm.from_mrp(r)
-        get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
+        get_state = ca.Function('get_state', [x], [q, r, b_gyro], ['x'], ['q', 'r', 'b_gyro'])
 
         # e, error state (6)
         # ----------------
@@ -159,7 +159,8 @@ def derivation():
 
         def constants():
             x0 = ca.DM.zeros(7)
-            W0 = ca.diag([0.1, 0.1, 0.1, 0, 0, 0])
+            W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-6, 1e-6, 1e-6])
+            #W0 = 1e-3*ca.diag([1, 1, 1, 1, 1, 1])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         def predict():
@@ -185,9 +186,9 @@ def derivation():
             # covariance propagation
             f_W_dot_lt = ca.Function(
                 'W_dot_lt',
-                [x, W, std_gyro, sn_gyro_rw, omega_m, dt],
+                [x, W, omega_m, std_gyro, sn_gyro_rw, dt],
                 [ca.tril(util.sqrt_covariance_predict(W, F, Q))])
-            W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, std_gyro, sn_gyro_rw, omega_m, dt), t, W, dt)
+            W1 = util.rk4(lambda t, y: f_W_dot_lt(x, y, omega_m, std_gyro, sn_gyro_rw, dt), t, W, dt)
 
             # combined prediction function
             return ca.Function('predict', [t, x, W, omega_m, std_gyro, sn_gyro_rw, dt], [x1, W1],
@@ -202,42 +203,39 @@ def derivation():
                 ['x', 'mag_str', 'mag_decl', 'mag_incl', 'std_mag', 'w_mag'], ['y'])
 
             yh_mag = h_mag(x, 1, mag_decl, 0, 0, 0)
-            #gamma = ca.acos(yh_mag[2] / ca.norm_2(yh_mag))
-            #h = ca.fmax(ca.sin(gamma), 1e-3)
+            gamma = ca.acos(yh_mag[2] / ca.norm_2(yh_mag))
+            h = ca.fmax(ca.sin(gamma), 1e-3)
 
             y_mag = ca.SX.sym('y_mag', 3, 1)
             y_n = ca.mtimes(C_nb, y_mag)
-            omega_c_mag_n = -ca.atan2(y_n[1], y_n[0]) *  ca.SX([0, 0, 1]) + mag_decl
 
             H_mag = ca.SX(1, 6)
             H_mag[0, 2] = 1
 
-            #std_rot = std_mag + 0.2 * ca.norm_2(
-            #    ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
-            #Rs_mag = 2 * ca.asin(std_rot / (2 * h))
-            Rs_mag = std_mag
+            std_rot = std_mag + 0.2 * ca.norm_2(
+                ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
+            Rs_mag = 2 * ca.asin(std_rot / (2 * h))
 
             W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
             S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
-            r_mag = omega_c_mag_n[2]
+            r_mag = -ca.atan2(y_n[1], y_n[0])  + mag_decl
             x_mag = G.product(G.exp(ca.mtimes(K_mag, r_mag)), x)
             x_mag[3] = x[3] # keep shadow state the same
-            beta_mag = ca.mtimes([r.T, ca.inv(S_mag), r]) / beta_mag_c
+            beta_mag = ca.mtimes([r_mag.T, ca.inv(S_mag), r_mag]) / beta_mag_c
             r_std_mag = ca.diag(Ss_mag)
 
             # ignore correction when near singular point
-            #mag_ret = ca.if_else(
-            #    std_rot / 2 > h,  # too close to vertical
-            #    1,
-            #    ca.if_else(
-            #        ca.norm_2(ca.diag(W)[0:2]) > 0.1,  # too much roll/pitch noise
-            #        2,
-            #        0
-            #    )
-            #)
-            #x_mag = ca.if_else(mag_ret == 0, x_mag, x)
-            #W_mag = ca.if_else(mag_ret == 0, W_mag, W)
-            mag_ret = 0
+            mag_ret = ca.if_else(
+                std_rot / 2 > h,  # too close to vertical
+                1,
+                ca.if_else(
+                    ca.norm_2(ca.diag(W)[0:2]) > 0.1,  # too much roll/pitch noise
+                    2,
+                    0
+                )
+            )
+            x_mag = ca.if_else(mag_ret == 0, x_mag, x)
+            W_mag = ca.if_else(mag_ret == 0, W_mag, W)
 
             return ca.Function(
                 'correct_mag',
@@ -282,7 +280,8 @@ def derivation():
         x = ca.SX.sym('x', G.group_params)
         q = G.subgroup(x, 0)
         b_gyro = G.subgroup(x, 1)
-        get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
+        r = Mrp.from_quat(q)
+        get_state = ca.Function('get_state', [x], [q, r, b_gyro], ['x'], ['q', 'r', 'b_gyro'])
 
         # e, error state (6)
         # ----------------
@@ -378,7 +377,8 @@ def derivation():
         x = ca.SX.sym('x', 7)
         q = x[:4]
         b_gyro = x[4:7]
-        get_state = ca.Function('get_state', [x], [q, b_gyro], ['x'], ['q', 'b_gyro'])
+        r = Mrp.from_quat(q)
+        get_state = ca.Function('get_state', [x], [q, r, b_gyro], ['x'], ['q', 'r', 'b_gyro'])
 
         # e, error state (6)
         # ----------------

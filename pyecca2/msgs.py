@@ -34,6 +34,7 @@ class VehicleState:
     dtype = [
         ('time', time_type),  # timestamp
         ('q', float_type, 4),  # quaternion
+        ('r', float_type, 4),  # mrp
         ('b', float_type, 3),  # gyro bias
         ('omega', float_type, 3),  # angular velocity
         ('pos', float_type, 3),  # position

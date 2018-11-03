@@ -24,7 +24,7 @@ class DirectProduct:
 
     def subalgebra(self, v, i):
         start = 0
-        for gi in range(i):
+        for gi in range(i + 1):
             start += self.n_algebra[gi]
         end = start + self.n_algebra[i + 1]
         return v[start:end]

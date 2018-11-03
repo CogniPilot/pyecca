@@ -65,8 +65,9 @@ class Simulator:
         i = 0
 
         # true angular velocity, nav frame
-        omega_b = np.random.randn(3)
-        omega_b = 1*omega_b/np.linalg.norm(omega_b)
+        #omega_b = np.random.randn(3)
+        #omega_b = 1*omega_b/np.linalg.norm(omega_b)
+        omega_b = np.array([0, 0, 1])
 
         eps = 1e-7
 
@@ -90,9 +91,10 @@ class Simulator:
                 self.t_last_imu = t
 
                 # publish sim state
-                q, b_g = self.eqs['sim']['get_state'](x)
+                q, r, b_g = self.eqs['sim']['get_state'](x)
                 self.msg_sim_state.data['time'] = t
                 self.msg_sim_state.data['q'] = q.T
+                self.msg_sim_state.data['r'] = r.T
                 self.msg_sim_state.data['b'] = b_g.T
                 self.msg_sim_state.data['omega'] = omega_b.T
                 self.pub_sim.publish(self.msg_sim_state)

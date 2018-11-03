@@ -15,21 +15,29 @@ def test_sim():
     script_dir = os.path.abspath(os.path.dirname(__file__))
     results_dir = os.path.join(script_dir, 'results', 'attitude')
     tf = 10
-    data = launch_monte_carlo_sim({
+    params = {
         'n_monte_carlo': 1,
         'tf': tf,
+        'estimators': ['mrp'],
         'params': {
             'sim/dt_sim': 1.0/400,
-            'sim/dt_mag': 1.0,
+            'sim/dt_mag': 1,
+            #'mrp/std_gyro': 0,
+            #'mrp/sn_gyro_rw': 0,
             'logger/dt': tf/100,
             'sim/enable_noise': False
         }
-    })
+    }
+    data = launch_monte_carlo_sim(params)
+    data_path = os.path.join(results_dir, 'data.pkl')
 
-    with open(os.path.join(results_dir, 'data.pkl'), 'wb') as f:
+    with open(data_path, 'wb') as f:
         pickle.dump(data, f)
 
-    plot(data, ground_truth_name='sim', est_names=['mrp', 'mekf', 'quat', 'quat2'], est_style={
+    with open(data_path, 'rb') as f:
+        data = pickle.load(f)
+
+    plot(data, ground_truth_name='sim', est_names=params['estimators'], est_style={
         'sim': {'color': 'k', 'linestyle': '-', 'alpha': 0.5},
         'mrp': {'color': 'b', 'linestyle': '--', 'alpha': 0.5},
         'quat': {'color': 'g', 'linestyle': ':', 'alpha': 0.5},
