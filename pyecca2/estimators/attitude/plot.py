@@ -87,8 +87,8 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
 
     plt.figure()
     compare_topics(est_status_topics,
-                   lambda data, topic: data[topic]['r_mag'])
-    plot_handling('mag innovation', 'time, sec', 'innovation', 'mag_innov.png')
+                   lambda data, topic: np.rad2deg(data[topic]['r_mag']))
+    plot_handling('mag innovation', 'time, sec', 'innovation, deg', 'mag_innov.png')
 
     plt.figure()
     compare_topics(est_status_topics,

@@ -160,7 +160,6 @@ def derivation():
         def constants():
             x0 = ca.DM.zeros(7)
             W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-6, 1e-6, 1e-6])
-            #W0 = 1e-3*ca.diag([1, 1, 1, 1, 1, 1])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         def predict():
