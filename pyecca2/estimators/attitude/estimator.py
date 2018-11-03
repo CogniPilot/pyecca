@@ -39,16 +39,13 @@ class AttitudeEstimator:
             p.update()
 
     def mag_callback(self, msg):
-        y = np.array([1, 2, 3])
-        #[x, W, y_b, decl, std_mag, beta_mag_c],
-
+        y = msg.data['mag']
         self.x, self.W, beta_mag, r_mag, r_std_mag, mag_ret = self.eqs['correct_mag'](
-            self.x, self.W, y, 0, 0.1, 0.1)
+            self.x, self.W, y, 0, 1e-3, 1e-3)
         self.msg_est_status.data['beta_mag'] = beta_mag
         self.msg_est_status.data['r_mag'] = r_mag
         self.msg_est_status.data['r_std_mag'] = r_std_mag
         self.msg_est_status.data['mag_ret'] = mag_ret
-
 
     def imu_callback(self, msg):
 

@@ -12,10 +12,10 @@ plt.rcParams['lines.markersize'] = 7
 plt.rcParams['lines.markeredgewidth'] = 1
 
 est_style = {
-    'true': {'color': 'k', 'linestyle': '-', 'marker': 'x', 'markevery': 1, 'alpha': 0.5},
-    'mrp': {'color': 'b', 'linestyle': '-', 'marker': 'o', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
-    'quat': {'color': 'g', 'linestyle': '-', 'marker': '+', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
-    'mekf': {'color': 'r', 'linestyle': '-', 'marker': 's', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
+    'true': {'color': 'k', 'linestyle': '-', 'marker': '', 'markevery': 1, 'alpha': 0.5},
+    'mrp': {'color': 'b', 'linestyle': '--', 'marker': '', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
+    'quat': {'color': 'g', 'linestyle': ':', 'marker': '', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
+    'mekf': {'color': 'r', 'linestyle': '-.', 'marker': '', 'markevery': 1, 'fillstyle': 'none', 'alpha': 0.5},
 }
 
 label_map = {
