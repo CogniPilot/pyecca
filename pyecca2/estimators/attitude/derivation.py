@@ -379,9 +379,9 @@ def derivation():
             r_std_accel = 0.1
             accel_ret = 0
             return ca.Function(
-                'correct_accel', [x, W, y_accel, omega_m, std_accel, std_accel_omega, beta_accel_c],
+                'correct_accel', [x, W, y_accel, g, omega_m, std_accel, std_accel_omega, beta_accel_c],
                 [x_accel, W_accel, beta_accel, r_accel, r_std_accel, accel_ret],
-                ['x', 'W', 'y_b', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
+                ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
                 ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
 
         def constants():
@@ -482,9 +482,9 @@ def derivation():
             r_std_accel = 0.1
             accel_ret = 0
             return ca.Function(
-                'correct_accel', [x, W, y_accel, omega_m, std_accel, std_accel_omega, beta_accel_c],
+                'correct_accel', [x, W, y_accel, g, omega_m, std_accel, std_accel_omega, beta_accel_c],
                 [x_accel, W_accel, beta_accel, r_accel, r_std_accel, accel_ret],
-                ['x', 'W', 'y_b', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
+                ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
                 ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
 
         def constants():

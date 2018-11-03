@@ -18,7 +18,7 @@ def test_sim():
     params = {
         'n_monte_carlo': 1,
         'tf': tf,
-        'estimators': ['mrp'],
+        'estimators': ['mrp', 'mekf', 'quat'],
         'params': {
             'sim/dt_sim': 1.0/400,
             'sim/dt_mag': 1.0/1,
