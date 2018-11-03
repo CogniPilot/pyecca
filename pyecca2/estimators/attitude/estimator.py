@@ -41,7 +41,7 @@ class AttitudeEstimator:
     def mag_callback(self, msg):
         y = msg.data['mag']
         self.x, self.W, beta_mag, r_mag, r_std_mag, mag_ret = self.eqs['correct_mag'](
-            self.x, self.W, y, 0, 1e-3, 1e-3)
+            self.x, self.W, y, 0, 1e-2, 1)
         self.msg_est_status.data['beta_mag'] = beta_mag
         self.msg_est_status.data['r_mag'] = r_mag
         self.msg_est_status.data['r_std_mag'] = r_std_mag
@@ -56,13 +56,9 @@ class AttitudeEstimator:
 
         # estimate state
         omega = msg.data['gyro']
-
         start = time.thread_time()
-        std_gyro = 1e-2
-        sn_gyro_rw = 1e-2
-
         if dt > 0:
-            self.x, self.W = self.eqs['predict'](0*t, self.x, self.W, omega, 0*std_gyro, 0*sn_gyro_rw, dt)
+            self.x, self.W = self.eqs['predict'](0*t, self.x, self.W, omega, 0, 0, dt)
         q, b_g = self.eqs['get_state'](self.x)
         end = time.thread_time()
         elapsed = end - start

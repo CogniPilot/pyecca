@@ -202,8 +202,8 @@ def derivation():
                 ['x', 'mag_str', 'mag_decl', 'mag_incl', 'std_mag', 'w_mag'], ['y'])
 
             yh_mag = h_mag(x, 1, mag_decl, 0, 0, 0)
-            gamma = ca.acos(yh_mag[2] / ca.norm_2(yh_mag))
-            h = ca.fmax(ca.sin(gamma), 1e-3)
+            #gamma = ca.acos(yh_mag[2] / ca.norm_2(yh_mag))
+            #h = ca.fmax(ca.sin(gamma), 1e-3)
 
             y_mag = ca.SX.sym('y_mag', 3, 1)
             y_n = ca.mtimes(C_nb, y_mag)
@@ -212,29 +212,32 @@ def derivation():
             H_mag = ca.SX(1, 6)
             H_mag[0, 2] = 1
 
-            std_rot = std_mag + 0.2 * ca.norm_2(
-                ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
-            Rs_mag = 2 * ca.asin(std_rot / (2 * h))
+            #std_rot = std_mag + 0.2 * ca.norm_2(
+            #    ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
+            #Rs_mag = 2 * ca.asin(std_rot / (2 * h))
+            Rs_mag = std_mag
 
             W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
             S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
             r_mag = omega_c_mag_n[2]
             x_mag = G.product(G.exp(ca.mtimes(K_mag, r_mag)), x)
+            x_mag[3] = x[3] # keep shadow state the same
             beta_mag = ca.mtimes([r.T, ca.inv(S_mag), r]) / beta_mag_c
             r_std_mag = ca.diag(Ss_mag)
 
             # ignore correction when near singular point
-            mag_ret = ca.if_else(
-                std_rot / 2 > h,  # too close to vertical
-                1,
-                ca.if_else(
-                    ca.norm_2(ca.diag(W)[0:2]) > 0.1,  # too much roll/pitch noise
-                    2,
-                    0
-                )
-            )
-            x_mag = ca.if_else(mag_ret == 0, x_mag, x)
-            W_mag = ca.if_else(mag_ret == 0, W_mag, W)
+            #mag_ret = ca.if_else(
+            #    std_rot / 2 > h,  # too close to vertical
+            #    1,
+            #    ca.if_else(
+            #        ca.norm_2(ca.diag(W)[0:2]) > 0.1,  # too much roll/pitch noise
+            #        2,
+            #        0
+            #    )
+            #)
+            #x_mag = ca.if_else(mag_ret == 0, x_mag, x)
+            #W_mag = ca.if_else(mag_ret == 0, W_mag, W)
+            mag_ret = 0
 
             return ca.Function(
                 'correct_mag',

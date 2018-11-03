@@ -33,11 +33,23 @@ def test_so3():
     assert ca.norm_fro(Dcm.from_euler(Euler.from_dcm(R)) - R) < eps
 
 
+    r1 = ca.SX([1, 2, 3, 1])
+    r2 = ca.SX([0, 0, 0, 0])
+
+    print('res', Mrp.product(r1, r2))
+
+
 def test_direct_product():
     MrpxR3xR3xR3 = DirectProduct([Mrp, R3, R3, R3])
-    g1 = ca.SX.sym('g1', *MrpxR3xR3xR3.group_shape)
-    g2 = ca.SX.sym('g1', *MrpxR3xR3xR3.group_shape)
+    g1 = ca.SX.sym('g1', MrpxR3xR3xR3.group_params)
+    g2 = ca.SX.sym('g1', MrpxR3xR3xR3.group_params)
     print(MrpxR3xR3xR3.product(g1, g2))
+
+
+    G = DirectProduct([R3, R3])
+    v1 = ca.SX([1, 2, 3, 4, 5 ,6])
+    v2 = G.product(v1, v1)
+    assert ca.norm_2(v2 - 2*v1) < eps
 
 
 def test_r3():

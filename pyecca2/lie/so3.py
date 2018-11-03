@@ -133,9 +133,11 @@ class Mrp:
         na_sq = ca.dot(a, a)
         nb_sq = ca.dot(b, b)
         res = ca.SX(4, 1)
+        den = (1 + na_sq * nb_sq - 2 * ca.dot(b, a))
         res[:3] = ((1 - na_sq) * b + (1 - nb_sq) * a - 2 * ca.cross(b, a)) \
-                  / (1 + na_sq * nb_sq - 2 * ca.dot(b, a))
+                  / den
         res[3] = 0  # shadow state
+        res = ca.if_else(den == 0, ca.DM([0, 0, 0, 0]), res)
         return res
 
     @classmethod

@@ -30,7 +30,7 @@ class Simulator:
         self.mag_incl = uros.Param(core, 'sim/mag_incl', 0, 'f8')
         self.mag_str = uros.Param(core, 'sim/mag_str', 1e-1, 'f8')
         self.g = uros.Param(core, 'sim/g', 9.8, 'f8')
-        self.enable_noise = uros.Param(core, 'sim/enable_noise', False, '?')
+        self.enable_noise = uros.Param(core, 'sim/enable_noise', True, '?')
 
         # msgs
         self.msg_sim_state = msgs.VehicleState()
@@ -82,7 +82,7 @@ class Simulator:
                     t, x, omega_b, self.sn_gyro_rw.get(), w_gyro_rw, dt)
 
             # measure and publish accel/gyro
-            if t == 0 or t - self.t_last_imu >= self.dt_imu.get() - eps:
+            if t== 0 or t - self.t_last_imu >= self.dt_imu.get() - eps:
                 self.t_last_imu = t
 
                 # publish sim state
@@ -108,7 +108,7 @@ class Simulator:
                 self.pub_imu.publish(self.msg_imu)
 
             # measure and publish mag
-            if t == 0 or t - self.t_last_mag >= self.dt_mag.get() - eps:
+            if t - self.t_last_mag >= self.dt_mag.get() - eps:
                 self.t_last_mag = t
 
                 # measure
