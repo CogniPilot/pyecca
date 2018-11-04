@@ -3,9 +3,9 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .derivation import derivation
+from .derivation import derive_equations
 
-eqs = derivation()
+eqs = derive_equations()
 
 plt.rcParams['lines.linewidth'] = 2
 plt.rcParams['lines.markersize'] = 7

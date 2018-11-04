@@ -1,3 +1,5 @@
+import os
+
 import casadi as ca
 
 import pyecca2.util as util
@@ -11,7 +13,7 @@ Functions are used for nested scoping of variables.
 """
 
 
-def derivation():
+def derive_equations():
     """
     This function derives various attitude estimators. The common problem parameters are at the
     top and these variables can be shared, but each estimator has it's own scope.
@@ -751,3 +753,28 @@ def derivation():
         'quat': quat_eqs,
         'mrp': mrp_eqs
     }
+
+
+def generate_code(eqs, dest_dir, **kwargs):
+    p = {
+        'main': False,
+        'mex': False,
+        'with_header': True,
+        'with_mem': True
+    }
+    for k, v in kwargs.items():
+        assert k in p.keys()
+        p[k] = v
+
+    # generate code
+    # Code Generation
+    for name, eqs in eqs.items():
+        filename = 'casadi_{:s}.c'.format(name)
+        gen = ca.CodeGenerator(filename, p)
+        for f_name in eqs:
+            gen.add(eqs[f_name])
+
+        os.makedirs(dest_dir, exist_ok=True)
+        gen.generate(dest_dir + os.path.sep)
+
+

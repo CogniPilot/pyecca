@@ -3,7 +3,7 @@ import multiprocessing as mp
 import numpy as np
 
 from pyecca2 import uros
-from pyecca2.estimators.attitude.derivation import derivation
+from pyecca2.estimators.attitude.derivation import derive_equations
 from pyecca2.estimators.attitude.estimator import AttitudeEstimator
 from pyecca2.estimators.attitude.simulator import Simulator
 
@@ -20,7 +20,7 @@ def launch_sim(params):
             raise KeyError(k)
         p[k] = v
 
-    eqs = derivation()
+    eqs = derive_equations()
     core = uros.Core()
     Simulator(core, eqs)
 

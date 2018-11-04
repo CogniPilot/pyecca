@@ -1,13 +1,13 @@
 import os
 import pickle
 
-from pyecca2.estimators.attitude.derivation import derivation
+from pyecca2.estimators.attitude import derivation
 from pyecca2.estimators.attitude.launch import launch_monte_carlo_sim
 from pyecca2.estimators.attitude.plot import plot
 
 
 def test_derivation():
-    eqs = derivation()
+    eqs = derivation.derive_equations()
     print('eqs', eqs.keys())
 
 
@@ -44,6 +44,11 @@ def test_sim():
         'mekf': {'color': 'r', 'linestyle': '-.', 'alpha': 0.5},
         'default': {'color': 'c', 'linestyle': '-.', 'alpha': 0.5}
         }, fig_dir=results_dir, i_start=10)
+
+
+    eqs = derivation.derive_equations()
+    derivation.generate_code(eqs, os.path.join(results_dir, 'code'))
+
     return data
 
 
