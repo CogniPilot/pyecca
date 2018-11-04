@@ -72,7 +72,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
 
     plt.figure()
     compare_topics(est_state_topics,
-                   lambda data, topic: np.linalg.norm(data[topic]['q'], axis=1) - 1)
+                   lambda data, topic: np.abs(1 - np.linalg.norm(data[topic]['q'], axis=1)))
     plot_handling('quaternion normal error', 'time, sec', 'normal error', 'quat_normal.png')
 
     plt.figure()

@@ -1,8 +1,7 @@
 import casadi as ca
 
 import pyecca2.util as util
-from pyecca2.lie.so3 import Quat, Mrp, Dcm
-from pyecca2.lie.r3 import R3
+from pyecca2.lie import so3, r3
 from pyecca2.lie.util import DirectProduct
 
 """
@@ -65,19 +64,19 @@ def derivation():
         x = ca.SX.sym('x', 7)
         r = x[0:4]  # last state is shadow state
         b_gyro = x[4:7]
-        q = Quat.from_mrp(r)
-        C_nb = Dcm.from_mrp(r)
+        q = so3.Quat.from_mrp(r)
+        C_nb = so3.Dcm.from_mrp(r)
         get_state = ca.Function('get_state', [x], [q, r, b_gyro], ['x'], ['q', 'r', 'b_gyro'])
 
         def simulate():
             # state derivative
-            xdot = ca.vertcat(Mrp.kinematics(r, omega_t), std_gyro_rw * w_gyro_rw)
+            xdot = ca.vertcat(so3.Mrp.kinematics(r, omega_t), std_gyro_rw * w_gyro_rw)
             f_xdot = ca.Function('xdot', [t, x, omega_t, sn_gyro_rw, w_gyro_rw],
                                  [xdot], ['t', 'x', 'omega_t', 'sn_gyro_rw', 'w_gyro_rw'], ['xdot'])
 
             # state prop with noise
             x1_sim = util.rk4(lambda t, x: f_xdot(t, x, omega_t, sn_gyro_rw, w_gyro_rw), t, x, dt)
-            x1_sim[:4] = Mrp.shadow_if_necessary(x1_sim[:4])
+            x1_sim[:4] = so3.Mrp.shadow_if_necessary(x1_sim[:4])
             return ca.Function('simulate', [t, x, omega_t, sn_gyro_rw,
                                                 w_gyro_rw, dt], [x1_sim],
                                    ['t', 'x', 'omega_t', 'sn_gyro_rw',
@@ -91,7 +90,7 @@ def derivation():
 
         # measure_mag
         def measure_mag():
-            C_nm = Dcm.product(Dcm.exp(mag_decl*e3), Dcm.exp(-mag_incl * e2))
+            C_nm = so3.Dcm.product(so3.Dcm.exp(mag_decl*e3), so3.Dcm.exp(-mag_incl * e2))
             B_n = mag_str * ca.mtimes(C_nm, ca.SX([1, 0, 0]))
             return ca.Function(
                 'measure_mag', [x, mag_str, mag_decl, mag_incl, std_mag, w_mag],
@@ -115,7 +114,7 @@ def derivation():
         def rotation_error():
             q1 = ca.SX.sym('q1', 4, 1)
             q2 = ca.SX.sym('q2', 4, 1)
-            xi = Quat.log(Quat.product(Quat.inv(q1), q2))
+            xi = so3.Quat.log(so3.Quat.product(so3.Quat.inv(q1), q2))
             return ca.Function('rotation_error', [q1, q2], [xi], ['q1', 'q2'], ['xi'])
 
         return {
@@ -139,14 +138,14 @@ def derivation():
         # -----------
         # mrp (4)  (3 parameters and 1 shadow state)
         # b, gyro bias (3)
-        G = DirectProduct([Mrp, R3])
+        G = DirectProduct([so3.Mrp, r3.R3])
         x = ca.SX.sym('x', G.group_params)
         r = G.subgroup(x, 0)
         b_gyro = G.subgroup(x, 1)
 
         # get state
-        q = Quat.from_mrp(r)
-        C_nb = Dcm.from_mrp(r)
+        q = so3.Quat.from_mrp(r)
+        C_nb = so3.Dcm.from_mrp(r)
         get_state = ca.Function('get_state', [x], [q, r, b_gyro], ['x'], ['q', 'r', 'b_gyro'])
 
         # e, error state (6)
@@ -165,7 +164,7 @@ def derivation():
         def predict():
 
             # state derivative
-            xdot = ca.vertcat(Mrp.kinematics(r, omega_m - b_gyro), std_gyro_rw * w_gyro_rw)
+            xdot = ca.vertcat(so3.Mrp.kinematics(r, omega_m - b_gyro), std_gyro_rw * w_gyro_rw)
             f_xdot = ca.Function('xdot', [t, x, omega_m, std_gyro, sn_gyro_rw, w_gyro, w_gyro_rw],
                                  [xdot], ['t', 'x', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'w_gyro', 'w_gyro_rw'],
                                  ['xdot'])
@@ -173,11 +172,11 @@ def derivation():
             # state prop w/o noise
             x1 = util.rk4(lambda t, x: f_xdot(
                 t, x, omega_m, 0, 0, ca.DM.zeros(3), ca.DM.zeros(3)), t, x, dt)
-            x1[:4] = Mrp.shadow_if_necessary(x1[:4])
+            x1[:4] = so3.Mrp.shadow_if_necessary(x1[:4])
 
             # error dynamics
             f = ca.Function('f', [omega_m, eta, x, w_gyro_rw], [
-                ca.vertcat(-ca.mtimes(Dcm.from_mrp(r), eta[3:6]), w_gyro_rw)])
+                ca.vertcat(-ca.mtimes(so3.Dcm.from_mrp(r), eta[3:6]), w_gyro_rw)])
 
             # linearized error dynamics
             F = ca.sparsify(ca.substitute(ca.jacobian(f(omega_m, eta, x, w_gyro_rw), eta), eta, ca.SX.zeros(n_e)))
@@ -194,7 +193,7 @@ def derivation():
                                   ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1'])
 
         def correct_mag():
-            C_nm = Dcm.product(Dcm.exp(mag_decl*e3), Dcm.exp(-mag_incl * e2))
+            C_nm = so3.Dcm.product(so3.Dcm.exp(mag_decl*e3), so3.Dcm.exp(-mag_incl * e2))
             B_n = mag_str * ca.mtimes(C_nm, ca.SX([1, 0, 0]))
             h_mag = ca.Function(
                 'h_mag', [x, mag_str, mag_decl, mag_incl, std_mag, w_mag],
@@ -309,11 +308,13 @@ def derivation():
         # -----------
         # q, quaternion (4)
         # b, gyro bias (3)
-        G = DirectProduct([Quat, R3])
+        G = DirectProduct([so3.Quat, r3.R3])
         x = ca.SX.sym('x', G.group_params)
         q = G.subgroup(x, 0)
         b_gyro = G.subgroup(x, 1)
-        r = Mrp.from_quat(q)
+        r = so3.Mrp.from_quat(q)
+        r = so3.Mrp.shadow_if_necessary(r)
+        C_nb = so3.Dcm.from_quat(q)
         get_state = ca.Function('get_state', [x], [q, r, b_gyro], ['x'], ['q', 'r', 'b_gyro'])
 
         # e, error state (6)
@@ -327,7 +328,7 @@ def derivation():
         def predict():
 
             # state derivative
-            xdot = ca.vertcat(Quat.kinematics(q, omega_m - b_gyro + w_gyro), w_gyro_rw)
+            xdot = ca.vertcat(so3.Quat.kinematics(q, omega_m - b_gyro + w_gyro), w_gyro_rw)
             f_xdot = ca.Function('xdot', [t, x, omega_m, w_gyro, w_gyro_rw],
                                  [xdot], ['t', 'x', 'omega_m', 'w_gyro', 'w_gyro_rw'], ['xdot'])
 
@@ -340,7 +341,7 @@ def derivation():
 
             # error dynamics
             f = ca.Function('f', [omega_m, eta, x, w_gyro_rw], [
-                ca.vertcat(-ca.mtimes(Dcm.from_quat(q), eta[3:6]), w_gyro_rw)])
+                ca.vertcat(-ca.mtimes(so3.Dcm.from_quat(q), eta[3:6]), w_gyro_rw)])
 
             # linearized error dynamics
             F = ca.sparsify(ca.substitute(ca.jacobian(f(omega_m, eta, x, w_gyro_rw), eta), eta, ca.SX.zeros(n_e)))
@@ -356,30 +357,97 @@ def derivation():
                                   ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1'])
 
         def correct_mag():
+            C_nm = so3.Dcm.product(so3.Dcm.exp(mag_decl*e3), so3.Dcm.exp(-mag_incl * e2))
+            B_n = mag_str * ca.mtimes(C_nm, ca.SX([1, 0, 0]))
+            h_mag = ca.Function(
+                'h_mag', [x, mag_str, mag_decl, mag_incl, std_mag, w_mag],
+                [ca.mtimes(C_nb.T, B_n) + w_mag * std_mag],
+                ['x', 'mag_str', 'mag_decl', 'mag_incl', 'std_mag', 'w_mag'], ['y'])
+
+            yh_mag = h_mag(x, 1, mag_decl, 0, 0, 0)
+            gamma = ca.acos(yh_mag[2] / ca.norm_2(yh_mag))
+            h = ca.fmax(ca.sin(gamma), 1e-3)
+
             y_mag = ca.SX.sym('y_mag', 3, 1)
-            x_mag = x
-            W_mag = W
-            beta_mag = 1
-            r_mag = 0
-            r_std_mag = 0
-            mag_ret = 0
+            y_n = ca.mtimes(C_nb, y_mag)
+
+            H_mag = ca.SX(1, 6)
+            H_mag[0, 2] = 1
+
+            std_rot = std_mag + 0.2 * ca.norm_2(
+                ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
+            Rs_mag = 2 * ca.asin(std_rot / (2 * h))
+            #Rs_mag = std_mag
+
+            W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
+            S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
+            r_mag = -ca.atan2(y_n[1], y_n[0])  + mag_decl
+            x_mag = G.product(G.exp(ca.mtimes(K_mag, r_mag)), x)
+            beta_mag = ca.mtimes([r_mag.T, ca.inv(S_mag), r_mag]) / beta_mag_c
+            r_std_mag = ca.diag(Ss_mag)
+
+            # ignore correction when near singular point
+            mag_ret = ca.if_else(
+                std_rot / 2 > h,  # too close to vertical
+                1,
+                ca.if_else(
+                    ca.norm_2(ca.diag(W)[0:2]) > 0.1,  # too much roll/pitch noise
+                    2,
+                    0
+                )
+            )
+            x_mag = ca.if_else(mag_ret == 0, x_mag, x)
+            W_mag = ca.if_else(mag_ret == 0, W_mag, W)
+
             return ca.Function(
                 'correct_mag',
                 [x, W, y_mag, mag_decl, std_mag, beta_mag_c],
                 [x_mag, W_mag, beta_mag, r_mag, r_std_mag, mag_ret],
-                ['x_h', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c'],
+                ['x', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c'],
                 ['x_mag', 'W_mag', 'beta_mag', 'r_mag', 'r_std_mag', 'error_code'])
 
         def correct_accel():
-            y_accel = ca.SX.sym('y_accel', 3, 1)
-            x_accel = x
-            W_accel = W
-            beta_accel = 1
-            r_accel = 0
-            r_std_accel = 0.1
-            accel_ret = 0
+            H_accel = ca.SX(2, 6)
+            H_accel[0, 0] = 1
+            H_accel[1, 1] = 1
+
+            f_measure_accel = ca.Function('measure_accel', [x],
+                [g*ca.mtimes(C_nb.T, ca.SX([0, 0, -1]))], ['x'],
+                                          ['y'])
+            yh_accel = f_measure_accel(x)
+            y_b = ca.SX.sym('y_b', 3)
+            n3 = ca.SX([0, 0, 1])
+            y_n = ca.mtimes(C_nb, -y_b)
+            v_n = ca.cross(y_n, n3) / ca.norm_2(y_b) / ca.norm_2(n3)
+            norm_v = ca.norm_2(v_n)
+            vh_n = v_n / norm_v
+            omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
+
+            #std_accel = ca.SX.sym('std_accel')
+            #std_accel_omega = ca.SX.sym('std_accel_omega')
+
+            Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
+
+            W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
+            S_accel = ca.mtimes(Ss_accel, Ss_accel.T)
+            r_accel = omega_c_accel_n[0:2]
+            r_std_accel = ca.diag(Ss_accel)
+            beta_accel = ca.mtimes([r_accel.T, ca.inv(S_accel), r_accel]) / beta_accel_c
+            x_accel = G.product(G.exp(ca.mtimes(K_accel, r_accel)), x)
+            x_accel = ca.sparsify(x_accel)
+
+            # ignore correction when near singular point
+            accel_ret = ca.if_else(
+                ca.fabs(ca.norm_2(y_b) - g) > 1.0,  # accel magnitude not close to g,
+                1,
+                0
+            )
+
+            x_accel = ca.if_else(accel_ret == 0, x_accel, x)
+            W_accel = ca.if_else(accel_ret == 0, W_accel, W)
+
             return ca.Function(
-                'correct_accel', [x, W, y_accel, g, omega_m, std_accel, std_accel_omega, beta_accel_c],
+                'correct_accel', [x, W, y_b, g, omega_m, std_accel, std_accel_omega, beta_accel_c],
                 [x_accel, W_accel, beta_accel, r_accel, r_std_accel, accel_ret],
                 ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
                 ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
@@ -410,8 +478,10 @@ def derivation():
         x = ca.SX.sym('x', 7)
         q = x[:4]
         b_gyro = x[4:7]
-        r = Mrp.from_quat(q)
+        r = so3.Mrp.from_quat(q)
+        C_nb = so3.Dcm.from_quat(q)
         get_state = ca.Function('get_state', [x], [q, r, b_gyro], ['x'], ['q', 'r', 'b_gyro'])
+        G = DirectProduct([so3.Quat, r3.R3])
 
         # e, error state (6)
         # ----------------
@@ -426,7 +496,7 @@ def derivation():
         def predict():
 
             # state derivative
-            xdot = ca.vertcat(Quat.kinematics(q, omega_m - b_gyro + w_gyro), w_gyro_rw)
+            xdot = ca.vertcat(so3.Quat.kinematics(q, omega_m - b_gyro + w_gyro), w_gyro_rw)
             f_xdot = ca.Function('xdot', [t, x, omega_m, w_gyro, w_gyro_rw],
                                  [xdot], ['t', 'x', 'omega_m', 'w_gyro', 'w_gyro_rw'], ['xdot'])
 
@@ -438,7 +508,7 @@ def derivation():
             x1[0:4] = ca.if_else(ca.fabs(n_q1 - 1) > 2e-7, x1[:4] / n_q1, x1[:4])
 
             # error dynamics
-            eta_R = Dcm.exp(eta_r)
+            eta_R = so3.Dcm.exp(eta_r)
             f = ca.Function('f', [omega_m, eta, x, w_gyro_rw], [
                 ca.vertcat(-ca.mtimes(ca.DM.eye(3) - eta_R, omega_m - b_gyro) - ca.mtimes(eta_R, eta_b),
                            w_gyro_rw)])
@@ -459,30 +529,82 @@ def derivation():
                                   ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt'], ['x1', 'W1'])
 
         def correct_mag():
-            y_mag = ca.SX.sym('y_mag', 3, 1)
-            x_mag = x
-            W_mag = W
-            beta_mag = 1
-            r_mag = 0
-            r_std_mag = 0
+            y_b = ca.SX.sym('y_b', 3)
+            C_nm = so3.Dcm.exp(mag_decl*e3) # neglect incl
+
+            # meausre yaw in nav frame, but error in body frame for mekf
+            dR = so3.Dcm.from_quat(G.exp(eta)[:4])
+            B_n = ca.mtimes(so3.Dcm.exp(mag_decl*e3), ca.SX([1, 0, 0]))
+            yh_b = ca.mtimes([dR.T, C_nb.T, B_n])
+
+            #H_mag = ca.jacobian(yh_b, eta)
+            H_mag = ca.sparsify(
+                -ca.horzcat(so3.wedge(ca.mtimes(C_nb.T, B_n)), ca.SX.zeros(3, 3)))
+            print('H_mag', H_mag)
+
+            Rs_mag = std_mag*ca.diag([1, 1, 1])
+
+            W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
+            S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
+            r_mag = 0*(y_b - ca.substitute(yh_b, eta, ca.SX.zeros(6)))
+            x_mag = G.product(x, G.exp(ca.mtimes(K_mag, r_mag)))
+            beta_mag = ca.mtimes([r_mag.T, ca.inv(S_mag), r_mag]) / beta_mag_c
+            r_std_mag = ca.diag(Ss_mag)
+
+            # ignore correction when near singular point
             mag_ret = 0
+            x_mag = ca.if_else(mag_ret == 0, x_mag, x)
+            W_mag = ca.if_else(mag_ret == 0, W_mag, W)
+
             return ca.Function(
                 'correct_mag',
-                [x, W, y_mag, mag_decl, std_mag, beta_mag_c],
+                [x, W, y_b, mag_decl, std_mag, beta_mag_c],
                 [x_mag, W_mag, beta_mag, r_mag, r_std_mag, mag_ret],
-                ['x_h', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c'],
+                ['x', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c'],
                 ['x_mag', 'W_mag', 'beta_mag', 'r_mag', 'r_std_mag', 'error_code'])
 
         def correct_accel():
-            y_accel = ca.SX.sym('y_accel', 3, 1)
-            x_accel = x
-            W_accel = W
-            beta_accel = 1
-            r_accel = 0
-            r_std_accel = 0.1
-            accel_ret = 0
+            H_accel = ca.SX(2, 6)
+            H_accel[0, 0] = 1
+            H_accel[1, 1] = 1
+
+            f_measure_accel = ca.Function('measure_accel', [x],
+                [g*ca.mtimes(C_nb.T, ca.SX([0, 0, -1]))], ['x'],
+                                          ['y'])
+            yh_accel = f_measure_accel(x)
+            y_b = ca.SX.sym('y_b', 3)
+            n3 = ca.SX([0, 0, 1])
+            y_n = ca.mtimes(C_nb, -y_b)
+            v_n = ca.cross(y_n, n3) / ca.norm_2(y_b) / ca.norm_2(n3)
+            norm_v = ca.norm_2(v_n)
+            vh_n = v_n / norm_v
+            omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
+
+            #std_accel = ca.SX.sym('std_accel')
+            #std_accel_omega = ca.SX.sym('std_accel_omega')
+
+            Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
+
+            W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
+            S_accel = ca.mtimes(Ss_accel, Ss_accel.T)
+            r_accel = omega_c_accel_n[0:2]
+            r_std_accel = ca.diag(Ss_accel)
+            beta_accel = ca.mtimes([r_accel.T, ca.inv(S_accel), r_accel]) / beta_accel_c
+            x_accel = G.product(x, G.exp(ca.mtimes(K_accel, r_accel)))
+            x_accel = ca.sparsify(x_accel)
+
+            # ignore correction when near singular point
+            accel_ret = ca.if_else(
+                ca.fabs(ca.norm_2(y_b) - g) > 1.0,  # accel magnitude not close to g,
+                1,
+                0
+            )
+
+            x_accel = ca.if_else(accel_ret == 0, x_accel, x)
+            W_accel = ca.if_else(accel_ret == 0, W_accel, W)
+
             return ca.Function(
-                'correct_accel', [x, W, y_accel, g, omega_m, std_accel, std_accel_omega, beta_accel_c],
+                'correct_accel', [x, W, y_b, g, omega_m, std_accel, std_accel_omega, beta_accel_c],
                 [x_accel, W_accel, beta_accel, r_accel, r_std_accel, accel_ret],
                 ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
                 ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])

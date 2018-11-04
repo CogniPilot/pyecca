@@ -66,8 +66,8 @@ class AttitudeEstimator:
         self.x, self.W, beta_mag, r_mag, r_std_mag, mag_ret = self.eqs['correct_mag'](
             self.x, self.W, y, self.mag_decl.get(), self.std_mag.get(), self.beta_mag_c.get())
         self.msg_est_status.data['beta_mag'] = beta_mag
-        self.msg_est_status.data['r_mag'][:r_mag.shape[0]] = r_mag
-        self.msg_est_status.data['r_std_mag'][:r_std_mag.shape[0]] = r_std_mag
+        self.msg_est_status.data['r_mag'][:r_mag.shape[0]] = r_mag.T
+        self.msg_est_status.data['r_std_mag'][:r_std_mag.shape[0]] = r_std_mag.T
         self.msg_est_status.data['mag_ret'] = mag_ret
 
     def imu_callback(self, msg):
