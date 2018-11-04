@@ -1,12 +1,22 @@
 import numpy as np
 
-
-def init_data(dtype):
-    return np.zeros(1, dtype=dtype)[0]
+# avoid integer types, they don't work well with plotting,
+# no need to be overly cautious with memory here
 
 
 time_type = 'f8'
-float_type = 'f8'
+float_type = 'f8' # change this to f4 to simulate with 32 bit precision
+
+
+def init_data(dtype):
+    """
+    Initializes all data to nan
+    :param dtype: the numpy dtype
+    :return: the initialized data
+    """
+    data = np.zeros(1, dtype=dtype)[0]
+    data.fill(np.nan)
+    return data
 
 
 class Imu:
@@ -50,18 +60,20 @@ class EstimatorStatus():
     n_max = 20
     dtype = [
         ('time', time_type),  # timestamp
-        ('elapsed', float_type),  # elapsed time
-        ('n_x', 'i4'),  # number of states
+        ('cpu_predict', time_type),  # elapsed cpu prediction time
+        ('cpu_mag', time_type),  # elapsed cpu mag correction time
+        ('cpu_accel', time_type),  # elapsed cpu accel correction time
+        ('n_x', float_type),  # number of states
         ('x', float_type, n_max),  # states array
         ('W', float_type, n_max),  # W matrix diagonal (sqrt(P))
         ('r_mag', float_type, 3),  # magnetometer residual
         ('r_std_mag', float_type, 3),  # magnetometer residual standard deviation
         ('beta_mag', float_type),  # magnetometer fault detection
-        ('mag_ret', 'i8'),  # mag return code
+        ('mag_ret', float_type),  # mag return code
         ('r_accel', float_type, 3),  # accelerometer residual
         ('r_std_accel', float_type, 3),  # accelerometer residual standard deviation
         ('beta_accel', float_type),  # accelerometer fault detection
-        ('accel_ret', 'i8'),  # accelerometer return code
+        ('accel_ret', float_type),  # accelerometer return code
     ]
 
     def __init__(self):

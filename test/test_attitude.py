@@ -18,17 +18,19 @@ def test_sim():
     params = {
         'n_monte_carlo': 1,
         'tf': tf,
-        'estimators': ['mrp', 'mekf'],
+        'estimators': ['mekf', 'quat', 'mrp'],
         'params': {
             'sim/dt_sim': 1.0/400,
-            'sim/dt_mag': 1.0/1,
+            'sim/dt_imu': 1.0/100,
+            'sim/dt_mag': 1.0/50,
             'logger/dt': tf/100,
-            'sim/enable_noise': False
+            'sim/enable_noise': True
         }
     }
     data = launch_monte_carlo_sim(params)
     data_path = os.path.join(results_dir, 'data.pkl')
 
+    os.makedirs(results_dir, exist_ok=True)
     with open(data_path, 'wb') as f:
         pickle.dump(data, f)
 
@@ -41,7 +43,7 @@ def test_sim():
         'quat': {'color': 'g', 'linestyle': ':', 'alpha': 0.5},
         'mekf': {'color': 'r', 'linestyle': '-.', 'alpha': 0.5},
         'default': {'color': 'c', 'linestyle': '-.', 'alpha': 0.5}
-        }, fig_dir=results_dir)
+        }, fig_dir=results_dir, i_start=10)
     return data
 
 

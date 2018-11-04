@@ -36,6 +36,7 @@ def derivation():
     beta_mag_c = ca.SX.sym('beta_mag_c')  # normalizes beta mag so that 1 represents exceeding thresh
     beta_accel_c = ca.SX.sym('beta_accel_c')  # normalizes beta mag so that 1 represents exceeding thresh
     g = ca.SX.sym('g')
+    deg2rad = ca.pi/180
 
     # noise, mean zero, variance 1
     w_mag = ca.SX.sym('w_mag', 3, 1)
@@ -112,10 +113,12 @@ def derivation():
 
         # rotation error
         def rotation_error():
-            q1 = ca.SX.sym('q1', 4, 1)
-            q2 = ca.SX.sym('q2', 4, 1)
-            xi = so3.Quat.log(so3.Quat.product(so3.Quat.inv(q1), q2))
-            return ca.Function('rotation_error', [q1, q2], [xi], ['q1', 'q2'], ['xi'])
+            r1 = ca.SX.sym('r1', 4, 1)
+            r2 = ca.SX.sym('r2', 4, 1)
+            dr = so3.Mrp.product(so3.Mrp.inv(r1), r2)
+            dr = so3.Mrp.shadow_if_necessary(dr)
+            xi = so3.Mrp.log(dr)
+            return ca.Function('rotation_error', [r1, r2], [xi], ['r1', 'r2'], ['xi'])
 
         return {
             'simulate': simulate(),
@@ -126,6 +129,8 @@ def derivation():
             'get_state': get_state,
             'constants': constants()
         }
+
+    sim_eqs = sim_derivation()
 
     def mrp_derivation():
         """
@@ -160,6 +165,60 @@ def derivation():
             x0 = ca.DM.zeros(7)
             W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
+
+        def initialize():
+            g_b = ca.SX.sym('g_b', 3, 1)
+            B_b = ca.SX.sym('B_b', 3, 1)
+
+            B_n = ca.mtimes(so3.Dcm.exp(-mag_incl * e2) * so3.Dcm.exp(mag_decl * e3), ca.SX([1, 0, 0]))
+
+            g_norm = ca.norm_2(g_b)
+            B_norm = ca.norm_2(B_b)
+
+            n3_b = -g_b / g_norm
+            Bh_b = B_b / B_norm
+
+            n2_dir = ca.cross(n3_b, Bh_b)
+            n2_dir_norm = ca.norm_2(n2_dir)
+            theta = ca.asin(n2_dir_norm)
+
+            # require
+            # * g_norm > 5
+            # * B_norm > 0
+            # * 10 degrees between grav accel and mag vector
+            init_ret = ca.if_else(
+                ca.fabs(g_norm - 9.8) > 1,
+                1,
+                ca.if_else(
+                    B_norm <= 0,
+                    2,
+                    ca.if_else(
+                        theta < 10 * deg2rad,
+                        3,
+                        0
+                    )
+                )
+            )
+
+            n2_b = n2_dir / n2_dir_norm
+
+            # correct based on declination to true east
+            n2_b = ca.mtimes(so3.Dcm.exp(-mag_decl * n3_b), n2_b)
+
+            tmp = ca.cross(n2_b, n3_b)
+            n1_b = tmp / ca.norm_2(tmp)
+
+            R0 = ca.SX(3, 3)
+            R0[0, :] = n1_b
+            R0[1, :] = n2_b
+            R0[2, :] = n3_b
+
+            r0 = so3.Mrp.from_dcm(R0)
+            r0 = so3.Mrp.shadow_if_necessary(r0)
+            b0 = ca.SX.zeros(3)  # initial bias
+            x0 = ca.if_else(init_ret == 0, ca.vertcat(r0, b0), ca.SX.zeros(7))
+            return ca.Function('init', [g_b, B_b, mag_decl], [x0, init_ret], ['g_b', 'B_b', 'decl'],
+                               ['x0', 'error_code'])
 
         def predict():
 
@@ -291,12 +350,15 @@ def derivation():
                 ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
 
         return {
+            'initialize': initialize(),
             'predict': predict(),
             'correct_mag': correct_mag(),
             'correct_accel': correct_accel(),
             'get_state': get_state,
             'constants': constants()
         }
+
+    mrp_eqs = mrp_derivation()
 
     def quat_derivation():
         """
@@ -324,6 +386,59 @@ def derivation():
         n_e = G.algebra_params
         eta = ca.SX.sym('eta', n_e, 1)  # (right)'
         W = ca.SX.sym('W', ca.Sparsity_lower(n_e))
+
+        def initialize():
+            g_b = ca.SX.sym('g_b', 3, 1)
+            B_b = ca.SX.sym('B_b', 3, 1)
+
+            B_n = ca.mtimes(so3.Dcm.exp(-mag_incl * e2) * so3.Dcm.exp(mag_decl * e3), ca.SX([1, 0, 0]))
+
+            g_norm = ca.norm_2(g_b)
+            B_norm = ca.norm_2(B_b)
+
+            n3_b = -g_b / g_norm
+            Bh_b = B_b / B_norm
+
+            n2_dir = ca.cross(n3_b, Bh_b)
+            n2_dir_norm = ca.norm_2(n2_dir)
+            theta = ca.asin(n2_dir_norm)
+
+            # require
+            # * g_norm > 5
+            # * B_norm > 0
+            # * 10 degrees between grav accel and mag vector
+            init_ret = ca.if_else(
+                ca.fabs(g_norm - 9.8) > 1,
+                1,
+                ca.if_else(
+                    B_norm <= 0,
+                    2,
+                    ca.if_else(
+                        theta < 10 * deg2rad,
+                        3,
+                        0
+                    )
+                )
+            )
+
+            n2_b = n2_dir / n2_dir_norm
+
+            # correct based on declination to true east
+            n2_b = ca.mtimes(so3.Dcm.exp(-mag_decl * n3_b), n2_b)
+
+            tmp = ca.cross(n2_b, n3_b)
+            n1_b = tmp / ca.norm_2(tmp)
+
+            R0 = ca.SX(3, 3)
+            R0[0, :] = n1_b
+            R0[1, :] = n2_b
+            R0[2, :] = n3_b
+
+            q0 = so3.Quat.from_dcm(R0)
+            b0 = ca.SX.zeros(3)  # initial bias
+            x0 = ca.if_else(init_ret == 0, ca.vertcat(q0, b0), ca.SX.zeros(7))
+            return ca.Function('init', [g_b, B_b, mag_decl], [x0, init_ret], ['g_b', 'B_b', 'decl'],
+                               ['x0', 'error_code'])
 
         def predict():
 
@@ -458,12 +573,15 @@ def derivation():
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         return {
+            'initialize': initialize(),
             'predict': predict(),
             'correct_mag': correct_mag(),
             'correct_accel': correct_accel(),
             'get_state': get_state,
             'constants': constants()
         }
+
+    quat_eqs = quat_derivation()
 
     def mekf_derivation():
         """
@@ -492,6 +610,9 @@ def derivation():
         eta_r = eta[0:3]
         eta_b = eta[3:6]
         W = ca.SX.sym('W', ca.Sparsity_lower(n_e))
+
+        def initialize():
+            return quat_eqs['initialize']
 
         def predict():
 
@@ -540,7 +661,6 @@ def derivation():
             #H_mag = ca.jacobian(yh_b, eta)
             H_mag = ca.sparsify(
                 -ca.horzcat(so3.wedge(ca.mtimes(C_nb.T, B_n)), ca.SX.zeros(3, 3)))
-            print('H_mag', H_mag)
 
             Rs_mag = std_mag*ca.diag([1, 1, 1])
 
@@ -615,6 +735,7 @@ def derivation():
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         return {
+            'initialize': initialize(),
             'predict': predict(),
             'correct_mag': correct_mag(),
             'correct_accel': correct_accel(),
@@ -622,9 +743,11 @@ def derivation():
             'constants': constants()
         }
 
+    mekf_eqs = mekf_derivation()
+
     return {
-        'sim': sim_derivation(),
-        'mekf': mekf_derivation(),
-        'quat': quat_derivation(),
-        'mrp': mrp_derivation()
+        'sim': sim_eqs,
+        'mekf': mekf_eqs,
+        'quat': quat_eqs,
+        'mrp': mrp_eqs
     }

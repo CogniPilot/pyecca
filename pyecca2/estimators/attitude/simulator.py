@@ -67,7 +67,7 @@ class Simulator:
         # true angular velocity, nav frame
         #omega_b = np.random.randn(3)
         #omega_b = 20*omega_b/np.linalg.norm(omega_b)
-        omega_b = np.array([0, 0, 1])
+        #omega_b = np.array([3, 4, 5])
 
         eps = 1e-7
 
@@ -75,6 +75,12 @@ class Simulator:
 
             # time
             t = self.core.now
+
+            omega_b = 0.1*np.array([
+                1*(1 + np.sin(t*2*np.pi*1 + 1))/2,
+                2*(1 + np.sin(t*2*np.pi*2 + 2))/2,
+                3*(1 + np.sin(t*2*np.pi*3 + 3))/2
+            ])
 
             # compute dt
             dt = t - self.t_last_sim
@@ -86,18 +92,18 @@ class Simulator:
                 x = self.eqs['sim']['simulate'](
                     t, x, omega_b, self.sn_gyro_rw.get(), w_gyro_rw, dt)
 
+            # publish sim state
+            q, r, b_g = self.eqs['sim']['get_state'](x)
+            self.msg_sim_state.data['time'] = t
+            self.msg_sim_state.data['q'] = q.T
+            self.msg_sim_state.data['r'] = r.T
+            self.msg_sim_state.data['b'] = b_g.T
+            self.msg_sim_state.data['omega'] = omega_b.T
+            self.pub_sim.publish(self.msg_sim_state)
+
             # measure and publish accel/gyro
             if t== 0 or t - self.t_last_imu >= self.dt_imu.get() - eps:
                 self.t_last_imu = t
-
-                # publish sim state
-                q, r, b_g = self.eqs['sim']['get_state'](x)
-                self.msg_sim_state.data['time'] = t
-                self.msg_sim_state.data['q'] = q.T
-                self.msg_sim_state.data['r'] = r.T
-                self.msg_sim_state.data['b'] = b_g.T
-                self.msg_sim_state.data['omega'] = omega_b.T
-                self.pub_sim.publish(self.msg_sim_state)
 
                 # measure
                 w_gyro = self.randn(3)

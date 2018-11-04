@@ -54,21 +54,33 @@ class AttitudeEstimator:
         self.n_e = self.W.shape[0]
         self.t_last_imu = 0
         self.eqs = eqs
+        self.initialized = False
+        self.last_mag = None
+        self.last_imu = None
 
     def params_callback(self, msg):
         for p in self.param_list:
             p.update()
 
     def mag_callback(self, msg):
+        self.last_mag = msg
+
+        if not self.initialized:
+            return
+
         y = msg.data['mag']
         # out: ['x_mag', 'W_mag', 'beta_mag', 'r_mag', 'r_std_mag', 'error_code'])
-        # in: ['x', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c'],
+        # in: ['x', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c']
+        start = time.thread_time()
         self.x, self.W, beta_mag, r_mag, r_std_mag, mag_ret = self.eqs['correct_mag'](
             self.x, self.W, y, self.mag_decl.get(), self.std_mag.get(), self.beta_mag_c.get())
+        cpu_mag = time.thread_time() - start
+
         self.msg_est_status.data['beta_mag'] = beta_mag
         self.msg_est_status.data['r_mag'][:r_mag.shape[0]] = r_mag.T
         self.msg_est_status.data['r_std_mag'][:r_std_mag.shape[0]] = r_std_mag.T
         self.msg_est_status.data['mag_ret'] = mag_ret
+        self.msg_est_status.data['cpu_mag'] = cpu_mag
 
     def imu_callback(self, msg):
 
@@ -76,6 +88,23 @@ class AttitudeEstimator:
         t = msg.data['time']
         dt = t - self.t_last_imu
         self.t_last_imu = t
+        self.last_imu = msg
+
+        if not self.initialized:
+            if self.last_imu is not None and self.last_mag is not None:
+                # in: ['g_b', 'B_b', 'decl'],
+                # out: ['x0', 'error_code']
+                x0, ret = self.eqs['initialize'](
+                    self.last_imu.data['accel'], self.last_mag.data['mag'], self.mag_decl.get())
+                if ret != 0:
+                    print('initialization failed with error code', ret)
+                else:
+                    print('initialized at time ', self.core.now, x0, ret)
+                    self.x = x0
+                    self.initialized = True
+            return
+
+        assert self.initialized
 
         # estimate state
         omega = msg.data['gyro']
@@ -84,19 +113,21 @@ class AttitudeEstimator:
             self.x, self.W = self.eqs['predict'](t, self.x, self.W, omega,
                                                  self.std_mag.get(), self.sn_gyro_rw.get(), dt)
         q, r, b_g = self.eqs['get_state'](self.x)
-        end = time.thread_time()
-        elapsed = end - start
+        cpu_predict = time.thread_time() - start
 
         # correct accel
         # out: ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
-        # in: ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c'],
+        # in: ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c']
+        start = time.thread_time()
         self.x, self.W, beta_accel, r_accel, r_std_accel, accel_ret = self.eqs['correct_accel'](
             self.x, self.W, msg.data['accel'], self.g.get(), omega,
             self.std_accel.get(), self.std_accel_omega.get(), self.beta_accel_c.get())
+        cpu_accel = time.thread_time() - start
         self.msg_est_status.data['beta_accel'] = beta_accel
         self.msg_est_status.data['r_accel'][:r_accel.shape[0]] = r_accel.T
         self.msg_est_status.data['r_std_accel'][:r_accel.shape[0]] = r_std_accel.T
         self.msg_est_status.data['accel_ret'] = accel_ret
+        self.msg_est_status.data['cpu_accel'] = cpu_accel
 
         # publish vehicle state
         self.msg_state.data['time'] = t
@@ -112,5 +143,5 @@ class AttitudeEstimator:
         self.msg_est_status.data['x'][:self.n_x] = self.x.T
         W_vect = np.reshape(np.array(self.W)[np.diag_indices(self.n_e)], -1)
         self.msg_est_status.data['W'][:len(W_vect)] = W_vect
-        self.msg_est_status.data['elapsed'] = elapsed
+        self.msg_est_status.data['cpu_predict'] = cpu_predict
         self.pub_est.publish(self.msg_est_status)

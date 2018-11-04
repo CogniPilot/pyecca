@@ -12,7 +12,7 @@ plt.rcParams['lines.markersize'] = 7
 plt.rcParams['lines.markeredgewidth'] = 1
 
 
-def plot(data, ground_truth_name, est_names, est_style, fig_dir):
+def plot(data, ground_truth_name, est_names, est_style, fig_dir, i_start=0):
     plt.close('all')
 
     gt_state = ground_truth_name + '_state'
@@ -23,6 +23,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
         handles = []
         labels = []
         for i, d in enumerate(data):
+            d = d[i_start:]
             for topic in topics:
                 label = topic.split('_')[0]
                 if label in est_style:
@@ -50,18 +51,24 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
         plt.tight_layout()
         plt.savefig(os.path.join(fig_dir, file_name))
 
-    def compare_rot_error(q1, q2):
+    def compare_rot_error(r1, r2):
         r = []
-        for q1i, q2i in zip(q1, q2):
-            ri = np.array(eqs['sim']['rotation_error'](q1i, q2i))[:, 0]
+        for r1i, r2i in zip(r1, r2):
+            if np.isnan(r1i[0]) or np.isnan(r2i[0]):
+                ri =  np.array([np.nan, np.nan, np.nan])
+            else:
+                ri = np.array(eqs['sim']['rotation_error'](r1i, r2i))[:, 0]
             r.append(ri)
         r = np.rad2deg(np.array(r))
         return r
 
-    def compare_rot_error_norm(q1, q2):
+    def compare_rot_error_norm(r1, r2):
         r = []
-        for q1i, q2i in zip(q1, q2):
-            ri = np.linalg.norm((eqs['sim']['rotation_error'](q1i, q2i)))
+        for r1i, r2i in zip(r1, r2):
+            if np.isnan(r1i[0]) or np.isnan(r2i[0]):
+                ri = np.nan
+            else:
+                ri = np.linalg.norm((eqs['sim']['rotation_error'](r1i, r2i)))
             r.append(ri)
         r = np.rad2deg(np.array(r))
         return r
@@ -77,13 +84,26 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
 
     plt.figure()
     compare_topics(est_status_topics,
-                   lambda data, topic: 1e6 * data[topic]['elapsed'])
-    plot_handling('cpu time', 'time, sec', 'cpu time, usec', 'cpu_time.png')
+                   lambda data, topic: 1e6 * data[topic]['cpu_predict'])
+    plot_handling('prediction cpu usage', 'time, sec', 'cpu time, usec', 'cpu_predict.png')
+
+    plt.figure()
+    compare_topics(est_status_topics,
+                   lambda data, topic: 1e6 * data[topic]['cpu_mag'])
+    plot_handling('mag correct cpu usage', 'time, sec', 'cpu time, usec', 'cpu_mag.png')
+
+    plt.figure()
+    compare_topics(est_status_topics,
+                   lambda data, topic: 1e6 * data[topic]['cpu_accel'])
+    plot_handling('accel correct cpu usage', 'time, sec', 'cpu time, usec', 'cpu_accel.png')
 
     plt.figure()
     compare_topics(est_status_topics,
                    lambda data, topic: data[topic]['mag_ret'])
     plot_handling('mag ret', 'time, sec', 'return code', 'mag_ret.png')
+
+    # close figs so we don't open too many
+    plt.close('all')
 
     plt.figure()
     compare_topics(est_status_topics,
@@ -113,12 +133,12 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir):
 
     plt.figure()
     compare_topics(est_state_topics,
-                   lambda data, topic: compare_rot_error(data[topic]['q'], data[gt_state]['q']))
+                   lambda data, topic: compare_rot_error(data[topic]['r'], data[gt_state]['r']))
     plot_handling('rotation error', 'time, sec', 'error, deg', 'rotation_error.png')
 
     plt.figure()
     compare_topics(est_state_topics,
-                   lambda data, topic: compare_rot_error_norm(data[topic]['q'], data[gt_state]['q']))
+                   lambda data, topic: compare_rot_error_norm(data[topic]['r'], data[gt_state]['r']))
     plot_handling('rotation error norm', 'time, sec', 'error, deg', 'rotation_error_norm.png')
 
     plt.figure()
