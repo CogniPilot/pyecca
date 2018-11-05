@@ -677,6 +677,10 @@ def derive_equations():
             x_mag = ca.if_else(mag_ret == 0, x_mag, x)
             W_mag = ca.if_else(mag_ret == 0, W_mag, W)
 
+            #TODO skipping for now
+            x_mag = x
+            W_mag = W
+
             return ca.Function(
                 'correct_mag',
                 [x, W, y_b, mag_decl, std_mag, beta_mag_c],
@@ -723,6 +727,10 @@ def derive_equations():
 
             x_accel = ca.if_else(accel_ret == 0, x_accel, x)
             W_accel = ca.if_else(accel_ret == 0, W_accel, W)
+
+            #TODO skipping for now
+            x_mag = x
+            W_mag = W
 
             return ca.Function(
                 'correct_accel', [x, W, y_b, g, omega_m, std_accel, std_accel_omega, beta_accel_c],

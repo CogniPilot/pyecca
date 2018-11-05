@@ -118,14 +118,16 @@ class AttitudeEstimator:
         omega = msg.data['gyro']
         start = time.thread_time()
         if dt > 0:
-            self.x, self.W = self.eqs['predict'](t, self.x, self.W, omega,
-                                                 self.std_mag.get(), self.sn_gyro_rw.get(), dt)
+            # in: ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt']
+            # out ['x1', 'W1']
+            self.x, self.W = self.eqs['predict'](
+                t, self.x, self.W, omega, self.std_gyro.get()/dt, self.sn_gyro_rw.get(), dt)
         q, r, b_g = self.eqs['get_state'](self.x)
         cpu_predict = time.thread_time() - start
 
         for name, val in [('x', self.x), ('W', self.W), ('q', q), ('r', r), ('b_g', b_g)]:
             if np.any((np.isnan(np.array(val)))):
-                s = 'nan in estimator {:s}, {:s} = {:s}'.format(self.name, name, str(val))
+                s = 'nan in estimator {:s} @ {:f} sec, {:s} = {:s}'.format(self.name, t, name, str(val))
                 raise ValueError(s)
 
         if t - self.t_last_accel >= self.dt_min_accel.get():
@@ -137,6 +139,7 @@ class AttitudeEstimator:
                 self.x, self.W, msg.data['accel'], self.g.get(), omega,
                 self.std_accel.get(), self.std_accel_omega.get(), self.beta_accel_c.get())
             cpu_accel = time.thread_time() - start
+
             self.msg_est_status.data['beta_accel'] = beta_accel
             self.msg_est_status.data['r_accel'][:r_accel.shape[0]] = r_accel.T
             self.msg_est_status.data['r_std_accel'][:r_accel.shape[0]] = r_std_accel.T
