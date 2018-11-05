@@ -13,7 +13,6 @@ def launch_sim(params):
         'tf': 1,
         'name': 'default',
         'x0': [0, 0, 0, 0, 0, 0],
-        'f_omega': lambda t: [0, 0, 0],
         'estimators': [],
         'params': {}
     }
@@ -24,7 +23,7 @@ def launch_sim(params):
 
     eqs = derive_equations()
     core = uros.Core()
-    Simulator(core, eqs, p['x0'], p['f_omega'])
+    Simulator(core, eqs, p['x0'])
 
     for name in p['estimators']:
         AttitudeEstimator(core, name, eqs[name])
@@ -47,7 +46,6 @@ def launch_monte_carlo_sim(params):
         'name': 'default',
         'estimators': [],
         'x0': [0, 0, 0, 0, 0, 0],
-        'f_omega': lambda t: [0, 0, 0],
         'params': {}
     }
     for k, v in params.items():

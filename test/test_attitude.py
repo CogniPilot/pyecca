@@ -10,12 +10,13 @@ from pyecca2.estimators.attitude.plot import plot
 script_dir = os.path.abspath(os.path.dirname(__file__))
 results_dir = os.path.join(script_dir, 'results', 'attitude')
 
+alpha = 0.5
 est_style={
-    'sim': {'color': 'k', 'linestyle': '-.', 'linewidth': 1, 'alpha': 0.5},
-    'mrp': {'color': 'b', 'linestyle': '--', 'linewidth': 1, 'alpha': 0.5},
-    'quat': {'color': 'g', 'linestyle': '-.', 'linewidth': 1, 'alpha': 0.5},
-    'mekf': {'color': 'r', 'linestyle': '-.', 'linewidth': 1, 'alpha': 0.5},
-    'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 1, 'alpha': 0.5}
+    'sim': {'color': 'k', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha},
+    'mrp': {'color': 'b', 'linestyle': '--', 'linewidth': 1, 'alpha': alpha},
+    'quat': {'color': 'g', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha},
+    'mekf': {'color': 'r', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha},
+    'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha}
 }
 
 tf = 20
@@ -24,19 +25,14 @@ params = {
     'tf': tf,
     'estimators': ['mrp', 'quat'],
     'x0': np.array([0.1, 0.2, 0.3, 0, -0.007, 0.007, 0.002]),
-    'f_omega': lambda t: 10 * np.array([
-        (1 + np.sin(2*np.pi*0.1*t + 1))/2,
-        (1 + np.sin(2*np.pi*0.2*t + 2))/2,
-        (1 + np.cos(2*np.pi*0.3*t + 3))/2]),
-    #'f_omega': lambda t: np.array([10, 11, 12]),
     'params': {
         'sim/dt_sim': 1.0 / 400,
         'sim/dt_imu': 1.0 / 200,
         'sim/dt_mag': 1.0 / 50,
         'mrp/dt_min_mag': 1.0 / 50,
         'mrp/dt_min_accel': 1.0 / 200,
-        'logger/dt': tf/400,
-        'sim/enable_noise': True
+        'logger/dt': tf/100,
+        'sim/enable_noise': False
     }
 }
 

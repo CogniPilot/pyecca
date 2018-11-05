@@ -7,7 +7,7 @@ import pyecca2.uros as uros
 
 class Simulator:
 
-    def __init__(self, core, eqs, x0, f_omega):
+    def __init__(self, core, eqs, x0):
         self.core = core
 
         # publications
@@ -49,7 +49,6 @@ class Simulator:
         self.t_last_imu = 0
         self.t_last_mag = 0
         self.x0 = x0
-        self.f_omega = f_omega
 
         self.eqs = eqs
         np.random.seed()
@@ -73,7 +72,10 @@ class Simulator:
             t = self.core.now
 
             # true angular velocity in body frame
-            omega_b = self.f_omega(t)
+            omega_b = 10 * np.array([
+                (1 + np.sin(2 * np.pi * 0.1 * t + 1)) / 2,
+                (1 + np.sin(2 * np.pi * 0.2 * t + 2)) / 2,
+                (1 + np.cos(2 * np.pi * 0.3 * t + 3)) / 2])
 
             # compute dt
             dt = t - self.t_last_sim
@@ -105,8 +107,12 @@ class Simulator:
                 w_accel = self.randn(3)
                 y_gyro = self.eqs['sim']['measure_gyro'](
                     x, omega_b, self.std_gyro.get(), w_gyro).T
+
                 y_accel = self.eqs['sim']['measure_accel'](
                     x, self.g.get(), self.std_accel.get(), w_accel).T
+
+                # fake centrip acceleration term to model disturbance
+                # y_accel += 1e-3*np.array([[0, 1, 0]]) * np.linalg.norm(omega_b)**2
 
                 # publish
                 self.msg_imu.data['time'] = t
