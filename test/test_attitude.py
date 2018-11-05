@@ -13,26 +13,26 @@ results_dir = os.path.join(script_dir, 'results', 'attitude')
 alpha = 0.5
 est_style={
     'sim': {'color': 'k', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha},
-    'mrp': {'color': 'b', 'linestyle': '--', 'linewidth': 1, 'alpha': alpha},
+    'mrp': {'color': 'b', 'linestyle': '--', 'linewidth': 2, 'alpha': alpha},
     'quat': {'color': 'g', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha},
     'mekf': {'color': 'r', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha},
     'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha}
 }
 
-tf = 20
+tf = 30
 params = {
     'n_monte_carlo': 1,
     'tf': tf,
-    'estimators': ['mrp', 'quat'],
+    'estimators': ['mekf'],
     'x0': np.array([0.1, 0.2, 0.3, 0, -0.007, 0.007, 0.002]),
     'params': {
         'sim/dt_sim': 1.0 / 400,
         'sim/dt_imu': 1.0 / 200,
         'sim/dt_mag': 1.0 / 50,
-        'mrp/dt_min_mag': 1.0 / 50,
-        'mrp/dt_min_accel': 1.0 / 200,
-        'quat/dt_min_mag': 1.0 / 50,
-        'quat/dt_min_accel': 1.0 / 200,
+        #'mrp/dt_min_mag': 1.0 / 50,
+        #'mrp/dt_min_accel': 1.0 / 200,
+        #'quat/dt_min_mag': 1.0 / 50,
+        #'quat/dt_min_accel': 1.0 / 200,
         'logger/dt': tf/100,
         'sim/enable_noise': True
     }
@@ -66,4 +66,4 @@ def test_plot():
         data = pickle.load(f)
 
     plot(data, ground_truth_name='sim', est_names=params['estimators'],
-         est_style=est_style, fig_dir=results_dir, t_start=0.2, show=False)
+         est_style=est_style, fig_dir=results_dir, t_start=0, show=False)

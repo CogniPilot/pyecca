@@ -72,14 +72,14 @@ class Simulator:
             t = self.core.now
 
             # true angular velocity in body frame
-            time_varying_omega = False
+            time_varying_omega = True
             if time_varying_omega:
                 omega_b = 10 * np.array([
                     (1 + np.sin(2 * np.pi * 0.1 * t + 1)) / 2,
                     -(1 + np.sin(2 * np.pi * 0.2 * t + 2)) / 2,
                     (1 + np.cos(2 * np.pi * 0.3 * t + 3)) / 2])
             else:
-                omega_b = np.array([10, 11, 12])
+                omega_b = 10*np.array([1, 2, 3])
 
             # compute dt
             dt = t - self.t_last_sim
@@ -96,7 +96,8 @@ class Simulator:
                 self.t_last_imu = t
 
                 # publish sim state at same rate as estimators, which are based
-                # on imu pub
+                # on imu pub so that logger doesn't grab data out of sync and
+                # report larger error than exists in reality due to delayed data
                 q, r, b_g = self.eqs['sim']['get_state'](x)
 
                 self.msg_sim_state.data['time'] = t
