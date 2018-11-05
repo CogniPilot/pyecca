@@ -72,10 +72,14 @@ class Simulator:
             t = self.core.now
 
             # true angular velocity in body frame
-            omega_b = 10 * np.array([
-                (1 + np.sin(2 * np.pi * 0.1 * t + 1)) / 2,
-                (1 + np.sin(2 * np.pi * 0.2 * t + 2)) / 2,
-                (1 + np.cos(2 * np.pi * 0.3 * t + 3)) / 2])
+            time_varying_omega = False
+            if time_varying_omega:
+                omega_b = 10 * np.array([
+                    (1 + np.sin(2 * np.pi * 0.1 * t + 1)) / 2,
+                    -(1 + np.sin(2 * np.pi * 0.2 * t + 2)) / 2,
+                    (1 + np.cos(2 * np.pi * 0.3 * t + 3)) / 2])
+            else:
+                omega_b = np.array([10, 11, 12])
 
             # compute dt
             dt = t - self.t_last_sim

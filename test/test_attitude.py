@@ -31,8 +31,10 @@ params = {
         'sim/dt_mag': 1.0 / 50,
         'mrp/dt_min_mag': 1.0 / 50,
         'mrp/dt_min_accel': 1.0 / 200,
+        'quat/dt_min_mag': 1.0 / 50,
+        'quat/dt_min_accel': 1.0 / 200,
         'logger/dt': tf/100,
-        'sim/enable_noise': False
+        'sim/enable_noise': True
     }
 }
 
@@ -64,4 +66,4 @@ def test_plot():
         data = pickle.load(f)
 
     plot(data, ground_truth_name='sim', est_names=params['estimators'],
-         est_style=est_style, fig_dir=results_dir, t_start=0.1, show=False)
+         est_style=est_style, fig_dir=results_dir, t_start=0.2, show=False)
