@@ -11,11 +11,11 @@ script_dir = os.path.abspath(os.path.dirname(__file__))
 results_dir = os.path.join(script_dir, 'results', 'attitude')
 
 est_style={
-    'sim': {'color': 'k', 'linestyle': '-.', 'linewidth': 2, 'alpha': 0.5},
-    'mrp': {'color': 'b', 'linestyle': '--', 'linewidth': 2, 'alpha': 0.5},
-    'quat': {'color': 'g', 'linestyle': '-.', 'linewidth': 2, 'alpha': 0.5},
-    'mekf': {'color': 'r', 'linestyle': '-.', 'linewidth': 2, 'alpha': 0.5},
-    'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 2, 'alpha': 0.5}
+    'sim': {'color': 'k', 'linestyle': '-.', 'linewidth': 1, 'alpha': 0.5},
+    'mrp': {'color': 'b', 'linestyle': '--', 'linewidth': 1, 'alpha': 0.5},
+    'quat': {'color': 'g', 'linestyle': '-.', 'linewidth': 1, 'alpha': 0.5},
+    'mekf': {'color': 'r', 'linestyle': '-.', 'linewidth': 1, 'alpha': 0.5},
+    'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 1, 'alpha': 0.5}
 }
 
 tf = 20

@@ -31,7 +31,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
     # create output directory
     os.makedirs(fig_dir, exist_ok=True)
 
-    def compare_topics(title, xlabel, ylabel, topics, get_data, *args, **kwargs):
+    def compare_topics(title, xlabel, ylabel, est_topics, get_data, *args, **kwargs):
         p = {
             'close_fig': True,
             'show': False
@@ -46,8 +46,8 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         labels = []
         for i, d in enumerate(data):
             d = d[i_start:i_stop]
-            for topic in topics:
-                label = topic.split('_')[0]
+            for est in est_topics:
+                label = est
                 if label in est_style:
                     style = est_style[label]
                 elif 'default' in est_style:
@@ -55,7 +55,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
                 else:
                     style = {}
                 try:
-                    for series_label, series in get_data(d, topic):
+                    for series_label, series in get_data(d, est):
                         h = plt.plot(d['time'], series,
                                             *args, **style, **kwargs)[0]
                         if i == 0:
@@ -99,7 +99,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         r = np.array(r)
         return r
 
-    def compare_error_with_cov(title, xlabel, ylabel, topics, get_error, get_std, *args, **kwargs):
+    def compare_error_with_cov(title, xlabel, ylabel, est_topics, get_error, get_std, *args, **kwargs):
         p = {
             'close_fig': True,
             'show': False
@@ -114,11 +114,11 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         labels = []
         for i, d in enumerate(data):
             d = d[i_start:i_stop]
-            for est in est_names:
+            for est in est_topics:
                 e = get_error(d, est)
                 s = get_std(d, est)
                 std_style = dict(est_style[est])
-                std_style['linewidth'] = 1
+                std_style['linewidth'] = est_style[est]['linewidth'] + 1
                 h1 = plt.plot(d['time'], e, **est_style[est])[0]
                 h2 = plt.plot(d['time'], 3*s, **std_style)[0]
                 plt.plot(d['time'], -3*s, **std_style)
@@ -142,129 +142,121 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
     # actual plotting starts here
 
     compare_topics(
-        'quaternion normal error', 'time, sec', 'normal error', est_state_topics,
-        lambda data, topic: [
-            (topic, np.abs(1 - np.linalg.norm(data[topic]['q'], axis=1)))
+        'quaternion normal error', 'time, sec', 'normal error', est_names,
+        lambda d, est: [
+            (est, np.abs(1 - np.linalg.norm(d[est + '_state']['q'], axis=1)))
         ])
 
     compare_topics(
-        'prediction cpu usage', 'time, sec', 'cpu time, usec', est_status_topics,
-        lambda data, topic: [
-            (topic, 1e6 * data[topic]['cpu_predict'])
+        'prediction cpu usage', 'time, sec', 'cpu time, usec', est_names,
+        lambda d, est: [
+            (est, 1e6 * d[est + '_status']['cpu_predict'])
         ])
 
     compare_topics(
-        'mag correct cpu usage', 'time, sec', 'cpu time, usec', est_status_topics,
-        lambda data, topic: [
-            (topic, 1e6 * data[topic]['cpu_mag'])
+        'mag correct cpu usage', 'time, sec', 'cpu time, usec', est_names,
+        lambda d, est: [
+            (est, 1e6 * d[est + '_status']['cpu_mag'])
         ])
 
     compare_topics(
-        'accel correct cpu usage', 'time, sec', 'cpu time, usec', est_status_topics,
-        lambda data, topic: [
-            (topic, 1e6 * data[topic]['cpu_accel'])
+        'accel correct cpu usage', 'time, sec', 'cpu time, usec', est_names,
+        lambda d, est: [
+            (est, 1e6 * d[est + '_status']['cpu_accel'])
         ])
 
     compare_topics(
-        'mag ret', 'time, sec', 'return code', est_status_topics,
-        lambda data, topic: [
-            (topic, data[topic]['mag_ret'])
+        'mag ret', 'time, sec', 'return code', est_names,
+        lambda d, est: [
+            (est, d[est + '_status']['mag_ret'])
         ])
 
     compare_error_with_cov(
-        'mag innovation', 'time, sec', 'innovation, deg', est_status_topics,
+        'mag innovation', 'time, sec', 'innovation, deg', est_names,
         get_error=lambda d, est: np.rad2deg(d[est + '_status']['r_mag']),
         get_std=lambda d, est: np.rad2deg(d[est + '_status']['r_std_mag']),
     )
 
     compare_topics(
-        'mag beta', 'time, sec', 'beta', est_status_topics,
-        lambda data, topic: [
-            (topic, data[topic]['beta_mag'])
+        'mag beta', 'time, sec', 'beta', est_names,
+        lambda d, est: [
+            (est, d[est + '_status']['beta_mag'])
         ])
 
     compare_topics(
-        'accel ret', 'time, sec', 'return code', est_status_topics,
-        lambda data, topic: [
-            (topic, data[topic]['accel_ret'])
+        'accel ret', 'time, sec', 'return code', est_names,
+        lambda d, est: [
+            (est, d[est + '_status']['accel_ret'])
         ])
 
     compare_error_with_cov(
-        'accel innovation', 'time, sec', 'innovation, m/s^2', est_status_topics,
+        'accel innovation', 'time, sec', 'innovation, m/s^2', est_names,
         get_error=lambda d, est: d[est + '_status']['r_accel'],
         get_std=lambda d, est: d[est + '_status']['r_std_accel'],
     )
 
     compare_topics(
-        'accel beta', 'time, sec', 'beta', est_status_topics,
-        lambda data, topic: [
-            (topic, data[topic]['beta_accel'])
+        'accel beta', 'time, sec', 'beta', est_names,
+        lambda d, est: [
+            (est, d[est + '_status']['beta_accel'])
         ])
 
     compare_error_with_cov(
-        'rotation error', 'time, sec', 'error, deg', est_state_topics,
+        'rotation error', 'time, sec', 'error, deg', est_names,
         get_error=lambda d, est: np.rad2deg(compare_rot_error(d[est + '_state']['q'], d[gt_state]['q'])),
         get_std=lambda d, est: np.rad2deg(d[est + '_status']['W'][:, 0:3])
     )
 
     compare_topics(
-        'rotation error norm', 'time, sec', 'error, deg', est_state_topics,
-        lambda data, topic: [
-            (topic, np.rad2deg(compare_rot_error_norm(data[topic]['q'], data[gt_state]['q'])))
+        'rotation error norm', 'time, sec', 'error, deg', est_names,
+        lambda d, est: [
+            (est, np.rad2deg(compare_rot_error_norm(d[est + '_state']['q'], d[gt_state]['q'])))
         ])
 
     compare_topics(
-        'angular velocity', 'time, sec', 'angular velocity, deg/s',
-        [gt_state],
-        lambda data, topic: [
-            (topic, np.rad2deg(data[topic]['omega']))
+        'angular velocity', 'time, sec', 'angular velocity, deg/s', [ground_truth_name],
+        lambda d, est: [
+            (est, np.rad2deg(d[est + '_state']['omega']))
         ])
 
     compare_topics(
-        'quaternion', 'time, sec', 'quaternion component',
-        [gt_state] + est_state_topics,
-        lambda data, topic: [
-            (topic, data[topic]['q'])
+        'quaternion', 'time, sec', 'quaternion component', [ground_truth_name] + est_names,
+        lambda d, est: [
+            (est, d[est + '_state']['q'])
         ])
 
     compare_topics(
-        'modified rodrigues params', 'time, sec', 'mrp component',
-        [gt_state] + est_state_topics,
-        lambda data, topic: [
-            (topic, data[topic]['r'])
+        'modified rodrigues params', 'time, sec', 'mrp component', [ground_truth_name] + est_names,
+        lambda d, est: [
+            (est, d[est + '_state']['r'])
         ])
 
     compare_topics(
-        'bias', 'time, sec', 'bias, deg/min',
-        [gt_state] +  est_state_topics,
-        lambda data, topic: [
-            (topic, 60 * np.rad2deg(data[topic]['b']))
+        'bias', 'time, sec', 'bias, deg/min', [ground_truth_name] + est_names,
+        lambda d, est: [
+            (est, 60 * np.rad2deg(d[est + '_state']['b']))
         ])
 
     compare_error_with_cov(
-        'bias error', 'time, sec', 'bias error, deg/min',
-        est_state_topics,
+        'bias error', 'time, sec', 'bias error, deg/min', est_names,
         get_error=lambda d, est: 60*180/np.pi*(d[est + '_state']['b'] - d[gt_state]['b']),
         get_std=lambda d, est: 60*180/np.pi*(d[est + '_status']['W'][:, 3:6])
     )
 
     compare_topics(
-        'mag', 'time, sec', 'magnetometer, normalized',
-        ['mag'],
-        lambda data, topic: [
-            (topic, data[topic]['mag'])
+        'mag', 'time, sec', 'magnetometer, normalized', ['mag'],
+        lambda d, topic: [
+            ('mag', d[topic]['mag'])
         ])
 
     compare_topics(
-        'accel', 'time, sec', 'accelerometer, m/s^2',
-        ['imu'],
-        lambda data, topic: [
-            (topic, data[topic]['accel'])
+        'accel', 'time, sec', 'accelerometer, m/s^2', ['imu'],
+        lambda d, topic: [
+            ('accel', d[topic]['accel'])
         ])
 
     compare_topics(
-        'gyro', 'time, sec', 'gyro, rad/s',
-        ['imu'],
-        lambda data, topic: [
-            (topic, data[topic]['gyro'])
+        'gyro', 'time, sec', 'gyro, rad/s', ['imu'],
+        lambda d, topic: [
+            ('gyro', d[topic]['gyro'])
         ])
