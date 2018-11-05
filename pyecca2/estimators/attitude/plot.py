@@ -70,7 +70,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         plt.tight_layout()
         if len(handles) > 1:
             plt.legend(
-                handles, labels, loc='best')
+                handles, labels, loc='best', ncol=2)
         plt.savefig(os.path.join(fig_dir, file_name))
         if p['show']:
             plt.show()
@@ -130,7 +130,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title(title)
-        plt.legend(handles, labels, loc='best')
+        plt.legend(handles, labels, loc='best', ncol=2)
         plt.grid()
         plt.tight_layout()
         plt.savefig(os.path.join(fig_dir, file_name))
@@ -148,19 +148,19 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         ])
 
     compare_topics(
-        'prediction cpu usage', 'time, sec', 'cpu time, usec', est_names,
+        'prediction cpu time', 'time, sec', 'cpu time, usec', est_names,
         lambda d, est: [
             (est, 1e6 * d[est + '_status']['cpu_predict'])
         ])
 
     compare_topics(
-        'mag correct cpu usage', 'time, sec', 'cpu time, usec', est_names,
+        'mag correct cpu time', 'time, sec', 'cpu time, usec', est_names,
         lambda d, est: [
             (est, 1e6 * d[est + '_status']['cpu_mag'])
         ])
 
     compare_topics(
-        'accel correct cpu usage', 'time, sec', 'cpu time, usec', est_names,
+        'accel correct cpu time', 'time, sec', 'cpu time, usec', est_names,
         lambda d, est: [
             (est, 1e6 * d[est + '_status']['cpu_accel'])
         ])
