@@ -3,9 +3,9 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .derivation import derive_equations
+from  pyecca2.estimators.attitude import algorithms
 
-eqs = derive_equations()
+eqs = algorithms.eqs()
 
 plt.rcParams['lines.linewidth'] = 2
 plt.rcParams['lines.markersize'] = 7

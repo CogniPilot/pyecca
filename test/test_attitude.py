@@ -2,7 +2,7 @@ import os
 import pickle
 import numpy as np
 
-from pyecca2.estimators.attitude import derivation
+from pyecca2.estimators.attitude import algorithms
 from pyecca2.estimators.attitude.launch import launch_monte_carlo_sim
 from pyecca2.estimators.attitude.plot import plot
 
@@ -39,7 +39,7 @@ params = {
 }
 
 def test_derivation():
-    eqs = derivation.derive_equations(results_dir)
+    eqs = algorithms.eqs(results_dir=results_dir)
     print('eqs', eqs.keys())
 
 
@@ -55,8 +55,8 @@ def test_sim():
 
 
 def test_generate_code():
-    eqs = derivation.derive_equations(results_dir)
-    derivation.generate_code(eqs, os.path.join(results_dir, 'code'))
+    eqs = algorithms.eqs()
+    algorithms.generate_code(eqs, os.path.join(results_dir, 'code'))
 
 
 def test_plot():
