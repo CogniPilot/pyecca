@@ -115,12 +115,11 @@ def derive_equations():
 
         # rotation error
         def rotation_error():
-            r1 = ca.SX.sym('r1', 4, 1)
-            r2 = ca.SX.sym('r2', 4, 1)
-            dr = so3.Mrp.product(so3.Mrp.inv(r1), r2)
-            dr = so3.Mrp.shadow_if_necessary(dr)
-            xi = so3.Mrp.log(dr)
-            return ca.Function('rotation_error', [r1, r2], [xi], ['r1', 'r2'], ['xi'])
+            q1 = ca.SX.sym('q1', 4)
+            q2 = ca.SX.sym('q2', 4)
+            dq = so3.Quat.product(so3.Quat.inv(q1), q2)
+            xi = so3.Quat.log(dq)
+            return ca.Function('rotation_error', [q1, q2], [xi], ['q1', 'q2'], ['xi'])
 
         return {
             'simulate': simulate(),

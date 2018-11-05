@@ -12,18 +12,27 @@ plt.rcParams['lines.markersize'] = 7
 plt.rcParams['lines.markeredgewidth'] = 1
 
 
-def plot(data, ground_truth_name, est_names, est_style, fig_dir, i_start=0):
+def plot(data, ground_truth_name, est_names, est_style, fig_dir,
+         t_start=0, t_stop=-1, show=False):
     plt.close('all')
+
+    i_start = np.argmax(data[0]['time'] > t_start)
+    if t_stop > 0:
+        i_stop = np.argmax(data[0]['time'] > t_stop)
+    else:
+        i_stop = -1
 
     gt_state = ground_truth_name + '_state'
 
     os.makedirs(fig_dir, exist_ok=True)
 
-    def compare_topics(topics, get_data, *args, **kwargs):
+    def compare_topics(title, xlabel, ylabel, topics, get_data, *args, **kwargs):
+        file_name = title.replace(' ', '_').lower()
+        fig = plt.figure()
         handles = []
         labels = []
         for i, d in enumerate(data):
-            d = d[i_start:]
+            d = d[i_start:i_stop]
             for topic in topics:
                 label = topic.split('_')[0]
                 if label in est_style:
@@ -40,148 +49,132 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir, i_start=0):
                         labels.append(label)
                 except ValueError as e:
                     print(e)
-        plt.legend(
-            handles, labels, loc='best')
-
-    def plot_handling(title, xlabel, ylabel, file_name):
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.grid(True)
         plt.tight_layout()
+        plt.legend(
+            handles, labels, loc='best')
         plt.savefig(os.path.join(fig_dir, file_name))
+        if show:
+            plt.show()
+        plt.close(fig)
 
-    def compare_rot_error(r1, r2):
+    def compare_rot_error(q1, q2):
         r = []
-        for r1i, r2i in zip(r1, r2):
-            if np.isnan(r1i[0]) or np.isnan(r2i[0]):
+        for q1i, q2i in zip(q1, q2):
+            if np.isnan(q1i[0]) or np.isnan(q2i[0]):
                 ri =  np.array([np.nan, np.nan, np.nan])
             else:
-                ri = np.array(eqs['sim']['rotation_error'](r1i, r2i))[:, 0]
+                ri = np.array(eqs['sim']['rotation_error'](q1i, q2i))[:, 0]
             r.append(ri)
         r = np.rad2deg(np.array(r))
         return r
 
-    def compare_rot_error_norm(r1, r2):
+    def compare_rot_error_norm(q1, q2):
         r = []
-        for r1i, r2i in zip(r1, r2):
-            if np.isnan(r1i[0]) or np.isnan(r2i[0]):
+        for q1i, q2i in zip(q1, q2):
+            if np.isnan(q1i[0]) or np.isnan(q2i[0]):
                 ri = np.nan
             else:
-                ri = np.linalg.norm((eqs['sim']['rotation_error'](r1i, r2i)))
+                ri = np.linalg.norm((eqs['sim']['rotation_error'](q1i, q2i)))
             r.append(ri)
         r = np.rad2deg(np.array(r))
         return r
-
 
     est_state_topics = [name + '_state' for name in est_names]
     est_status_topics = [name + '_status' for name in est_names]
 
-    plt.figure()
-    compare_topics(est_state_topics,
-                   lambda data, topic: np.abs(1 - np.linalg.norm(data[topic]['q'], axis=1)))
-    plot_handling('quaternion normal error', 'time, sec', 'normal error', 'quat_normal.png')
+    compare_topics(
+        'quaternion normal error', 'time, sec', 'normal error', est_state_topics,
+        lambda data, topic: np.abs(1 - np.linalg.norm(data[topic]['q'], axis=1)))
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: 1e6 * data[topic]['cpu_predict'])
-    plot_handling('prediction cpu usage', 'time, sec', 'cpu time, usec', 'cpu_predict.png')
+    compare_topics(
+        'prediction cpu usage', 'time, sec', 'cpu time, usec', est_status_topics,
+        lambda data, topic: 1e6 * data[topic]['cpu_predict'])
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: 1e6 * data[topic]['cpu_mag'])
-    plot_handling('mag correct cpu usage', 'time, sec', 'cpu time, usec', 'cpu_mag.png')
+    compare_topics(
+        'mag correct cpu usage', 'time, sec', 'cpu time, usec', est_status_topics,
+        lambda data, topic: 1e6 * data[topic]['cpu_mag'])
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: 1e6 * data[topic]['cpu_accel'])
-    plot_handling('accel correct cpu usage', 'time, sec', 'cpu time, usec', 'cpu_accel.png')
+    compare_topics(
+        'accel correct cpu usage', 'time, sec', 'cpu time, usec', est_status_topics,
+        lambda data, topic: 1e6 * data[topic]['cpu_accel'])
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: data[topic]['mag_ret'])
-    plot_handling('mag ret', 'time, sec', 'return code', 'mag_ret.png')
+    compare_topics(
+        'mag ret', 'time, sec', 'return code', est_status_topics,
+        lambda data, topic: data[topic]['mag_ret'])
 
-    # close figs so we don't open too many
-    plt.close('all')
+    compare_topics(
+        'mag innovation', 'time, sec', 'innovation, deg', est_status_topics,
+        lambda data, topic: np.rad2deg(data[topic]['r_mag']))
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: np.rad2deg(data[topic]['r_mag']))
-    plot_handling('mag innovation', 'time, sec', 'innovation, deg', 'mag_innov.png')
+    compare_topics(
+        'mag beta', 'time, sec', 'beta', est_status_topics,
+        lambda data, topic: data[topic]['beta_mag'])
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: data[topic]['beta_mag'])
-    plot_handling('mag beta', 'time, sec', 'beta', 'mag_beta.png')
+    compare_topics(
+        'accel ret', 'time, sec', 'return code', est_status_topics,
+        lambda data, topic: data[topic]['accel_ret'])
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: data[topic]['accel_ret'])
-    plot_handling('accel ret', 'time, sec', 'return code', 'accel_ret.png')
+    compare_topics(
+        'accel innovation', 'time, sec', 'innovation, m/s^2', est_status_topics,
+        lambda data, topic: data[topic]['r_accel'])
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: data[topic]['r_accel'])
-    plot_handling('accel innovation', 'time, sec', 'innovation, m/s^2', 'accel_innov.png')
+    compare_topics(
+        'accel beta', 'time, sec', 'beta', est_status_topics,
+        lambda data, topic: data[topic]['beta_accel'])
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: data[topic]['beta_accel'])
-    plot_handling('accel beta', 'time, sec', 'beta', 'accel_beta.png')
+    compare_topics(
+        'rotation error', 'time, sec', 'error, deg', est_state_topics,
+        lambda data, topic: compare_rot_error(data[topic]['q'], data[gt_state]['q']))
 
+    compare_topics(
+        'rotation error norm', 'time, sec', 'error, deg', est_state_topics,
+        lambda data, topic: compare_rot_error_norm(data[topic]['q'], data[gt_state]['q']))
 
-    plt.figure()
-    compare_topics(est_state_topics,
-                   lambda data, topic: compare_rot_error(data[topic]['r'], data[gt_state]['r']))
-    plot_handling('rotation error', 'time, sec', 'error, deg', 'rotation_error.png')
+    compare_topics(
+        'angular velocity', 'time, sec', 'angular velocity, deg/s',
+        [gt_state],
+        lambda data, topic: np.rad2deg(data[topic]['omega']))
 
-    plt.figure()
-    compare_topics(est_state_topics,
-                   lambda data, topic: compare_rot_error_norm(data[topic]['r'], data[gt_state]['r']))
-    plot_handling('rotation error norm', 'time, sec', 'error, deg', 'rotation_error_norm.png')
+    compare_topics(
+        'quaternion', 'time, sec', 'quaternion component',
+        [gt_state] + est_state_topics,
+        lambda data, topic: data[topic]['q'])
 
-    plt.figure()
-    for d in data:
-        plt.plot(d['time'], np.rad2deg(d[gt_state]['omega']))
-    plot_handling('angular velocity', 'time, sec', 'angular velocity, deg/s', 'angular_velocity.png')
+    compare_topics(
+        'modified rodrigues params', 'time, sec', 'mrp component',
+        [gt_state] + est_state_topics,
+        lambda data, topic: data[topic]['r'])
 
-    plt.figure()
-    compare_topics([gt_state] + est_state_topics,
-                   lambda data, topic: data[topic]['q'])
-    plot_handling('quaternion', 'time, sec', 'quaternion component', 'quaternion.png')
+    compare_topics(
+        'bias', 'time, sec', 'bias, deg/min',
+        [gt_state] +  est_state_topics,
+        lambda data, topic: 60 * np.rad2deg(data[topic]['b']))
 
-    plt.figure()
-    compare_topics([gt_state] + est_state_topics,
-                   lambda data, topic: data[topic]['r'])
-    plot_handling('modified rodrigues params', 'time, sec', 'mrp component', 'mrp.png')
+    compare_topics(
+        'bias error', 'time, sec', 'bias error, deg/min',
+        est_state_topics,
+        lambda data, topic: np.rad2deg(data[topic]['b'] - data[gt_state]['b']))
 
-    plt.figure()
-    compare_topics([gt_state] +  est_state_topics,
-                   lambda data, topic: 60 * np.rad2deg(data[topic]['b']))
-    plot_handling('bias', 'time, sec', 'bias, deg/min', 'bias.png')
+    compare_topics(
+        'estimation uncertainty', 'time, sec', 'std. dev.',
+        est_status_topics,
+        lambda data, topic: data[topic]['W'][:, :3])
 
-    plt.figure()
-    compare_topics(est_state_topics,
-                   lambda data, topic: np.rad2deg(data[topic]['b'] - data[gt_state]['b']))
-    plot_handling('bias error', 'time, sec', 'bias error, deg/min', 'bias_error.png')
+    compare_topics(
+        'mag', 'time, sec', 'magnetometer, normalized',
+        ['mag'],
+        lambda data, topic: data[topic]['mag'])
 
-    plt.figure()
-    compare_topics(est_status_topics,
-                   lambda data, topic: data[topic]['W'][:, :3])
-    plot_handling('estimation uncertainty', 'time, sec', 'std. dev.', 'est_uncertainty.png')
+    compare_topics(
+        'accel', 'time, sec', 'accelerometer, m/s^2',
+        ['imu'],
+        lambda data, topic: data[topic]['accel'])
 
-    plt.figure()
-    for d in data:
-        plt.plot(d['time'], d['mag']['mag'])
-    plot_handling('mag', 'time, sec', 'magnetometer, norm.', 'mag.png')
-
-    plt.figure()
-    for d in data:
-        plt.plot(d['time'], d['imu']['accel'])
-    plot_handling('accel', 'time, sec', 'accelerometer, m/s^2', 'accel.png')
-
-    plt.figure()
-    for d in data:
-        plt.plot(d['time'], d['imu']['gyro'])
-    plot_handling('gyro', 'time, sec', 'gyro, rad/s', 'gyro.png')
+    compare_topics(
+        'gyro', 'time, sec', 'gyro, rad/s',
+        ['imu'],
+        lambda data, topic: data[topic]['gyro'])

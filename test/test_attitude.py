@@ -1,5 +1,6 @@
 import os
 import pickle
+import numpy as np
 
 from pyecca2.estimators.attitude import derivation
 from pyecca2.estimators.attitude.launch import launch_monte_carlo_sim
@@ -18,12 +19,14 @@ def test_sim():
     params = {
         'n_monte_carlo': 1,
         'tf': tf,
-        'estimators': ['mekf', 'quat', 'mrp'],
+        'estimators': ['mrp'],
+        'x0': np.array([0.1, 0.2, 0.3, 0, 0.01, 0.02, 0.03]),
+        'f_omega': lambda t: 1*np.array([np.cos(t), np.sin(t), np.cos(t)]),
         'params': {
             'sim/dt_sim': 1.0/400,
-            'sim/dt_imu': 1.0/100,
+            'sim/dt_imu': 1.0/200,
             'sim/dt_mag': 1.0/50,
-            'logger/dt': tf/100,
+            'logger/dt': 1.0/200,
             'sim/enable_noise': True
         }
     }
@@ -40,10 +43,10 @@ def test_sim():
     plot(data, ground_truth_name='sim', est_names=params['estimators'], est_style={
         'sim': {'color': 'k', 'linestyle': '-', 'alpha': 0.5},
         'mrp': {'color': 'b', 'linestyle': '--', 'alpha': 0.5},
-        'quat': {'color': 'g', 'linestyle': ':', 'alpha': 0.5},
+        'quat': {'color': 'g', 'linestyle': '-.', 'alpha': 0.5},
         'mekf': {'color': 'r', 'linestyle': '-.', 'alpha': 0.5},
-        'default': {'color': 'c', 'linestyle': '-.', 'alpha': 0.5}
-        }, fig_dir=results_dir, i_start=10)
+        'default': {'color': 'm', 'linestyle': '-.', 'alpha': 0.5}
+        }, fig_dir=results_dir, t_start=0, show=False)
 
 
     eqs = derivation.derive_equations()

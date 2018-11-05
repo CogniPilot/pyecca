@@ -20,15 +20,13 @@ def wedge(v):
     return X
 
 
-eps = 1e-8  # tolerance for avoiding divide by 0
-
-
 class Dcm:
 
     x = ca.SX.sym('x')
-    C1 = ca.Function('a', [x], [ca.if_else(x < eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
-    C2 = ca.Function('b', [x], [ca.if_else(x < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
-    C3 = ca.Function('d', [x], [ca.if_else(x < eps, 0.5 + x**2/12 + 7*x**4/720, x/(2*ca.sin(x)))])
+    series_eps = 1e-3
+    C1 = ca.Function('a', [x], [ca.if_else(ca.fabs(x) < series_eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
+    C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < series_eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
+    C3 = ca.Function('d', [x], [ca.if_else(ca.fabs(x) < series_eps, 0.5 + x**2/12 + 7*x**4/720, x/(2*ca.sin(x)))])
     del x
 
     group_shape = (3, 3)
@@ -134,10 +132,8 @@ class Mrp:
         nb_sq = ca.dot(b, b)
         res = ca.SX(4, 1)
         den = (1 + na_sq * nb_sq - 2 * ca.dot(b, a))
-        res[:3] = ((1 - na_sq) * b + (1 - nb_sq) * a - 2 * ca.cross(b, a)) \
-                  / den
+        res[:3] = ((1 - na_sq) * b + (1 - nb_sq) * a - 2 * ca.cross(b, a)) / den
         res[3] = 0  # shadow state
-        res = ca.if_else(den == 0, ca.DM([0, 0, 0, 0]), res)
         return res
 
     @classmethod
@@ -150,7 +146,7 @@ class Mrp:
         assert v.shape == (3, 1) or v.shape == (3,)
         angle = ca.norm_2(v)
         res = ca.SX(4, 1)
-        res[:3] = ca.if_else(angle < eps, ca.DM([0, 0, 0]), ca.tan(angle / 4) * v / angle)
+        res[:3] = ca.tan(angle / 4) * v / angle
         res[3] = 0
         return res
 
@@ -158,14 +154,14 @@ class Mrp:
     def log(cls, r):
         assert r.shape == (4, 1) or r.shape == (4,)
         n = ca.norm_2(r[:3])
-        return ca.if_else(n < eps, ca.DM([0, 0, 0]), 4 * ca.atan(n) * r[:3] / n)
+        return 4 * ca.atan(n) * r[:3] / n
 
     @classmethod
     def shadow(cls, r):
         assert r.shape == (4, 1) or r.shape == (4,)
         n_sq = ca.dot(r[:3], r[:3])
         res = ca.SX(4, 1)
-        res[:3] = ca.if_else(n_sq > eps, -r[:3] / n_sq, [0, 0, 0])
+        res[:3] = -r[:3] / n_sq
         res[3] = ca.logic_not(r[3])
         return res
 
@@ -235,7 +231,7 @@ class Quat:
         qi[1] = -q[1]/n
         qi[2] = -q[2]/n
         qi[3] = -q[3]/n
-        return ca.if_else(n > 0, qi, ca.DM([1, 0, 0, 0]))
+        return qi
 
     @classmethod
     def exp(cls, v):
@@ -248,7 +244,7 @@ class Quat:
         q[1] = c*v[0]/n
         q[2] = c*v[1]/n
         q[3] = c*v[2]/n
-        return ca.if_else(n > 0, q, ca.DM([1, 0, 0, 0]))
+        return q
 
     @classmethod
     def log(cls, q):
@@ -260,7 +256,7 @@ class Quat:
         v[0] = theta*q[1]/c
         v[1] = theta*q[2]/c
         v[2] = theta*q[3]/c
-        return ca.if_else(ca.logic_or(ca.fabs(q[0]) >= 1, norm_q == 0), ca.SX([0, 0, 0]), v)
+        return v
 
     @classmethod
     def kinematics(cls, q, w):
@@ -289,8 +285,7 @@ class Quat:
         q[0] = (1 - n_sq)/den
         for i in range(3):
             q[i + 1] = 2*a[i]/den
-        res = ca.if_else(den > 0, q, ca.SX([1, 0, 0, 0]))
-        return ca.if_else(r[3], -res, res)
+        return ca.if_else(r[3], -q, q)
 
     @classmethod
     def from_dcm(cls, R):

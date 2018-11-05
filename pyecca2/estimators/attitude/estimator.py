@@ -40,11 +40,14 @@ class AttitudeEstimator:
         self.std_accel = add_param('std_accel', 1e-3, 'f8')
         self.std_accel_omega = add_param('std_accel_omega', 1e-6, 'f8')
 
-        self.std_gyro = add_param('std_gyro', 1e-6, 'f8')
+        self.std_gyro = add_param('std_gyro', 1e-3, 'f8')
         self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-6, 'f8')
         self.mag_decl = add_param('mag_decl', 0, 'f8')
         self.beta_mag_c = add_param('beta_mag_c', 100, 'f8')
         self.beta_accel_c = add_param('beta_accel_c', 100, 'f8')
+        self.dt_min_accel = add_param('dt_min_accel', 1.0/200, 'f8')
+        self.dt_min_mag = add_param('dt_min_mag', 1.0/200, 'f8')
+
         self.g = add_param('g', 9.8, 'f8')
 
         # misc
@@ -53,6 +56,8 @@ class AttitudeEstimator:
         self.n_x = self.x.shape[0]
         self.n_e = self.W.shape[0]
         self.t_last_imu = 0
+        self.t_last_accel = 0
+        self.t_last_mag = 0
         self.eqs = eqs
         self.initialized = False
         self.last_mag = None
@@ -63,11 +68,13 @@ class AttitudeEstimator:
             p.update()
 
     def mag_callback(self, msg):
-        self.last_mag = msg
+        t = msg.data['time']
+        self.last_mag = msg  # must always set, since used for init
 
-        if not self.initialized:
+        if not self.initialized or t - self.t_last_mag < self.dt_min_mag.get():
             return
 
+        self.t_last_mag = t
         y = msg.data['mag']
         # out: ['x_mag', 'W_mag', 'beta_mag', 'r_mag', 'r_std_mag', 'error_code'])
         # in: ['x', 'W', 'y_b', 'decl', 'std_mag', 'beta_mag_c']
@@ -90,6 +97,7 @@ class AttitudeEstimator:
         self.t_last_imu = t
         self.last_imu = msg
 
+        # initialize
         if not self.initialized:
             if self.last_imu is not None and self.last_mag is not None:
                 # in: ['g_b', 'B_b', 'decl'],
@@ -115,19 +123,26 @@ class AttitudeEstimator:
         q, r, b_g = self.eqs['get_state'](self.x)
         cpu_predict = time.thread_time() - start
 
-        # correct accel
-        # out: ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
-        # in: ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c']
-        start = time.thread_time()
-        self.x, self.W, beta_accel, r_accel, r_std_accel, accel_ret = self.eqs['correct_accel'](
-            self.x, self.W, msg.data['accel'], self.g.get(), omega,
-            self.std_accel.get(), self.std_accel_omega.get(), self.beta_accel_c.get())
-        cpu_accel = time.thread_time() - start
-        self.msg_est_status.data['beta_accel'] = beta_accel
-        self.msg_est_status.data['r_accel'][:r_accel.shape[0]] = r_accel.T
-        self.msg_est_status.data['r_std_accel'][:r_accel.shape[0]] = r_std_accel.T
-        self.msg_est_status.data['accel_ret'] = accel_ret
-        self.msg_est_status.data['cpu_accel'] = cpu_accel
+        for name, val in [('x', self.x), ('W', self.W), ('q', q), ('r', r), ('b_g', b_g)]:
+            if np.any((np.isnan(np.array(val)))):
+                s = 'nan in estimator {:s}, {:s} = {:s}'.format(self.name, name, str(val))
+                raise ValueError(s)
+
+        if t - self.t_last_accel >= self.dt_min_accel.get():
+            # correct accel
+            # out: ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
+            # in: ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c']
+            start = time.thread_time()
+            self.x, self.W, beta_accel, r_accel, r_std_accel, accel_ret = self.eqs['correct_accel'](
+                self.x, self.W, msg.data['accel'], self.g.get(), omega,
+                self.std_accel.get(), self.std_accel_omega.get(), self.beta_accel_c.get())
+            cpu_accel = time.thread_time() - start
+            self.msg_est_status.data['beta_accel'] = beta_accel
+            self.msg_est_status.data['r_accel'][:r_accel.shape[0]] = r_accel.T
+            self.msg_est_status.data['r_std_accel'][:r_accel.shape[0]] = r_std_accel.T
+            self.msg_est_status.data['accel_ret'] = accel_ret
+            self.msg_est_status.data['cpu_accel'] = cpu_accel
+            self.t_last_accel = t
 
         # publish vehicle state
         self.msg_state.data['time'] = t
