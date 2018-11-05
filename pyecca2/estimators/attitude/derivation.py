@@ -1,6 +1,7 @@
 import os
 
 import casadi as ca
+from casadi.tools import graph
 
 import pyecca2.util as util
 from pyecca2.lie import so3, r3
@@ -241,6 +242,10 @@ def derive_equations():
 
             # linearized error dynamics
             F = ca.sparsify(ca.substitute(ca.jacobian(f(omega_m, eta, x, w_gyro_rw), eta), eta, ca.SX.zeros(n_e)))
+
+            g = graph.dotgraph(F)
+            g.set('dpi', 180)
+            g.write_png('casadi_graph_F.png')
 
             # covariance propagation
             f_W_dot_lt = ca.Function(

@@ -28,8 +28,12 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
     else:
         i_stop = -1
 
-    # create output directory
-    os.makedirs(fig_dir, exist_ok=True)
+    # create output directories
+    pdf_dir = os.path.join(fig_dir, 'pdf')
+    os.makedirs(pdf_dir, exist_ok=True)
+
+    svg_dir = os.path.join(fig_dir, 'svg')
+    os.makedirs(svg_dir, exist_ok=True)
 
     def compare_topics(title, xlabel, ylabel, est_topics, get_data, *args, **kwargs):
         p = {
@@ -70,8 +74,9 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         plt.tight_layout()
         if len(handles) > 1:
             plt.legend(
-                handles, labels, loc='best', ncol=2)
-        plt.savefig(os.path.join(fig_dir, file_name))
+                handles, labels, loc='lower right', ncol=2)
+        plt.savefig(os.path.join(svg_dir, file_name + '.svg'))
+        plt.savefig(os.path.join(pdf_dir, file_name + '.pdf'))
         if p['show']:
             plt.show()
         if p['close_fig']:
@@ -130,10 +135,11 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title(title)
-        plt.legend(handles, labels, loc='best', ncol=2)
         plt.grid()
+        plt.legend(handles, labels, loc='lower right', ncol=2)
         plt.tight_layout()
-        plt.savefig(os.path.join(fig_dir, file_name))
+        plt.savefig(os.path.join(svg_dir, file_name + '.svg'))
+        plt.savefig(os.path.join(pdf_dir, file_name + '.pdf'))
         if p['show']:
             plt.show()
         if p['close_fig']:
