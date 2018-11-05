@@ -26,10 +26,10 @@ class Simulator:
             self.param_list.append(p)
             return p
 
-        self.std_mag = add_param('std_mag', 1e-3, 'f8')
-        self.std_accel = add_param('std_accel', 1e-3, 'f8')
+        self.std_mag = add_param('std_mag', 2.5e-3, 'f8')
+        self.std_accel = add_param('std_accel', 35e-3, 'f8')
         self.std_gyro = add_param('std_gyro', 1e-3, 'f8')
-        self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-6, 'f8')
+        self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-5, 'f8')
         self.dt_sim = add_param('dt_sim', 1.0 / 400, 'f8')
         self.dt_mag = add_param('dt_mag', 1.0 / 50, 'f8')
         self.dt_imu = add_param('dt_imu', 1.0 / 200, 'f8')

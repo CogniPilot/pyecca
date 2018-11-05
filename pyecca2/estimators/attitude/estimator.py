@@ -36,15 +36,14 @@ class AttitudeEstimator:
             self.param_list.append(p)
             return p
 
-        self.std_mag = add_param('std_mag', 1e-3, 'f8')
-        self.std_accel = add_param('std_accel', 1e-3, 'f8')
-        self.std_accel_omega = add_param('std_accel_omega', 1e-6, 'f8')
-
+        self.std_mag = add_param('std_mag', 2.5e-3, 'f8')
+        self.std_accel = add_param('std_accel', 35.0e-3, 'f8')
+        self.std_accel_omega = add_param('std_accel_omega', 0e-3, 'f8')
         self.std_gyro = add_param('std_gyro', 1e-3, 'f8')
-        self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-6, 'f8')
+        self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-5, 'f8')
         self.mag_decl = add_param('mag_decl', 0, 'f8')
-        self.beta_mag_c = add_param('beta_mag_c', 100, 'f8')
-        self.beta_accel_c = add_param('beta_accel_c', 100, 'f8')
+        self.beta_mag_c = add_param('beta_mag_c', 6.6, 'f8') # 99% for n=1
+        self.beta_accel_c = add_param('beta_accel_c', 9.2, 'f8') # 99% for n=2
         self.dt_min_accel = add_param('dt_min_accel', 1.0/200, 'f8')
         self.dt_min_mag = add_param('dt_min_mag', 1.0/200, 'f8')
 
@@ -121,7 +120,7 @@ class AttitudeEstimator:
             # in: ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt']
             # out ['x1', 'W1']
             self.x, self.W = self.eqs['predict'](
-                t, self.x, self.W, omega, self.std_gyro.get()/dt, self.sn_gyro_rw.get(), dt)
+                t, self.x, self.W, omega, self.std_gyro.get(), self.sn_gyro_rw.get(), dt)
         q, r, b_g = self.eqs['get_state'](self.x)
         cpu_predict = time.thread_time() - start
 

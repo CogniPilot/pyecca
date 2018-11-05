@@ -47,7 +47,8 @@ def derive_equations():
     w_accel = ca.SX.sym('w_accel', 3, 1)
 
     std_gyro_rw = sn_gyro_rw / ca.sqrt(dt)
-    Q = ca.diag(ca.vertcat(std_gyro, std_gyro, std_gyro, std_gyro_rw, std_gyro_rw, std_gyro_rw) ** 2)
+    std_gyro_fix = std_gyro * 10
+    Q = ca.diag(ca.vertcat(std_gyro_fix, std_gyro_fix, std_gyro_fix, std_gyro_rw, std_gyro_rw, std_gyro_rw) ** 2)
 
     # e1 = ca.SX([1, 0, 0])
     e2 = ca.SX([0, 1, 0])
@@ -164,7 +165,7 @@ def derive_equations():
 
         def constants():
             x0 = ca.DM.zeros(7)
-            W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
+            W0 = ca.diag([1, 1, 1, 1.5e-2, 1.5e-2, 1.5e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         def initialize():
@@ -539,9 +540,6 @@ def derive_equations():
             vh_n = v_n / norm_v
             omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
 
-            #std_accel = ca.SX.sym('std_accel')
-            #std_accel_omega = ca.SX.sym('std_accel_omega')
-
             Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
 
             W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
@@ -570,7 +568,7 @@ def derive_equations():
 
         def constants():
             x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
-            W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
+            W0 = ca.diag([1, 1, 1, 1.5e-2, 1.5e-2, 1.5e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         return {
@@ -705,9 +703,6 @@ def derive_equations():
             vh_n = v_n / norm_v
             omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
 
-            #std_accel = ca.SX.sym('std_accel')
-            #std_accel_omega = ca.SX.sym('std_accel_omega')
-
             Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
 
             W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
@@ -740,7 +735,7 @@ def derive_equations():
 
         def constants():
             x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
-            W0 = ca.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
+            W0 = ca.diag([1, 1, 1, 1.5e-2, 1.5e-2, 1.5e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         return {

@@ -85,7 +85,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
             else:
                 ri = np.array(eqs['sim']['rotation_error'](q1i, q2i))[:, 0]
             r.append(ri)
-        r = np.rad2deg(np.array(r))
+        r = np.array(r)
         return r
 
     def compare_rot_error_norm(q1, q2):
@@ -96,7 +96,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
             else:
                 ri = np.linalg.norm((eqs['sim']['rotation_error'](q1i, q2i)))
             r.append(ri)
-        r = np.rad2deg(np.array(r))
+        r = np.array(r)
         return r
 
     def compare_error_with_cov(title, xlabel, ylabel, topics, get_error, get_std, *args, **kwargs):
@@ -120,13 +120,13 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
                 std_style = dict(est_style[est])
                 std_style['linewidth'] = 1
                 h1 = plt.plot(d['time'], e, **est_style[est])[0]
-                h2 = plt.plot(d['time'], s, **std_style)[0]
-                plt.plot(d['time'], -s, **std_style)
+                h2 = plt.plot(d['time'], 3*s, **std_style)[0]
+                plt.plot(d['time'], -3*s, **std_style)
                 if i == 0:
                     handles.append(h1)
                     labels.append(est)
                     handles.append(h2)
-                    labels.append(est + ' std')
+                    labels.append(est + r" 3$\sigma$")
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title(title)
@@ -171,11 +171,11 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
             (topic, data[topic]['mag_ret'])
         ])
 
-    compare_topics(
+    compare_error_with_cov(
         'mag innovation', 'time, sec', 'innovation, deg', est_status_topics,
-        lambda data, topic: [
-            (topic, np.rad2deg(data[topic]['r_mag']))
-        ])
+        get_error=lambda d, est: np.rad2deg(d[est + '_status']['r_mag']),
+        get_std=lambda d, est: np.rad2deg(d[est + '_status']['r_std_mag']),
+    )
 
     compare_topics(
         'mag beta', 'time, sec', 'beta', est_status_topics,
@@ -189,22 +189,16 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
             (topic, data[topic]['accel_ret'])
         ])
 
-    compare_topics(
+    compare_error_with_cov(
         'accel innovation', 'time, sec', 'innovation, m/s^2', est_status_topics,
-        lambda data, topic: [
-            (topic, data[topic]['r_accel'])
-        ])
+        get_error=lambda d, est: d[est + '_status']['r_accel'],
+        get_std=lambda d, est: d[est + '_status']['r_std_accel'],
+    )
 
     compare_topics(
         'accel beta', 'time, sec', 'beta', est_status_topics,
         lambda data, topic: [
             (topic, data[topic]['beta_accel'])
-        ])
-
-    compare_topics(
-        'rotation error', 'time, sec', 'error, deg', est_state_topics,
-        lambda data, topic: [
-            (topic, compare_rot_error(data[topic]['q'], data[gt_state]['q']))
         ])
 
     compare_error_with_cov(
@@ -216,7 +210,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
     compare_topics(
         'rotation error norm', 'time, sec', 'error, deg', est_state_topics,
         lambda data, topic: [
-            (topic, compare_rot_error_norm(data[topic]['q'], data[gt_state]['q']))
+            (topic, np.rad2deg(compare_rot_error_norm(data[topic]['q'], data[gt_state]['q'])))
         ])
 
     compare_topics(
@@ -253,13 +247,6 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         get_error=lambda d, est: 60*180/np.pi*(d[est + '_state']['b'] - d[gt_state]['b']),
         get_std=lambda d, est: 60*180/np.pi*(d[est + '_status']['W'][:, 3:6])
     )
-
-    compare_topics(
-        'estimation uncertainty', 'time, sec', 'std. dev.',
-        est_status_topics,
-        lambda data, topic: [
-            (topic, data[topic]['W'][:, :3])
-        ])
 
     compare_topics(
         'mag', 'time, sec', 'magnetometer, normalized',
