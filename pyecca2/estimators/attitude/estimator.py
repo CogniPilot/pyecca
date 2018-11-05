@@ -38,7 +38,7 @@ class AttitudeEstimator:
 
         self.std_mag = add_param('std_mag', 2.5e-3, 'f8')
         self.std_accel = add_param('std_accel', 35.0e-3, 'f8')
-        self.std_accel_omega = add_param('std_accel_omega', 0.0e-3, 'f8')
+        self.std_accel_omega = add_param('std_accel_omega', 1.0e-3, 'f8')
         self.std_gyro = add_param('std_gyro', 1e-3, 'f8')
         self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-5, 'f8')
         self.mag_decl = add_param('mag_decl', 0, 'f8')

@@ -65,4 +65,4 @@ def test_plot():
         data = pickle.load(f)
 
     plot(data, ground_truth_name='sim', est_names=params['estimators'],
-         est_style=est_style, fig_dir=results_dir, t_start=0, show=False)
+         est_style=est_style, fig_dir=results_dir, t_start=0.1, show=False)

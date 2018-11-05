@@ -117,7 +117,7 @@ class Simulator:
                     x, self.g.get(), self.std_accel.get(), w_accel).T
 
                 # fake centrip acceleration term to model disturbance
-                # y_accel += 3e-3*np.array([[0, 1, 0]]) * np.linalg.norm(omega_b)**2
+                y_accel += 1e-3*np.array([[0, 1, 0]]) * np.linalg.norm(omega_b)**2
 
                 # publish
                 self.msg_imu.data['time'] = t

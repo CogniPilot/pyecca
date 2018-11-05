@@ -74,7 +74,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         plt.tight_layout()
         if len(handles) > 1:
             plt.legend(
-                handles, labels, loc='lower right', ncol=2)
+                handles, labels, loc='best', ncol=2)
         plt.savefig(os.path.join(svg_dir, file_name + '.svg'))
         plt.savefig(os.path.join(pdf_dir, file_name + '.pdf'))
         if p['show']:
@@ -136,7 +136,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         plt.ylabel(ylabel)
         plt.title(title)
         plt.grid()
-        plt.legend(handles, labels, loc='lower right', ncol=2)
+        plt.legend(handles, labels, loc='best', ncol=2)
         plt.tight_layout()
         plt.savefig(os.path.join(svg_dir, file_name + '.svg'))
         plt.savefig(os.path.join(pdf_dir, file_name + '.pdf'))
