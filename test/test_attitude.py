@@ -38,9 +38,8 @@ params = {
     }
 }
 
-
 def test_derivation():
-    eqs = derivation.derive_equations()
+    eqs = derivation.derive_equations(results_dir)
     print('eqs', eqs.keys())
 
 
@@ -56,7 +55,7 @@ def test_sim():
 
 
 def test_generate_code():
-    eqs = derivation.derive_equations()
+    eqs = derivation.derive_equations(results_dir)
     derivation.generate_code(eqs, os.path.join(results_dir, 'code'))
 
 

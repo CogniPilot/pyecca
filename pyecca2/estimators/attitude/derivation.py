@@ -14,7 +14,7 @@ Functions are used for nested scoping of variables.
 """
 
 
-def derive_equations():
+def derive_equations(results_dir=None):
     """
     This function derives various attitude estimators. The common problem parameters are at the
     top and these variables can be shared, but each estimator has it's own scope.
@@ -243,9 +243,11 @@ def derive_equations():
             # linearized error dynamics
             F = ca.sparsify(ca.substitute(ca.jacobian(f(omega_m, eta, x, w_gyro_rw), eta), eta, ca.SX.zeros(n_e)))
 
-            g = graph.dotgraph(F)
-            g.set('dpi', 180)
-            g.write_png('casadi_graph_F.png')
+            if results_dir is not None:
+                os.makedirs(results_dir, exist_ok=True)
+                g = graph.dotgraph(F)
+                g.set('dpi', 180)
+                g.write_png(os.path.join(results_dir, 'casadi_graph_F.png'))
 
             # covariance propagation
             f_W_dot_lt = ca.Function(
@@ -276,18 +278,18 @@ def derive_equations():
             H_mag = ca.SX(1, 6)
             H_mag[0, 2] = 1
 
-            std_rot = std_mag + 1 * ca.norm_2(
+            std_rot = std_mag + 0.2 * ca.norm_2(
                 ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
-            Rs_mag = 2 * ca.asin(std_rot / (2 * h))
-            #Rs_mag = std_mag
+            arg = std_rot / (2 * h)
+            Rs_mag = 8 * ca.if_else(ca.norm_2(arg) < 1, 2 * ca.asin(arg), std_rot)
 
             W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
             S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
+            r_std_mag = ca.diag(Ss_mag)
             r_mag = -ca.atan2(y_n[1], y_n[0])  + mag_decl
             x_mag = G.product(G.exp(ca.mtimes(K_mag, r_mag)), x)
             x_mag[3] = x[3] # keep shadow state the same
             beta_mag = ca.mtimes([r_mag.T, ca.inv(S_mag), r_mag]) / beta_mag_c
-            r_std_mag = ca.diag(Ss_mag)
 
             # ignore correction when near singular point
             mag_ret = ca.if_else(
@@ -299,7 +301,6 @@ def derive_equations():
                     0
                 )
             )
-
             x_mag = ca.if_else(mag_ret == 0, x_mag, x)
             W_mag = ca.if_else(mag_ret == 0, W_mag, W)
 
@@ -330,7 +331,6 @@ def derive_equations():
                 ca.SX([0, 0, 0]))
 
             Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
-            #Rs_accel = ca.SX.eye(2) * std_accel
 
             W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
             S_accel = ca.mtimes(Ss_accel, Ss_accel.T)
@@ -444,7 +444,7 @@ def derive_equations():
 
             q0 = so3.Quat.from_dcm(R0)
             b0 = ca.SX.zeros(3)  # initial bias
-            x0 = ca.if_else(init_ret == 0, ca.vertcat(q0, b0), ca.SX.zeros(7))
+            x0 = ca.if_else(init_ret == 0, ca.vertcat(q0, b0), ca.DM([1, 0, 0, 0, 0, 0, 0]))
             return ca.Function('init', [g_b, B_b, mag_decl], [x0, init_ret], ['g_b', 'B_b', 'decl'],
                                ['x0', 'error_code'])
 
@@ -497,16 +497,17 @@ def derive_equations():
             H_mag = ca.SX(1, 6)
             H_mag[0, 2] = 1
 
-            std_rot = std_mag + 1 * ca.norm_2(
-                ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
-            Rs_mag = 2 * ca.asin(std_rot / (2 * h))
-            #Rs_mag = std_mag
+            # roll/pitch and mag uncertainty contrib. to projection uncertainty
+            std_rot = std_mag + 0.2 * ca.norm_2(ca.diag(W)[0:2])
+            arg = std_rot / (2 * h)
+            Rs_mag = 8 * ca.if_else(ca.norm_2(arg) < 1, 2 * ca.asin(arg), std_rot)
 
             W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
             S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
             r_mag = -ca.atan2(y_n[1], y_n[0]) + mag_decl
             x_mag = G.product(G.exp(ca.mtimes(K_mag, r_mag)), x)
             beta_mag = ca.mtimes([r_mag.T, ca.inv(S_mag), r_mag]) / beta_mag_c
+
             r_std_mag = ca.diag(Ss_mag)
 
             # ignore correction when near singular point
@@ -549,7 +550,6 @@ def derive_equations():
                 ca.SX([0, 0, 0]))
 
             Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
-            #Rs_accel = ca.SX.eye(2) * std_accel
 
             W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
             S_accel = ca.mtimes(Ss_accel, Ss_accel.T)

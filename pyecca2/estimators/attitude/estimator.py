@@ -36,9 +36,9 @@ class AttitudeEstimator:
             self.param_list.append(p)
             return p
 
-        self.std_mag = add_param('std_mag', 12*2.5e-3, 'f8')
+        self.std_mag = add_param('std_mag', 2.5e-3, 'f8')
         self.std_accel = add_param('std_accel', 35.0e-3, 'f8')
-        self.std_accel_omega = add_param('std_accel_omega', 0, 'f8')
+        self.std_accel_omega = add_param('std_accel_omega', 0.0e-3, 'f8')
         self.std_gyro = add_param('std_gyro', 1e-3, 'f8')
         self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-5, 'f8')
         self.mag_decl = add_param('mag_decl', 0, 'f8')
@@ -83,10 +83,8 @@ class AttitudeEstimator:
             self.x, self.W, y, self.mag_decl.get(), self.std_mag.get(), self.beta_mag_c.get())
         cpu_mag = time.thread_time() - start
 
-        for name, val in [('x', self.x), ('W', self.W)]:
-            if np.any((np.isnan(np.array(val)))):
-                s = 'nan in {:s} mag correction @ {:f} sec, {:s} = {:s}'.format(self.name, t, name, str(val))
-                raise ValueError(s)
+        uros.check_nan(locals(), '{:s} mag correction'.format(self.name), t,
+                       ['self.x', 'self.W', 'beta_mag', 'r_mag', 'r_std_mag', 'mag_ret'])
 
         self.msg_est_status.data['beta_mag'] = beta_mag
         self.msg_est_status.data['r_mag'][:r_mag.shape[0]] = r_mag.T
@@ -132,11 +130,8 @@ class AttitudeEstimator:
                 t, self.x, self.W, omega, self.std_gyro.get(), self.sn_gyro_rw.get(), dt)
         q, r, b_g = self.eqs['get_state'](self.x)
         cpu_predict = time.thread_time() - start
-
-        for name, val in [('x', self.x), ('W', self.W), ('q', q), ('r', r), ('b_g', b_g)]:
-            if np.any((np.isnan(np.array(val)))):
-                s = 'nan in estimator {:s} @ {:f} sec, {:s} = {:s}'.format(self.name, t, name, str(val))
-                raise ValueError(s)
+        uros.check_nan(locals(), '{:s} prediction'.format(self.name), t,
+                       ['self.x', 'self.W', 'q', 'r', 'b_g'])
 
         if t - self.t_last_accel >= (self.dt_min_accel.get() - self.time_eps):
             # correct accel
@@ -148,10 +143,8 @@ class AttitudeEstimator:
                 self.std_accel.get(), self.std_accel_omega.get(), self.beta_accel_c.get())
             cpu_accel = time.thread_time() - start
 
-            for name, val in [('x', self.x), ('W', self.W)]:
-                if np.any((np.isnan(np.array(val)))):
-                    s = 'nan in {:s} accel correction @ {:f} sec, {:s} = {:s}'.format(self.name, t, name, str(val))
-                    raise ValueError(s)
+            uros.check_nan(locals(), '{:s} accel correction'.format(self.name), t,
+                           ['self.x', 'self.W', 'beta_accel', 'r_accel', 'r_std_accel', 'accel_ret'])
 
             self.msg_est_status.data['beta_accel'] = beta_accel
             self.msg_est_status.data['r_accel'][:r_accel.shape[0]] = r_accel.T

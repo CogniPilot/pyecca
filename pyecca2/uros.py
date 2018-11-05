@@ -128,3 +128,12 @@ class Logger:
 
     def get_log_as_array(self):
         return np.array(self.data_list, dtype=self.data_latest.dtype)
+
+
+def check_nan(locals_dict, label, t, names):
+    locals().update(locals_dict)
+    for name in names:
+        val = eval(name)
+        if np.any((np.isnan(np.array(val)))):
+            s = 'nan in {:s} @ {:f} sec {:s} = {:s}'.format(label, t, name, str(val))
+            raise ValueError(s)
