@@ -1,6 +1,7 @@
 import os
 import pickle
 import numpy as np
+import time
 
 from pyecca2.estimators.attitude import algorithms
 from pyecca2.estimators.attitude.launch import launch_monte_carlo_sim
@@ -19,7 +20,7 @@ est_style={
     'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha}
 }
 
-tf = 20
+tf = 10
 params = {
     'n_monte_carlo': 1,
     'tf': tf,
@@ -44,7 +45,16 @@ def test_derivation():
 
 
 def test_sim():
+    start = time.perf_counter()
     data = launch_monte_carlo_sim(params)
+    elapsed = time.perf_counter() - start
+    print('\n\nsimulation complete')
+    print('-'*30)
+    print('cpu time\t:', np.round(elapsed, 2))
+    print('tf\t\t\t:', tf)
+    print('n\t\t\t:', params['n_monte_carlo'])
+    print('speed ratio\t:', np.round(params['n_monte_carlo']*tf/elapsed, 2))
+
     data_path = os.path.join(results_dir, 'data.pkl')
 
     os.makedirs(results_dir, exist_ok=True)

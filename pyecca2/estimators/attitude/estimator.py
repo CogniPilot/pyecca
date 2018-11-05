@@ -87,8 +87,8 @@ class AttitudeEstimator:
                        ['self.x', 'self.W', 'beta_mag', 'r_mag', 'r_std_mag', 'mag_ret'])
 
         self.msg_est_status.data['beta_mag'] = beta_mag
-        self.msg_est_status.data['r_mag'][:r_mag.shape[0]] = r_mag.T
-        self.msg_est_status.data['r_std_mag'][:r_std_mag.shape[0]] = r_std_mag.T
+        self.msg_est_status.data['r_mag'][:r_mag.shape[0]] = np.array(r_mag).T
+        self.msg_est_status.data['r_std_mag'][:r_std_mag.shape[0]] = np.array(r_std_mag).T
         self.msg_est_status.data['mag_ret'] = mag_ret
         self.msg_est_status.data['cpu_mag'] = cpu_mag
 
@@ -147,24 +147,24 @@ class AttitudeEstimator:
                            ['self.x', 'self.W', 'beta_accel', 'r_accel', 'r_std_accel', 'accel_ret'])
 
             self.msg_est_status.data['beta_accel'] = beta_accel
-            self.msg_est_status.data['r_accel'][:r_accel.shape[0]] = r_accel.T
-            self.msg_est_status.data['r_std_accel'][:r_accel.shape[0]] = r_std_accel.T
+            self.msg_est_status.data['r_accel'][:r_accel.shape[0]] = np.array(r_accel).T
+            self.msg_est_status.data['r_std_accel'][:r_accel.shape[0]] = np.array(r_std_accel).T
             self.msg_est_status.data['accel_ret'] = accel_ret
             self.msg_est_status.data['cpu_accel'] = cpu_accel
             self.t_last_accel = t
 
         # publish vehicle state
         self.msg_state.data['time'] = t
-        self.msg_state.data['q'] = q.T
-        self.msg_state.data['r'] = r.T
-        self.msg_state.data['b'] = b_g.T
-        self.msg_state.data['omega'] = omega.T
+        self.msg_state.data['q'] = np.array(q).T
+        self.msg_state.data['r'] = np.array(r).T
+        self.msg_state.data['b'] = np.array(b_g).T
+        self.msg_state.data['omega'] = np.array(omega).T
         self.pub_state.publish(self.msg_state)
 
         # publish estimator status
         self.msg_est_status.data['time'] = t
         self.msg_est_status.data['n_x'] = self.n_x
-        self.msg_est_status.data['x'][:self.n_x] = self.x.T
+        self.msg_est_status.data['x'][:self.n_x] = np.array(self.x).T
         W_vect = np.reshape(np.array(self.W)[np.diag_indices(self.n_e)], -1)
         self.msg_est_status.data['W'][:len(W_vect)] = W_vect
         self.msg_est_status.data['cpu_predict'] = cpu_predict

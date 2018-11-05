@@ -101,20 +101,20 @@ class Simulator:
                 q, r, b_g = self.eqs['sim']['get_state'](x)
 
                 self.msg_sim_state.data['time'] = t
-                self.msg_sim_state.data['q'] = q.T
-                self.msg_sim_state.data['r'] = r.T
-                self.msg_sim_state.data['b'] = b_g.T
-                self.msg_sim_state.data['omega'] = omega_b.T
+                self.msg_sim_state.data['q'] = np.array(q).T
+                self.msg_sim_state.data['r'] = np.array(r).T
+                self.msg_sim_state.data['b'] = np.array(b_g).T
+                self.msg_sim_state.data['omega'] = np.array(omega_b).T
                 self.pub_sim.publish(self.msg_sim_state)
 
                 # measure
                 w_gyro = self.randn(3)
                 w_accel = self.randn(3)
-                y_gyro = self.eqs['sim']['measure_gyro'](
-                    x, omega_b, self.std_gyro.get(), w_gyro).T
+                y_gyro = np.array(self.eqs['sim']['measure_gyro'](
+                    x, omega_b, self.std_gyro.get(), w_gyro)).T
 
-                y_accel = self.eqs['sim']['measure_accel'](
-                    x, self.g.get(), self.std_accel.get(), w_accel).T
+                y_accel = np.array(self.eqs['sim']['measure_accel'](
+                    x, self.g.get(), self.std_accel.get(), w_accel)).T
 
                 # fake centrip acceleration term to model disturbance
                 # y_accel += 1e-3*np.array([[0, 1, 0]]) * np.linalg.norm(omega_b)**2
@@ -131,9 +131,9 @@ class Simulator:
 
                 # measure
                 w_mag = self.randn(3)
-                y_mag = self.eqs['sim']['measure_mag'](
+                y_mag = np.array(self.eqs['sim']['measure_mag'](
                     x, self.mag_str.get(), self.mag_decl.get(), self.mag_incl.get(),
-                    self.std_mag.get(), w_mag).T
+                    self.std_mag.get(), w_mag)).T
 
                 # publish
                 self.msg_mag.data['time'] = t
