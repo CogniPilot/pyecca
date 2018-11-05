@@ -50,10 +50,12 @@ def test_sim():
     elapsed = time.perf_counter() - start
     print('\n\nsimulation complete')
     print('-'*30)
-    print('cpu time\t:', np.round(elapsed, 2))
-    print('tf\t\t\t:', tf)
-    print('n\t\t\t:', params['n_monte_carlo'])
-    print('speed ratio\t:', np.round(params['n_monte_carlo']*tf/elapsed, 2))
+    print('cpu time\t\t:', np.round(elapsed, 2))
+    print('tf\t\t\t\t:', tf)
+    print('n monte carlo\t:', params['n_monte_carlo'])
+    print('n estimators\t:', len(params['estimators']))
+    print('speed ratio\t\t:', np.round(
+        len(params['estimators'])*params['n_monte_carlo']*tf/elapsed, 2))
 
     data_path = os.path.join(results_dir, 'data.pkl')
 
