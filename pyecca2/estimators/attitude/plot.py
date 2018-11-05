@@ -120,13 +120,13 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
                 std_style = dict(est_style[est])
                 std_style['linewidth'] = est_style[est]['linewidth'] + 1
                 h1 = plt.plot(d['time'], e, **est_style[est])[0]
-                h2 = plt.plot(d['time'], 3*s, **std_style)[0]
-                plt.plot(d['time'], -3*s, **std_style)
+                h2 = plt.plot(d['time'], 2*s, **std_style)[0]
+                plt.plot(d['time'], -2*s, **std_style)
                 if i == 0:
                     handles.append(h1)
                     labels.append(est)
                     handles.append(h2)
-                    labels.append(est + r" 3$\sigma$")
+                    labels.append(est + r" 2$\sigma$")
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title(title)

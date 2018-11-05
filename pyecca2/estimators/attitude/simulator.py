@@ -33,7 +33,7 @@ class Simulator:
         self.dt_sim = add_param('dt_sim', 1.0 / 400, 'f8')
         self.dt_mag = add_param('dt_mag', 1.0 / 50, 'f8')
         self.dt_imu = add_param('dt_imu', 1.0 / 200, 'f8')
-        self.mag_decl = add_param('mag_decl', 0.1, 'f8')
+        self.mag_decl = add_param('mag_decl', 0, 'f8')
         self.mag_incl = add_param('mag_incl', 0, 'f8')
         self.mag_str = add_param('mag_str', 1e-1, 'f8')
         self.g = add_param('g', 9.8, 'f8')
@@ -64,7 +64,7 @@ class Simulator:
     def run(self):
         x = self.x0
         i = 0
-        time_eps = 1e-7  # small period of time to prevent missing pub
+        time_eps = 1e-3  # small period of time to prevent missing pub
 
         while True:
 
@@ -117,7 +117,7 @@ class Simulator:
                     x, self.g.get(), self.std_accel.get(), w_accel).T
 
                 # fake centrip acceleration term to model disturbance
-                # y_accel += 1e-3*np.array([[0, 1, 0]]) * np.linalg.norm(omega_b)**2
+                # y_accel += 3e-3*np.array([[0, 1, 0]]) * np.linalg.norm(omega_b)**2
 
                 # publish
                 self.msg_imu.data['time'] = t
@@ -126,7 +126,7 @@ class Simulator:
                 self.pub_imu.publish(self.msg_imu)
 
             # measure and publish mag
-            if t - self.t_last_mag >= self.dt_mag.get() - time_eps:
+            if t==0 or t - self.t_last_mag >= self.dt_mag.get() - time_eps:
                 self.t_last_mag = t
 
                 # measure

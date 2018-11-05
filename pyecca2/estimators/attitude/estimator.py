@@ -36,12 +36,12 @@ class AttitudeEstimator:
             self.param_list.append(p)
             return p
 
-        self.std_mag = add_param('std_mag', 2.5e-3, 'f8')
+        self.std_mag = add_param('std_mag', 12*2.5e-3, 'f8')
         self.std_accel = add_param('std_accel', 35.0e-3, 'f8')
-        self.std_accel_omega = add_param('std_accel_omega', 0.0e-3, 'f8')
+        self.std_accel_omega = add_param('std_accel_omega', 0, 'f8')
         self.std_gyro = add_param('std_gyro', 1e-3, 'f8')
         self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-5, 'f8')
-        self.mag_decl = add_param('mag_decl', 0.1, 'f8')
+        self.mag_decl = add_param('mag_decl', 0, 'f8')
         self.beta_mag_c = add_param('beta_mag_c', 6.6, 'f8') # 99% for n=1
         self.beta_accel_c = add_param('beta_accel_c', 9.2, 'f8') # 99% for n=2
         self.dt_min_accel = add_param('dt_min_accel', 1.0/200, 'f8')
@@ -61,6 +61,7 @@ class AttitudeEstimator:
         self.initialized = False
         self.last_mag = None
         self.last_imu = None
+        self.time_eps = 1e-3  # small period of time to prevent missing pub
 
     def params_callback(self, msg):
         for p in self.param_list:
@@ -70,7 +71,7 @@ class AttitudeEstimator:
         t = msg.data['time']
         self.last_mag = msg  # must always set, since used for init
 
-        if not self.initialized or t - self.t_last_mag < self.dt_min_mag.get():
+        if not self.initialized or t - self.t_last_mag < (self.dt_min_mag.get() - self.time_eps):
             return
 
         self.t_last_mag = t
@@ -81,6 +82,11 @@ class AttitudeEstimator:
         self.x, self.W, beta_mag, r_mag, r_std_mag, mag_ret = self.eqs['correct_mag'](
             self.x, self.W, y, self.mag_decl.get(), self.std_mag.get(), self.beta_mag_c.get())
         cpu_mag = time.thread_time() - start
+
+        for name, val in [('x', self.x), ('W', self.W)]:
+            if np.any((np.isnan(np.array(val)))):
+                s = 'nan in {:s} mag correction @ {:f} sec, {:s} = {:s}'.format(self.name, t, name, str(val))
+                raise ValueError(s)
 
         self.msg_est_status.data['beta_mag'] = beta_mag
         self.msg_est_status.data['r_mag'][:r_mag.shape[0]] = r_mag.T
@@ -109,6 +115,9 @@ class AttitudeEstimator:
                     print('initialized at time ', self.core.now, x0, ret)
                     self.x = x0
                     self.initialized = True
+                    if np.any((np.isnan(np.array(self.x)))):
+                        s = 'nan in estimator {:s} @ initialization, x = {:s}'.format(self.name, str(self.x))
+                        raise ValueError(s)
             return
 
         assert self.initialized
@@ -129,7 +138,7 @@ class AttitudeEstimator:
                 s = 'nan in estimator {:s} @ {:f} sec, {:s} = {:s}'.format(self.name, t, name, str(val))
                 raise ValueError(s)
 
-        if t - self.t_last_accel >= self.dt_min_accel.get():
+        if t - self.t_last_accel >= (self.dt_min_accel.get() - self.time_eps):
             # correct accel
             # out: ['x_accel', 'W_accel', 'beta_accel', 'r_accel', 'r_std_accel', 'error_code'])
             # in: ['x', 'W', 'y_b', 'g', 'omega_b', 'std_accel', 'std_accel_omega', 'beta_accel_c']
@@ -138,6 +147,11 @@ class AttitudeEstimator:
                 self.x, self.W, msg.data['accel'], self.g.get(), omega,
                 self.std_accel.get(), self.std_accel_omega.get(), self.beta_accel_c.get())
             cpu_accel = time.thread_time() - start
+
+            for name, val in [('x', self.x), ('W', self.W)]:
+                if np.any((np.isnan(np.array(val)))):
+                    s = 'nan in {:s} accel correction @ {:f} sec, {:s} = {:s}'.format(self.name, t, name, str(val))
+                    raise ValueError(s)
 
             self.msg_est_status.data['beta_accel'] = beta_accel
             self.msg_est_status.data['r_accel'][:r_accel.shape[0]] = r_accel.T

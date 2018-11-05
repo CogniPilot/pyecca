@@ -19,12 +19,12 @@ est_style={
     'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha}
 }
 
-tf = 30
+tf = 20
 params = {
     'n_monte_carlo': 1,
     'tf': tf,
     'estimators': ['mrp', 'quat'],
-    'x0': np.array([0.1, 0.2, 0.3, 0, -0.007, 0.007, 0.002]),
+    'x0': np.array([0.1, 0.2, 0.3, 0, -0.07, 0.04, 0.07]),
     'params': {
         'sim/dt_sim': 1.0 / 400,
         'sim/dt_imu': 1.0 / 200,
@@ -33,7 +33,7 @@ params = {
         #'mrp/dt_min_accel': 1.0 / 200,
         #'quat/dt_min_mag': 1.0 / 50,
         #'quat/dt_min_accel': 1.0 / 200,
-        'logger/dt': tf/100,
+        'logger/dt': tf/200,
         'sim/enable_noise': True
     }
 }

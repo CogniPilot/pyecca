@@ -1,5 +1,7 @@
 import casadi as ca
 
+eps = 1e-7 # to avoid divide by zero
+
 
 def vee(X):
     v = ca.SX(3, 1)
@@ -23,10 +25,9 @@ def wedge(v):
 class Dcm:
 
     x = ca.SX.sym('x')
-    series_eps = 1e-3
-    C1 = ca.Function('a', [x], [ca.if_else(ca.fabs(x) < series_eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
-    C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < series_eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
-    C3 = ca.Function('d', [x], [ca.if_else(ca.fabs(x) < series_eps, 0.5 + x**2/12 + 7*x**4/720, x/(2*ca.sin(x)))])
+    C1 = ca.Function('a', [x], [ca.if_else(ca.fabs(x) < eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
+    C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
+    C3 = ca.Function('d', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 + x**2/12 + 7*x**4/720, x/(2*ca.sin(x)))])
     del x
 
     group_shape = (3, 3)
@@ -148,13 +149,13 @@ class Mrp:
         res = ca.SX(4, 1)
         res[:3] = ca.tan(angle / 4) * v / angle
         res[3] = 0
-        return res
+        return ca.if_else(angle > eps, res, ca.SX([0, 0, 0, 0]))
 
     @classmethod
     def log(cls, r):
         assert r.shape == (4, 1) or r.shape == (4,)
         n = ca.norm_2(r[:3])
-        return 4 * ca.atan(n) * r[:3] / n
+        return ca.if_else(n > eps, 4 * ca.atan(n) * r[:3] / n, ca.SX([0, 0, 0]))
 
     @classmethod
     def shadow(cls, r):
@@ -244,7 +245,7 @@ class Quat:
         q[1] = c*v[0]/n
         q[2] = c*v[1]/n
         q[3] = c*v[2]/n
-        return q
+        return ca.if_else(n > eps, q, ca.SX([1, 0, 0, 0]))
 
     @classmethod
     def log(cls, q):
@@ -256,7 +257,7 @@ class Quat:
         v[0] = theta*q[1]/c
         v[1] = theta*q[2]/c
         v[2] = theta*q[3]/c
-        return v
+        return ca.if_else(ca.fabs(c) > eps, v, ca.SX([0, 0, 0]))
 
     @classmethod
     def kinematics(cls, q, w):

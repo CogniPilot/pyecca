@@ -104,7 +104,6 @@ class Logger:
         self.dt = Param(core, 'logger/dt', 1.0 / 200, 'f8')
         self.data_latest = None
         self.data_list = []
-        simpy.Process(core, self.run())
         self.subs = {}
         for topic, publisher in self.core._publishers.items():
             cb = lambda msg, topic=topic: self.callback(topic, msg)
@@ -113,6 +112,7 @@ class Logger:
         self.data_latest = msgs.Log(self.core)
         self.core.pub_sub_locked = True
         self.param_list = [self.dt]
+        simpy.Process(core, self.run())
 
     def callback(self, topic, msg):
         self.data_latest.data[topic] = copy.deepcopy(msg.data)
@@ -121,7 +121,6 @@ class Logger:
                 p.update()
 
     def run(self):
-
         while True:
             self.data_latest.data['time'] = self.core.now
             self.data_list.append(copy.deepcopy(self.data_latest.data))

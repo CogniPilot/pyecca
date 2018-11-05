@@ -49,6 +49,7 @@ def derive_equations():
     std_gyro_rw = sn_gyro_rw / ca.sqrt(dt)
     std_gyro_fix = std_gyro * 10
     Q = ca.diag(ca.vertcat(std_gyro_fix, std_gyro_fix, std_gyro_fix, std_gyro_rw, std_gyro_rw, std_gyro_rw) ** 2)
+    W0 = ca.diag([1, 1, 1, 5e-2, 5e-2, 5e-2])
 
     # e1 = ca.SX([1, 0, 0])
     e2 = ca.SX([0, 1, 0])
@@ -165,7 +166,6 @@ def derive_equations():
 
         def constants():
             x0 = ca.DM.zeros(7)
-            W0 = ca.diag([1, 1, 1, 1.5e-2, 1.5e-2, 1.5e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         def initialize():
@@ -271,10 +271,10 @@ def derive_equations():
             H_mag = ca.SX(1, 6)
             H_mag[0, 2] = 1
 
-            std_rot = std_mag + 0.2 * ca.norm_2(
+            std_rot = std_mag + 1 * ca.norm_2(
                 ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
-            #Rs_mag = 2 * ca.asin(std_rot / (2 * h))
-            Rs_mag = std_mag
+            Rs_mag = 2 * ca.asin(std_rot / (2 * h))
+            #Rs_mag = std_mag
 
             W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
             S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
@@ -294,6 +294,7 @@ def derive_equations():
                     0
                 )
             )
+
             x_mag = ca.if_else(mag_ret == 0, x_mag, x)
             W_mag = ca.if_else(mag_ret == 0, W_mag, W)
 
@@ -316,16 +317,15 @@ def derive_equations():
             y_b = ca.SX.sym('y_b', 3)
             n3 = ca.SX([0, 0, 1])
             y_n = ca.mtimes(C_nb, -y_b)
-            v_n = ca.cross(y_n, n3) / ca.norm_2(y_b) / ca.norm_2(n3)
+            v_n = ca.cross(y_n, n3) / ca.norm_2(y_b)
             norm_v = ca.norm_2(v_n)
             vh_n = v_n / norm_v
-            omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
+            omega_c_accel_n = ca.if_else(
+                ca.logic_and(norm_v > 0, ca.fabs(norm_v) < 1), ca.asin(norm_v) * vh_n,
+                ca.SX([0, 0, 0]))
 
-            #std_accel = ca.SX.sym('std_accel')
-            #std_accel_omega = ca.SX.sym('std_accel_omega')
-
-            #Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
-            Rs_accel = ca.SX.eye(2) * std_accel
+            Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
+            #Rs_accel = ca.SX.eye(2) * std_accel
 
             W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
             S_accel = ca.mtimes(Ss_accel, Ss_accel.T)
@@ -336,7 +336,7 @@ def derive_equations():
             x_accel[3] = x[3] # keep shadow state the same
             x_accel = ca.sparsify(x_accel)
 
-            # ignore correction when near singular point
+            # return status
             accel_ret = ca.if_else(
                 ca.fabs(ca.norm_2(y_b) - g) > 1.0,  # accel magnitude not close to g,
                 1,
@@ -492,14 +492,14 @@ def derive_equations():
             H_mag = ca.SX(1, 6)
             H_mag[0, 2] = 1
 
-            std_rot = std_mag + 0.2 * ca.norm_2(
+            std_rot = std_mag + 1 * ca.norm_2(
                 ca.diag(W)[0:2])  # roll/pitch and mag uncertainty contrib. to projection uncertainty
-            #Rs_mag = 2 * ca.asin(std_rot / (2 * h))
-            Rs_mag = std_mag
+            Rs_mag = 2 * ca.asin(std_rot / (2 * h))
+            #Rs_mag = std_mag
 
             W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
             S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
-            r_mag = -ca.atan2(y_n[1], y_n[0])  + mag_decl
+            r_mag = -ca.atan2(y_n[1], y_n[0]) + mag_decl
             x_mag = G.product(G.exp(ca.mtimes(K_mag, r_mag)), x)
             beta_mag = ca.mtimes([r_mag.T, ca.inv(S_mag), r_mag]) / beta_mag_c
             r_std_mag = ca.diag(Ss_mag)
@@ -539,10 +539,12 @@ def derive_equations():
             v_n = ca.cross(y_n, n3) / ca.norm_2(y_b) / ca.norm_2(n3)
             norm_v = ca.norm_2(v_n)
             vh_n = v_n / norm_v
-            omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
+            omega_c_accel_n = ca.if_else(
+                ca.logic_and(norm_v > 0, ca.fabs(norm_v) < 1), ca.asin(norm_v) * vh_n,
+                ca.SX([0, 0, 0]))
 
-            #Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
-            Rs_accel = ca.SX.eye(2) * std_accel
+            Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
+            #Rs_accel = ca.SX.eye(2) * std_accel
 
             W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
             S_accel = ca.mtimes(Ss_accel, Ss_accel.T)
@@ -570,7 +572,6 @@ def derive_equations():
 
         def constants():
             x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
-            W0 = ca.diag([1, 1, 1, 1.5e-2, 1.5e-2, 1.5e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         return {
@@ -705,8 +706,8 @@ def derive_equations():
             vh_n = v_n / norm_v
             omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
 
-            #Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
-            Rs_accel = ca.SX.eye(2) * std_accel
+            Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
+            #Rs_accel = ca.SX.eye(2) * std_accel
 
             W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
             S_accel = ca.mtimes(Ss_accel, Ss_accel.T)
@@ -738,7 +739,6 @@ def derive_equations():
 
         def constants():
             x0 = ca.DM([1, 0, 0, 0, 0, 0, 0])
-            W0 = ca.diag([1, 1, 1, 1.5e-2, 1.5e-2, 1.5e-2])
             return ca.Function('constants', [], [x0, W0], [], ['x0', 'W0'])
 
         return {
