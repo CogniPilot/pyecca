@@ -128,7 +128,6 @@ def correct_accel(**kwargs):
     omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
 
     Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
-    #Rs_accel = ca.SX.eye(2) * std_accel
 
     W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
     S_accel = ca.mtimes(Ss_accel, Ss_accel.T)

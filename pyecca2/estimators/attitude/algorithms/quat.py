@@ -136,7 +136,7 @@ def correct_mag(**kwargs):
     # roll/pitch and mag uncertainty contrib. to projection uncertainty
     std_rot = std_mag + 0.2 * ca.norm_2(ca.diag(W)[0:2])
     arg = std_rot / (2 * h)
-    Rs_mag = 4 * ca.if_else(ca.norm_2(arg) < 1, 2 * ca.asin(arg), std_rot)
+    Rs_mag = 8 * ca.if_else(ca.norm_2(arg) < 1, 2 * ca.asin(arg), std_rot)
 
     W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
     S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
