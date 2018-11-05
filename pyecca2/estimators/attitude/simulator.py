@@ -33,7 +33,7 @@ class Simulator:
         self.dt_sim = add_param('dt_sim', 1.0 / 400, 'f8')
         self.dt_mag = add_param('dt_mag', 1.0 / 50, 'f8')
         self.dt_imu = add_param('dt_imu', 1.0 / 200, 'f8')
-        self.mag_decl = add_param('mag_decl', 0, 'f8')
+        self.mag_decl = add_param('mag_decl', 0.1, 'f8')
         self.mag_incl = add_param('mag_incl', 0, 'f8')
         self.mag_str = add_param('mag_str', 1e-1, 'f8')
         self.g = add_param('g', 9.8, 'f8')

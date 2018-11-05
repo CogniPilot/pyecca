@@ -23,7 +23,7 @@ tf = 30
 params = {
     'n_monte_carlo': 1,
     'tf': tf,
-    'estimators': ['mekf'],
+    'estimators': ['mrp', 'quat'],
     'x0': np.array([0.1, 0.2, 0.3, 0, -0.007, 0.007, 0.002]),
     'params': {
         'sim/dt_sim': 1.0 / 400,
