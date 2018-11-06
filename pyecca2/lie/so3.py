@@ -190,7 +190,7 @@ class Mrp:
         x[1] = q[2] / den
         x[2] = q[3] / den
         x[3] = 0
-        r = cls.shadow_if_necessary(q)
+        r = cls.shadow_if_necessary(x)
         r[3] = 0
         return r
 
