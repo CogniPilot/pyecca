@@ -24,7 +24,7 @@ est_style={
 
 def test_derivation():
     eqs = algorithms.eqs(results_dir=results_dir)
-    print('eqs', eqs.keys())
+    return eqs
 
 
 def test_sim():
@@ -75,6 +75,7 @@ def test_sim():
          est_style=est_style,
          fig_dir=os.path.join(results_dir, 'sim'), t_start=params['t0'] + 0.1,
          t_stop=params['tf'], show=False)
+    return data
 
 
 def test_generate_code():
