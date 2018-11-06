@@ -92,7 +92,7 @@ class Simulator:
                     t, x, omega_b, self.sn_gyro_rw.get(), w_gyro_rw, dt)
 
             # measure and publish accel/gyro
-            if t== 0 or t - self.t_last_imu >= self.dt_imu.get() - time_eps:
+            if t == 0 or t - self.t_last_imu >= self.dt_imu.get() - time_eps:
                 self.t_last_imu = t
 
                 # publish sim state at same rate as estimators, which are based
@@ -126,7 +126,7 @@ class Simulator:
                 self.pub_imu.publish(self.msg_imu)
 
             # measure and publish mag
-            if t==0 or t - self.t_last_mag >= self.dt_mag.get() - time_eps:
+            if t == 0 or t - self.t_last_mag >= self.dt_mag.get() - time_eps:
                 self.t_last_mag = t
 
                 # measure

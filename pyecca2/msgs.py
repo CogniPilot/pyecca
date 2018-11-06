@@ -5,7 +5,7 @@ import numpy as np
 
 
 time_type = 'f8'
-float_type = 'f8' # change this to f4 to simulate with 32 bit precision
+float_type = 'f8'  # change this to f4 to simulate with 32 bit precision
 
 
 def init_data(dtype):
@@ -115,5 +115,3 @@ class Log(Msg):
                 dtype.append((topic, publisher.msg_type.dtype))
         self.dtype = np.dtype(dtype)
         super().__init__(self.dtype)
-
-

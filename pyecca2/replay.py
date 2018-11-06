@@ -1,9 +1,10 @@
-import os
-import pyulog
-from typing import List
 from dataclasses import dataclass
+from typing import List
+
 import numpy as np
+import pyulog
 import simpy
+
 from pyecca2 import msgs, uros
 from pyecca2.uros import Publisher
 
@@ -49,10 +50,10 @@ class ULogReplay:
 
     def run(self):
         index = 0
-        t0 = self.data_list[0].timestamp/1e6
+        t0 = self.data_list[0].timestamp / 1e6
         while index < len(self.data_list):
             log = self.data_list[index]  # type: LogEvent
-            t = log.timestamp/1.0e6 - t0
+            t = log.timestamp / 1.0e6 - t0
 
             wait = t - self.core.now
             assert wait >= 0
@@ -138,6 +139,6 @@ class ULogReplay:
             if m is not None:
                 pub = self.pubs[log.topic.name]
                 pub.publish(m)
-                #print('publishing:', log.topic.name, 'to:', pub.topic, 'data:', m)
+                # print('publishing:', log.topic.name, 'to:', pub.topic, 'data:', m)
 
             index += 1

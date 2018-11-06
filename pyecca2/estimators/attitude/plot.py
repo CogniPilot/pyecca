@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from  pyecca2.estimators.attitude import algorithms
+from pyecca2.estimators.attitude import algorithms
 
 eqs = algorithms.eqs()
 
@@ -64,7 +64,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
                     try:
                         for series_label, series in get_data(d, est):
                             h = plt.plot(d['time'], series,
-                                                *args, **style, **kwargs)[0]
+                                         *args, **style, **kwargs)[0]
                             if i == 0:
                                 handles.append(h)
                                 labels.append(series_label)
@@ -91,7 +91,7 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         r = []
         for q1i, q2i in zip(q1, q2):
             if np.isnan(q1i[0]) or np.isnan(q2i[0]):
-                ri =  np.array([np.nan, np.nan, np.nan])
+                ri = np.array([np.nan, np.nan, np.nan])
             else:
                 ri = np.array(eqs['sim']['rotation_error'](q1i, q2i))[:, 0]
             r.append(ri)
@@ -131,8 +131,8 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
                     std_style = dict(est_style[est])
                     std_style['linewidth'] = est_style[est]['linewidth'] + 1
                     h1 = plt.plot(d['time'], e, **est_style[est])[0]
-                    h2 = plt.plot(d['time'], 2*s, **std_style)[0]
-                    plt.plot(d['time'], -2*s, **std_style)
+                    h2 = plt.plot(d['time'], 2 * s, **std_style)[0]
+                    plt.plot(d['time'], -2 * s, **std_style)
                     if i == 0:
                         handles.append(h1)
                         labels.append(est)
@@ -253,8 +253,8 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
 
     compare_error_with_cov(
         'bias error', 'time, sec', 'bias error, deg/min', est_names,
-        get_error=lambda d, est: 60*180/np.pi*(d[est + '_state']['b'] - d[gt_state]['b']),
-        get_std=lambda d, est: 60*180/np.pi*(d[est + '_status']['W'][:, 3:6])
+        get_error=lambda d, est: 60 * 180 / np.pi * (d[est + '_state']['b'] - d[gt_state]['b']),
+        get_std=lambda d, est: 60 * 180 / np.pi * (d[est + '_status']['W'][:, 3:6])
     )
 
     compare_topics(
