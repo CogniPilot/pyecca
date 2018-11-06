@@ -21,10 +21,12 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
     est_status_topics = [name + '_status' for name in est_names]
     gt_state = ground_truth_name + '_state'
 
-    # computer start/stop inex
+    # computer start/stop index
     i_start = np.argmax(data[0]['time'] > t_start)
     if t_stop > 0:
         i_stop = np.argmax(data[0]['time'] > t_stop)
+        if i_stop <= i_start:
+            i_stop = -1
     else:
         i_stop = -1
 
@@ -36,51 +38,54 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
     os.makedirs(svg_dir, exist_ok=True)
 
     def compare_topics(title, xlabel, ylabel, est_topics, get_data, *args, **kwargs):
-        p = {
-            'close_fig': True,
-            'show': False
-        }
-        for k in p.keys():
-            if k in kwargs.keys():
-                p[k] = kwargs.pop(k)
+        try:
+            p = {
+                'close_fig': True,
+                'show': False
+            }
+            for k in p.keys():
+                if k in kwargs.keys():
+                    p[k] = kwargs.pop(k)
 
-        file_name = title.replace(' ', '_').lower()
-        fig = plt.figure()
-        handles = []
-        labels = []
-        for i, d in enumerate(data):
-            d = d[i_start:i_stop]
-            for est in est_topics:
-                label = est
-                if label in est_style:
-                    style = est_style[label]
-                elif 'default' in est_style:
-                    style = est_style['default']
-                else:
-                    style = {}
-                try:
-                    for series_label, series in get_data(d, est):
-                        h = plt.plot(d['time'], series,
-                                            *args, **style, **kwargs)[0]
-                        if i == 0:
-                            handles.append(h)
-                            labels.append(series_label)
-                except ValueError as e:
-                    print(e)
-        plt.title(title)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.grid(True)
-        plt.tight_layout()
-        if len(handles) > 1:
-            plt.legend(
-                handles, labels, loc='best', ncol=len(est_names))
-        plt.savefig(os.path.join(svg_dir, file_name + '.svg'))
-        plt.savefig(os.path.join(pdf_dir, file_name + '.pdf'))
-        if p['show']:
-            plt.show()
-        if p['close_fig']:
-            plt.close(fig)
+            file_name = title.replace(' ', '_').lower()
+            fig = plt.figure()
+            handles = []
+            labels = []
+            for i, d in enumerate(data):
+                d = d[i_start:i_stop]
+                for est in est_topics:
+                    label = est
+                    if label in est_style:
+                        style = est_style[label]
+                    elif 'default' in est_style:
+                        style = est_style['default']
+                    else:
+                        style = {}
+                    try:
+                        for series_label, series in get_data(d, est):
+                            h = plt.plot(d['time'], series,
+                                                *args, **style, **kwargs)[0]
+                            if i == 0:
+                                handles.append(h)
+                                labels.append(series_label)
+                    except ValueError as e:
+                        print(e)
+            plt.title(title)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+            plt.grid(True)
+            plt.tight_layout()
+            if len(handles) > 1:
+                plt.legend(
+                    handles, labels, loc='best', ncol=len(est_names))
+            plt.savefig(os.path.join(svg_dir, file_name + '.svg'))
+            plt.savefig(os.path.join(pdf_dir, file_name + '.pdf'))
+            if p['show']:
+                plt.show()
+            if p['close_fig']:
+                plt.close(fig)
+        except Exception as e:
+            print(title, 'failed', e)
 
     def compare_rot_error(q1, q2):
         r = []
@@ -105,45 +110,48 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         return r
 
     def compare_error_with_cov(title, xlabel, ylabel, est_topics, get_error, get_std, *args, **kwargs):
-        p = {
-            'close_fig': True,
-            'show': False
-        }
-        for k in p.keys():
-            if k in kwargs.keys():
-                p[k] = kwargs.pop(k)
+        try:
+            p = {
+                'close_fig': True,
+                'show': False
+            }
+            for k in p.keys():
+                if k in kwargs.keys():
+                    p[k] = kwargs.pop(k)
 
-        file_name = title.replace(' ', '_').lower()
-        fig = plt.figure()
-        handles = []
-        labels = []
-        for i, d in enumerate(data):
-            d = d[i_start:i_stop]
-            for est in est_topics:
-                e = get_error(d, est)
-                s = get_std(d, est)
-                std_style = dict(est_style[est])
-                std_style['linewidth'] = est_style[est]['linewidth'] + 1
-                h1 = plt.plot(d['time'], e, **est_style[est])[0]
-                h2 = plt.plot(d['time'], 2*s, **std_style)[0]
-                plt.plot(d['time'], -2*s, **std_style)
-                if i == 0:
-                    handles.append(h1)
-                    labels.append(est)
-                    handles.append(h2)
-                    labels.append(est + r" 2$\sigma$")
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.title(title)
-        plt.grid()
-        plt.legend(handles, labels, loc='best', ncol=len(est_names))
-        plt.tight_layout()
-        plt.savefig(os.path.join(svg_dir, file_name + '.svg'))
-        plt.savefig(os.path.join(pdf_dir, file_name + '.pdf'))
-        if p['show']:
-            plt.show()
-        if p['close_fig']:
-            plt.close(fig)
+            file_name = title.replace(' ', '_').lower()
+            fig = plt.figure()
+            handles = []
+            labels = []
+            for i, d in enumerate(data):
+                d = d[i_start:i_stop]
+                for est in est_topics:
+                    e = get_error(d, est)
+                    s = get_std(d, est)
+                    std_style = dict(est_style[est])
+                    std_style['linewidth'] = est_style[est]['linewidth'] + 1
+                    h1 = plt.plot(d['time'], e, **est_style[est])[0]
+                    h2 = plt.plot(d['time'], 2*s, **std_style)[0]
+                    plt.plot(d['time'], -2*s, **std_style)
+                    if i == 0:
+                        handles.append(h1)
+                        labels.append(est)
+                        handles.append(h2)
+                        labels.append(est + r" 2$\sigma$")
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+            plt.title(title)
+            plt.grid()
+            plt.legend(handles, labels, loc='best', ncol=len(est_names))
+            plt.tight_layout()
+            plt.savefig(os.path.join(svg_dir, file_name + '.svg'))
+            plt.savefig(os.path.join(pdf_dir, file_name + '.pdf'))
+            if p['show']:
+                plt.show()
+            if p['close_fig']:
+                plt.close(fig)
+        except Exception as e:
+            print(title, 'failed', e)
 
     # actual plotting starts here
 

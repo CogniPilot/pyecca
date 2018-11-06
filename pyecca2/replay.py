@@ -36,7 +36,9 @@ class ULogReplay:
         self.pubs = {}
         for topic in topic_list:
             if topic.name == "sensor_combined":
-                self.pubs['imu'] = Publisher(core, 'imu', msgs.Imu)
+                self.pubs[topic.name] = Publisher(core, 'imu', msgs.Imu)
+            elif topic.name == "vehicle_magnetometer":
+                self.pubs[topic.name] = Publisher(core, 'mag', msgs.Mag)
 
         # class members
         self.core = core  # type: simpy.Environment
@@ -47,13 +49,14 @@ class ULogReplay:
 
     def run(self):
         index = 0
+        t0 = self.data_list[0].timestamp/1e6
         while index < len(self.data_list):
             log = self.data_list[index]  # type: LogEvent
-            wait = log.timestamp/1.0e6 - self.core.now
+            t = log.timestamp/1.0e6 - t0
+
+            wait = t - self.core.now
             assert wait >= 0
             yield self.core.timeout(wait)
-
-            t = log.topic.data['timestamp'][log.index]/1.0e6
 
             # data message
             m = None
@@ -132,7 +135,9 @@ class ULogReplay:
             else:
                 print('unhandled', log.topic.name)
 
-            #if m is not None:
-            #    print('publishing', m)
+            if m is not None:
+                pub = self.pubs[log.topic.name]
+                pub.publish(m)
+                #print('publishing:', log.topic.name, 'to:', pub.topic, 'data:', m)
 
             index += 1

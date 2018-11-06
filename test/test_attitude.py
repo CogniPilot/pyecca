@@ -4,12 +4,13 @@ import numpy as np
 import time
 
 from pyecca2.estimators.attitude import algorithms
-from pyecca2.estimators.attitude.launch import launch_monte_carlo_sim
+from pyecca2.estimators.attitude import launch
 from pyecca2.estimators.attitude.plot import plot
 
 
 script_dir = os.path.abspath(os.path.dirname(__file__))
 results_dir = os.path.join(script_dir, 'results', 'attitude')
+data_dir = os.path.join(script_dir, 'data')
 
 alpha = 0.5
 est_style={
@@ -20,30 +21,6 @@ est_style={
     'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha}
 }
 
-t0 = 0.1
-tf = 2
-
-params = {
-    'n_monte_carlo': 1,
-    'tf': tf,
-    'initialize': False,
-    'estimators': ['mrp'],
-    'x0': np.array([0.1, 0.2, 0.3, 0, 0.07, 0.02, -0.07]),
-    'params': {
-        'sim/dt_sim': 1.0 / 400,
-        'sim/dt_imu': 1.0 / 200,
-        'sim/dt_mag': 1.0 / 50,
-        'sim/mag_incl': 0.3,
-        #'mekf/dt_min_mag': 1,
-        #'mekf/dt_min_accel': 0.5,
-        #'mrp/dt_min_mag': 1.0 / 50,
-        #'mrp/dt_min_accel': 1.0 / 200,
-        #'quat/dt_min_mag': 1.0 / 50,
-        #'quat/dt_min_accel': 1.0 / 200,
-        'logger/dt': 1.0/200,
-        'sim/enable_noise': True
-    }
-}
 
 def test_derivation():
     eqs = algorithms.eqs(results_dir=results_dir)
@@ -51,8 +28,30 @@ def test_derivation():
 
 
 def test_sim():
+    params = {
+        'n_monte_carlo': 1,
+        't0': 0,
+        'tf': 10,
+        'initialize': False,
+        'estimators': ['mrp'],
+        'x0': np.array([0.1, 0.2, 0.3, 0, 0.07, 0.02, -0.07]),
+        'params': {
+            'sim/dt_sim': 1.0 / 400,
+            'sim/dt_imu': 1.0 / 200,
+            'sim/dt_mag': 1.0 / 50,
+            'sim/mag_incl': 0.3,
+            # 'mekf/dt_min_mag': 1,
+            # 'mekf/dt_min_accel': 0.5,
+            # 'mrp/dt_min_mag': 1.0 / 50,
+            # 'mrp/dt_min_accel': 1.0 / 200,
+            # 'quat/dt_min_mag': 1.0 / 50,
+            # 'quat/dt_min_accel': 1.0 / 200,
+            'logger/dt': 1.0 / 200,
+            'sim/enable_noise': True
+        }
+    }
     start = time.perf_counter()
-    data = launch_monte_carlo_sim(params)
+    data = launch.launch_monte_carlo_sim(params)
     elapsed = time.perf_counter() - start
     print('\n\nsimulation complete')
     print('-'*30)
@@ -68,8 +67,13 @@ def test_sim():
     os.makedirs(results_dir, exist_ok=True)
     with open(data_path, 'wb') as f:
         pickle.dump(data, f)
-    test_plot()
-    return data
+
+    with open(data_path, 'rb') as f:
+        data = pickle.load(f)
+
+    plot(data, ground_truth_name='sim', est_names=params['estimators'],
+         est_style=est_style, fig_dir=results_dir, t_start=params['t0'],
+         t_stop=params['tf'], show=False)
 
 
 def test_generate_code():
@@ -77,10 +81,27 @@ def test_generate_code():
     algorithms.generate_code(eqs, os.path.join(results_dir, 'code'))
 
 
-def test_plot():
+def test_replay():
+    params = {
+        't0': 0,
+        'tf': 20,
+        'initialize': False,
+        'estimators': ['mrp'],
+        'replay_log_file': os.path.join(data_dir, '19_01_20.ulg'),
+        'params': {
+        }
+    }
+    data = launch.launch_replay(params)
     data_path = os.path.join(results_dir, 'data.pkl')
+    os.makedirs(results_dir, exist_ok=True)
+    with open(data_path, 'wb') as f:
+        pickle.dump(data, f)
+
     with open(data_path, 'rb') as f:
         data = pickle.load(f)
 
-    plot(data, ground_truth_name='sim', est_names=params['estimators'],
-         est_style=est_style, fig_dir=results_dir, t_start=t0, show=False)
+    plot([data], ground_truth_name='sim', est_names=params['estimators'],
+         est_style=est_style, fig_dir=os.path.join(results_dir, 'replay'),
+            t_start=params['t0'], t_stop=params['tf'], show=False)
+
+    return data
