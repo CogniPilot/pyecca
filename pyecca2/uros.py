@@ -57,7 +57,7 @@ class Subscriber:
 
 class Publisher:
 
-    def __init__(self, core, topic, msg_type):
+    def __init__(self, core: Core, topic: str, msg_type):
         assert not core.pub_sub_locked
         self.core = core
         self.topic = topic
@@ -65,7 +65,7 @@ class Publisher:
         assert topic not in core._publishers
         core._publishers[topic] = self
 
-    def publish(self, msg):
+    def publish(self, msg: msgs.Msg):
         if not isinstance(msg, self.msg_type):
             raise ValueError("{:s} expects msg {:s}, but got {:s}".format(
                 self.topic, str(self.msg_type), str(type(msg))))

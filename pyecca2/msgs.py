@@ -19,29 +19,39 @@ def init_data(dtype):
     return data
 
 
-class Imu:
-    dtype = [
+class Msg:
+
+    def __init__(self, dtype: np.dtype):
+        self.data = np.zeros(1, dtype=dtype)[0]
+        self.data.fill(np.nan)
+
+    def __repr__(self):
+        return repr(self.data)
+
+
+class Imu(Msg):
+    dtype = np.dtype([
         ('time', time_type),  # timestamp
         ('gyro', float_type, 3),  # gyroscope measurement
         ('accel', float_type, 3),  # accelerometer measurement
-    ]
+    ])
 
     def __init__(self):
-        self.data = init_data(self.dtype)
+        super().__init__(self.dtype)
 
 
-class Mag:
-    dtype = [
+class Mag(Msg):
+    dtype = np.dtype([
         ('time', time_type),  # timestamp
         ('mag', float_type, 3),  # magnetometer measurement
-    ]
+    ])
 
     def __init__(self):
-        self.data = init_data(self.dtype)
+        super().__init__(self.dtype)
 
 
-class VehicleState:
-    dtype = [
+class VehicleState(Msg):
+    dtype = np.dtype([
         ('time', time_type),  # timestamp
         ('q', float_type, 4),  # quaternion
         ('r', float_type, 4),  # mrp
@@ -50,15 +60,15 @@ class VehicleState:
         ('pos', float_type, 3),  # position
         ('vel', float_type, 3),  # velocity
         ('accel', float_type, 3),  # acceleration
-    ]
+    ])
 
     def __init__(self):
-        self.data = init_data(self.dtype)
+        super().__init__(self.dtype)
 
 
-class EstimatorStatus():
+class EstimatorStatus(Msg):
     n_max = 20
-    dtype = [
+    dtype = np.dtype([
         ('time', time_type),  # timestamp
         ('cpu_predict', time_type),  # elapsed cpu prediction time
         ('cpu_mag', time_type),  # elapsed cpu mag correction time
@@ -74,33 +84,36 @@ class EstimatorStatus():
         ('r_std_accel', float_type, 3),  # accelerometer residual standard deviation
         ('beta_accel', float_type),  # accelerometer fault detection
         ('accel_ret', float_type),  # accelerometer return code
-    ]
+    ])
 
     def __init__(self):
-        self.data = init_data(self.dtype)
+        super().__init__(self.dtype)
 
 
-class Params():
+class Params(Msg):
 
     def __init__(self, core):
-        self.dtype = [('time', time_type)]
+        dtype = [('time', time_type)]
         for name, p in core._declared_params.items():
-            self.dtype.append((p.name, p.dtype))
-        self.data = init_data(self.dtype)
+            dtype.append((p.name, p.dtype))
+        self.dtype = np.dtype(dtype)
+        super().__init__(self.dtype)
+
         for name, p in core._declared_params.items():
             self.data[name] = p.value
 
 
-class Log():
+class Log(Msg):
 
     def __init__(self, core):
-        self.dtype = [('time', time_type)]
+        dtype = [('time', time_type)]
         for topic, publisher in core._publishers.items():
             if not hasattr(publisher.msg_type, 'dtype'):
                 msg = publisher.msg_type(core)
-                self.dtype.append((topic, msg.dtype))
+                dtype.append((topic, msg.dtype))
             else:
-                self.dtype.append((topic, publisher.msg_type.dtype))
-        self.data = init_data(self.dtype)
+                dtype.append((topic, publisher.msg_type.dtype))
+        self.dtype = np.dtype(dtype)
+        super().__init__(self.dtype)
 
 

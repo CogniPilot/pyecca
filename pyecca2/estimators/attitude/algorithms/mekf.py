@@ -79,7 +79,7 @@ def correct_mag(**kwargs):
     H_mag = ca.sparsify(ca.horzcat(-so3.wedge(ca.mtimes(C_nb.T, B_n)),
                                    ca.SX.zeros(3, 3)))
 
-    Rs_mag = ca.mtimes(C_nb.T, std_mag*ca.diag([100, 100, 10]))
+    Rs_mag = ca.mtimes(C_nb.T, std_mag*ca.diag([1, 1, 1e6]))
 
     W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
     S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
@@ -91,8 +91,6 @@ def correct_mag(**kwargs):
     mag_ret = 0
     x_mag = ca.if_else(mag_ret == 0, x_mag, x)
     W_mag = ca.if_else(mag_ret == 0, W_mag, W)
-
-    #x_mag[4:] = x[4:]
 
     return ca.Function(
         'correct_mag',
