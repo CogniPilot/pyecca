@@ -1,6 +1,5 @@
 from .common import *
 
-
 # x, state (7)
 # -----------
 # r, mrp (3)
@@ -27,19 +26,19 @@ def simulate(**kwargs):
     x1_sim = util.rk4(lambda t, x: f_xdot(t, x, omega_t, sn_gyro_rw, w_gyro_rw), t, x, dt)
     x1_sim[:4] = so3.Mrp.shadow_if_necessary(x1_sim[:4])
     return ca.Function('simulate', [t, x, omega_t, sn_gyro_rw,
-                                        w_gyro_rw, dt], [x1_sim],
-                           ['t', 'x', 'omega_t', 'sn_gyro_rw',
-                            'w_gyro_rw', 'dt'], ['x1'])
+                                    w_gyro_rw, dt], [x1_sim],
+                       ['t', 'x', 'omega_t', 'sn_gyro_rw',
+                        'w_gyro_rw', 'dt'], ['x1'])
 
 
 def measure_gyro(**kwargs):
     return ca.Function('measure_gyro', [x, omega_t, std_gyro, w_gyro],
-                           [omega_t + b_gyro + w_gyro * std_gyro],
-                           ['x', 'omega_t', 'std_gyro', 'w_gyro'], ['y'])
+                       [omega_t + b_gyro + w_gyro * std_gyro],
+                       ['x', 'omega_t', 'std_gyro', 'w_gyro'], ['y'])
 
 
 def measure_mag(**kwargs):
-    C_nm = so3.Dcm.product(so3.Dcm.exp(mag_decl*e3), so3.Dcm.exp(-mag_incl * e2))
+    C_nm = so3.Dcm.product(so3.Dcm.exp(mag_decl * e3), so3.Dcm.exp(-mag_incl * e2))
     B_n = mag_str * ca.mtimes(C_nm, ca.SX([1, 0, 0]))
     return ca.Function(
         'measure_mag', [x, mag_str, mag_decl, mag_incl, std_mag, w_mag],
@@ -66,6 +65,7 @@ def rotation_error(**kwargs):
     dq = so3.Quat.product(so3.Quat.inv(q1), q2)
     xi = so3.Quat.log(dq)
     return ca.Function('rotation_error', [q1, q2], [xi], ['q1', 'q2'], ['xi'])
+
 
 def eqs(**kwargs):
     return {

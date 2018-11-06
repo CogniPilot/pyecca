@@ -1,4 +1,4 @@
-from .common import  *
+from .common import *
 
 """
 right invariant kalman filter with quaternions

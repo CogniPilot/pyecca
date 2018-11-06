@@ -73,7 +73,6 @@ class Publisher:
             return
         for s in self.core._subscribers[self.topic]:
             s.callback(msg)
-        self.pub_sub_locked = False
 
 
 class Param:

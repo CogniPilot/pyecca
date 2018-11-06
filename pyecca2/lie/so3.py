@@ -266,6 +266,7 @@ class Quat:
         """
         The kinematic equation relating the time derivative of quat given the current quat and the angular velocity
         in the body frame.
+        :param q: The quaternion
         :param w: The angular velocity in the body frame.
         :return: The time derivative of the quat.
         """
