@@ -33,12 +33,6 @@ def test_so3():
     assert ca.norm_fro(Dcm.from_euler(Euler.from_dcm(R)) - R) < eps
 
 
-    r1 = ca.SX([1, 2, 3, 1])
-    r2 = ca.SX([0, 0, 0, 0])
-
-    print('res', Mrp.product(r1, r2))
-
-
 def test_direct_product():
     G = DirectProduct([R3, R3])
     v1 = ca.SX([1, 2, 3, 4, 5 ,6])
