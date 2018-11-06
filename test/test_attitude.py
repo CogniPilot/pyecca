@@ -56,11 +56,11 @@ def test_sim():
     print('\n\nsimulation complete')
     print('-'*30)
     print('cpu time\t\t:', np.round(elapsed, 2))
-    print('tf\t\t\t\t:', tf)
+    print('tf\t\t\t\t:', params['tf'])
     print('n monte carlo\t:', params['n_monte_carlo'])
     print('n estimators\t:', len(params['estimators']))
     print('speed ratio\t\t:', np.round(
-        len(params['estimators'])*params['n_monte_carlo']*tf/elapsed, 2))
+        len(params['estimators'])*params['n_monte_carlo']*params['tf']/elapsed, 2))
 
     data_path = os.path.join(results_dir, 'data.pkl')
 
@@ -72,7 +72,8 @@ def test_sim():
         data = pickle.load(f)
 
     plot(data, ground_truth_name='sim', est_names=params['estimators'],
-         est_style=est_style, fig_dir=results_dir, t_start=params['t0'],
+         est_style=est_style,
+         fig_dir=os.path.join(results_dir, 'sim'), t_start=params['t0'] + 0.1,
          t_stop=params['tf'], show=False)
 
 
@@ -102,6 +103,6 @@ def test_replay():
 
     plot([data], ground_truth_name='sim', est_names=params['estimators'],
          est_style=est_style, fig_dir=os.path.join(results_dir, 'replay'),
-            t_start=params['t0'], t_stop=params['tf'], show=False)
+            t_start=params['t0'] + 0.1, t_stop=params['tf'], show=False)
 
     return data
