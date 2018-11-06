@@ -11,7 +11,7 @@ class AttitudeEstimator:
     An attitude estimator node for uros
     """
 
-    def __init__(self, core, name, eqs):
+    def __init__(self, core, name, eqs, initialize):
         self.core = core
         self.name = name
 
@@ -38,7 +38,7 @@ class AttitudeEstimator:
 
         self.std_mag = add_param('std_mag', 2.5e-3, 'f8')
         self.std_accel = add_param('std_accel', 35.0e-3, 'f8')
-        self.std_accel_omega = add_param('std_accel_omega', 1.0e-3, 'f8')
+        self.std_accel_omega = add_param('std_accel_omega', 0, 'f8')
         self.std_gyro = add_param('std_gyro', 1e-3, 'f8')
         self.sn_gyro_rw = add_param('sn_gyro_rw', 1e-5, 'f8')
         self.mag_decl = add_param('mag_decl', 0, 'f8')
@@ -58,7 +58,10 @@ class AttitudeEstimator:
         self.t_last_accel = 0
         self.t_last_mag = 0
         self.eqs = eqs
-        self.initialized = False
+        if initialize:
+            self.initialized = False
+        else:
+            self.initialized = True
         self.last_mag = None
         self.last_imu = None
         self.time_eps = 1e-3  # small period of time to prevent missing pub
@@ -107,6 +110,7 @@ class AttitudeEstimator:
                 # out: ['x0', 'error_code']
                 x0, ret = self.eqs['initialize'](
                     self.last_imu.data['accel'], self.last_mag.data['mag'], self.mag_decl.get())
+
                 if ret != 0:
                     print('initialization failed with error code', ret)
                 else:
@@ -120,14 +124,16 @@ class AttitudeEstimator:
 
         assert self.initialized
 
+        if dt <= 0:
+            return
+
         # estimate state
         omega = msg.data['gyro']
         start = time.thread_time()
-        if dt > 0:
-            # in: ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt']
-            # out ['x1', 'W1']
-            self.x, self.W = self.eqs['predict'](
-                t, self.x, self.W, omega, self.std_gyro.get(), self.sn_gyro_rw.get(), dt)
+        # in: ['t', 'x', 'W', 'omega_m', 'std_gyro', 'sn_gyro_rw', 'dt']
+        # out ['x1', 'W1']
+        self.x, self.W = self.eqs['predict'](
+            t, self.x, self.W, omega, self.std_gyro.get(), self.sn_gyro_rw.get(), dt)
         q, r, b_g = self.eqs['get_state'](self.x)
         cpu_predict = time.thread_time() - start
         uros.check_nan(locals(), '{:s} prediction'.format(self.name), t,

@@ -172,7 +172,7 @@ class Mrp:
         return ca.if_else(ca.norm_2(r[:3]) > 1, cls.shadow(r), r)
 
     @classmethod
-    def kinematics(self, r, w):
+    def kinematics(cls, r, w):
         assert r.shape == (4, 1) or r.shape == (4,)
         assert w.shape == (3, 1) or w.shape == (3,)
         a = r[:3]
@@ -182,7 +182,7 @@ class Mrp:
         return ca.vertcat(ca.mtimes(B, w), 0)
 
     @classmethod
-    def from_quat(self, q):
+    def from_quat(cls, q):
         assert q.shape == (4, 1) or q.shape == (4,)
         x = ca.SX(4, 1)
         den = 1 + q[0]
@@ -190,15 +190,17 @@ class Mrp:
         x[1] = q[2] / den
         x[2] = q[3] / den
         x[3] = 0
-        return x
+        r = cls.shadow_if_necessary(q)
+        r[3] = 0
+        return r
 
     @classmethod
-    def from_dcm(self, R):
-        return self.from_quat(Quat.from_dcm(R))
+    def from_dcm(cls, R):
+        return cls.from_quat(Quat.from_dcm(R))
 
     @classmethod
-    def from_euler(self, e):
-        return self.from_quat(Quat.from_euler(e))
+    def from_euler(cls, e):
+        return cls.from_quat(Quat.from_euler(e))
 
 
 class Quat:

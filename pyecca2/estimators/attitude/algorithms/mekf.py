@@ -73,34 +73,26 @@ def predict(**kwargs):
 
 def correct_mag(**kwargs):
     y_b = ca.SX.sym('y_b', 3)
-    C_nm = so3.Dcm.exp(mag_decl*e3) # neglect incl
-
-    # meausre yaw in nav frame, but error in body frame for mekf
-    dR = so3.Dcm.from_quat(G.exp(eta)[:4])
     B_n = ca.mtimes(so3.Dcm.exp(mag_decl*e3), ca.SX([1, 0, 0]))
-    yh_b = ca.mtimes([dR.T, C_nb.T, B_n])
+    yh_b = ca.mtimes(C_nb.T, B_n)
 
-    #H_mag = ca.jacobian(yh_b, eta)
-    H_mag = ca.sparsify(
-        -ca.horzcat(so3.wedge(ca.mtimes(C_nb.T, B_n)), ca.SX.zeros(3, 3)))
+    H_mag = ca.sparsify(ca.horzcat(-so3.wedge(ca.mtimes(C_nb.T, B_n)),
+                                   ca.SX.zeros(3, 3)))
 
-    Rs_mag = std_mag*ca.diag([1, 1, 1])
+    Rs_mag = ca.mtimes(C_nb.T, std_mag*ca.diag([100, 100, 10]))
 
     W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
     S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
-    r_mag = 0*(y_b - ca.substitute(yh_b, eta, ca.SX.zeros(6)))
+    r_mag = yh_b - y_b/ca.norm_2(y_b)
     x_mag = G.product(x, G.exp(ca.mtimes(K_mag, r_mag)))
     beta_mag = ca.mtimes([r_mag.T, ca.inv(S_mag), r_mag]) / beta_mag_c
     r_std_mag = ca.diag(Ss_mag)
 
-    # ignore correction when near singular point
     mag_ret = 0
     x_mag = ca.if_else(mag_ret == 0, x_mag, x)
     W_mag = ca.if_else(mag_ret == 0, W_mag, W)
 
-    #TODO skipping for now
-    x_mag = x
-    W_mag = W
+    #x_mag[4:] = x[4:]
 
     return ca.Function(
         'correct_mag',
@@ -111,27 +103,15 @@ def correct_mag(**kwargs):
 
 
 def correct_accel(**kwargs):
-    H_accel = ca.SX(2, 6)
-    H_accel[0, 0] = 1
-    H_accel[1, 1] = 1
-
-    f_measure_accel = ca.Function('measure_accel', [x],
-        [g*ca.mtimes(C_nb.T, ca.SX([0, 0, -1]))], ['x'],
-                                  ['y'])
-    yh_accel = f_measure_accel(x)
     y_b = ca.SX.sym('y_b', 3)
-    n3 = ca.SX([0, 0, 1])
-    y_n = ca.mtimes(C_nb, -y_b)
-    v_n = ca.cross(y_n, n3) / ca.norm_2(y_b) / ca.norm_2(n3)
-    norm_v = ca.norm_2(v_n)
-    vh_n = v_n / norm_v
-    omega_c_accel_n = ca.sparsify(ca.if_else(norm_v > 0, ca.asin(norm_v) * vh_n, ca.SX([0, 0, 0])))
-
-    Rs_accel = ca.SX.eye(2) * (std_accel + ca.norm_2(omega_m) ** 2 * std_accel_omega)
+    g_n = g*ca.SX([0, 0, -1])
+    g_b = ca.mtimes(C_nb.T, g_n)
+    H_accel = ca.sparsify(ca.horzcat(-so3.wedge(g_b), ca.SX.zeros(3, 3)))
+    Rs_accel = std_accel*ca.diag([1, 1, 1])
 
     W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
     S_accel = ca.mtimes(Ss_accel, Ss_accel.T)
-    r_accel = omega_c_accel_n[0:2]
+    r_accel = g_b - y_b
     r_std_accel = ca.diag(Ss_accel)
     beta_accel = ca.mtimes([r_accel.T, ca.inv(S_accel), r_accel]) / beta_accel_c
     x_accel = G.product(x, G.exp(ca.mtimes(K_accel, r_accel)))
@@ -143,13 +123,8 @@ def correct_accel(**kwargs):
         1,
         0
     )
-
     x_accel = ca.if_else(accel_ret == 0, x_accel, x)
     W_accel = ca.if_else(accel_ret == 0, W_accel, W)
-
-    #TODO skipping for now
-    x_mag = x
-    W_mag = W
 
     return ca.Function(
         'correct_accel', [x, W, y_b, g, omega_m, std_accel, std_accel_omega, beta_accel_c],
