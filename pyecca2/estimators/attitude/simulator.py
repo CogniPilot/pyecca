@@ -11,7 +11,7 @@ class Simulator:
         self.core = core
 
         # publications
-        self.pub_sim = uros.Publisher(core, 'sim_state', msgs.VehicleState)
+        self.pub_att = uros.Publisher(core, 'sim_attitude', msgs.Attitude)
         self.pub_imu = uros.Publisher(core, 'imu', msgs.Imu)
         self.pub_mag = uros.Publisher(core, 'mag', msgs.Mag)
 
@@ -40,7 +40,7 @@ class Simulator:
         self.enable_noise = add_param('enable_noise', True, '?')
 
         # msgs
-        self.msg_sim_state = msgs.VehicleState()
+        self.msg_att = msgs.Attitude()
         self.msg_imu = msgs.Imu()
         self.msg_mag = msgs.Mag()
 
@@ -100,12 +100,12 @@ class Simulator:
                 # report larger error than exists in reality due to delayed data
                 q, r, b_g = self.eqs['sim']['get_state'](x)
 
-                self.msg_sim_state.data['time'] = t
-                self.msg_sim_state.data['q'] = np.array(q).T
-                self.msg_sim_state.data['r'] = np.array(r).T
-                self.msg_sim_state.data['b'] = np.array(b_g).T
-                self.msg_sim_state.data['omega'] = np.array(omega_b).T
-                self.pub_sim.publish(self.msg_sim_state)
+                self.msg_att.data['time'] = t
+                self.msg_att.data['q'] = np.array(q).T
+                self.msg_att.data['r'] = np.array(r).T
+                self.msg_att.data['b'] = np.array(b_g).T
+                self.msg_att.data['omega'] = np.array(omega_b).T
+                self.pub_att.publish(self.msg_att)
 
                 # measure
                 w_gyro = self.randn(3)

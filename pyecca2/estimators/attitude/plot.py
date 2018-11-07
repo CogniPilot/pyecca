@@ -60,7 +60,12 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
                     style = est_style['default']
                 else:
                     style = {}
-                for series_label, series in get_data(d, est):
+                try:
+                    plot_data = get_data(d, est)
+                except Exception as e:
+                    print(title, e)
+                    continue
+                for series_label, series in plot_data:
                     h = plt.plot(d['time'], series,
                                  *args, **style, **kwargs)[0]
                     if i == 0:
@@ -119,8 +124,12 @@ def plot(data, ground_truth_name, est_names, est_style, fig_dir,
         for i, d in enumerate(data):
             d = d[i_start:i_stop]
             for est in est_topics:
-                e = get_error(d, est)
-                s = get_std(d, est)
+                try:
+                    e = get_error(d, est)
+                    s = get_std(d, est)
+                except Exception as e:
+                    print(title, e)
+                    continue
                 if est in est_style:
                     style = est_style[est]
                 elif 'default' in est_style:

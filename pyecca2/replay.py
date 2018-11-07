@@ -57,18 +57,60 @@ class ULogReplay:
                 event_list.append(LogEvent(timestamp=timestamp, index=i, topic=topic))
         event_list.sort(key=lambda x: x.timestamp)
 
+        self.ignored_events = [
+            'vehicle_air_data',
+            'vehicle_rates_setpoint',
+            'vehicle_attitude_setpoint',
+            'rate_ctrl_status',
+            'rate_ctrl_status',
+            'actuator_controls_0',
+            'vehicle_local_position',
+            'vehicle_local_position_groundtruth',
+            'vehicle_global_position',
+            'vehicle_global_position_groundtruth',
+            'vehicle_actuator_outputs',
+            'vehicle_gps_position',
+            'vehicle_local_position_setpoint',
+            'actuator_outputs',
+            'battery_status',
+            'manual_control_setpoint',
+            'vehicle_land_detected',
+            'telemetry_status',
+            'vehicle_status_flags',
+            'vehicle_status',
+            'sensor_preflight',
+            'vehicle_command',
+            'commander_state',
+            'actuator_armed',
+            'sensor_selection',
+            'input_rc',
+            'ekf2_innovations',
+            'system_power',
+            'radio_status',
+            'cpuload',
+            'ekf_gps_drift',
+            'home_position',
+            'mission_result',
+            'position_setpoint_triplet',
+            'ekf2_timestamps']
+
         self.pubs = {}
         for topic in topic_list:
-            if topic.name == "sensor_combined":
+            if topic.name in self.ignored_events:
+                pass
+            elif topic.name == "sensor_combined":
                 self.pubs[topic.name] = Publisher(core, 'imu', msgs.Imu)
             elif topic.name == "vehicle_magnetometer":
                 self.pubs[topic.name] = Publisher(core, 'mag', msgs.Mag)
             elif topic.name == "estimator_status":
-                self.pubs[topic.name] = Publisher(core, 'replay_status', msgs.EstimatorStatus)
+                self.pubs[topic.name] = Publisher(core, 'log_status', msgs.EstimatorStatus)
             elif topic.name == "vehicle_attitude_groundtruth":
                 self.pubs[topic.name] = Publisher(core, 'ground_truth_attitude', msgs.Attitude)
+                print('ground truth attitude is published')
             elif topic.name == "vehicle_attitude":
-                self.pubs[topic.name] = Publisher(core, 'replay_attitude', msgs.Attitude)
+                self.pubs[topic.name] = Publisher(core, 'log_attitude', msgs.Attitude)
+            else:
+                print('unhandled init for event', topic.name)
 
         # class members
         self.core = core  # type: simpy.Environment
@@ -92,7 +134,9 @@ class ULogReplay:
             m = None
             name = event.topic.name
 
-            if name == "sensor_combined":
+            if name in self.ignored_events:
+                pass
+            elif name == "sensor_combined":
                 m = msgs.Imu()
                 m.data['time'] = t
                 m.data['gyro'] = event.get_array("gyro_rad", 3)
@@ -108,51 +152,6 @@ class ULogReplay:
                 m.data['omega'][0] = event.get('rollspeed')
                 m.data['omega'][1] = event.get('pitchspeed')
                 m.data['omega'][2] = event.get('yawspeed')
-
-            elif name == "vehicle_air_data":
-                pass
-            elif name == "vehicle_rates_setpoint":
-                pass
-            elif name == "vehicle_attitude_setpoint":
-                pass
-            elif name == "rate_ctrl_status":
-                pass
-            elif name == "actuator_controls_0":
-                pass
-            elif name in ["vehicle_local_position", "vehicle_local_position_groundtruth"]:
-                pass
-            elif name in ["vehicle_global_position", "vehicle_global_position_groundtruth"]:
-                pass
-            elif name == "vehicle_actuator_outputs":
-                pass
-            elif name == "vehicle_gps_position":
-                pass
-            elif name == "vehicle_local_position_setpoint":
-                pass
-            elif name == "actuator_outputs":
-                pass
-            elif name == "battery_status":
-                pass
-            elif name == "manual_control_setpoint":
-                pass
-            elif name == "vehicle_land_detected":
-                pass
-            elif name == "telemetry_status":
-                pass
-            elif name == "vehicle_status_flags":
-                pass
-            elif name == "vehicle_status":
-                pass
-            elif name == "sensor_preflight":
-                pass
-            elif name == "vehicle_command":
-                pass
-            elif name == "commander_state":
-                pass
-            elif name == "actuator_armed":
-                pass
-            elif name == "sensor_selection":
-                pass
             elif name == "estimator_status":
                 m = msgs.EstimatorStatus()
                 m.data['time'] = t
@@ -164,7 +163,7 @@ class ULogReplay:
                         m.data['W'][i] = np.sqrt(m.data['W'][i])
                 m.data['beta_mag'] = event.get('mag_test_ratio')
             else:
-                print('unhandled', name)
+                print('unhandled pub for event', name)
 
             if m is not None:
                 pub = self.pubs[name]

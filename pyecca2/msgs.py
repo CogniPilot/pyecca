@@ -57,9 +57,6 @@ class Attitude(Msg):
         ('r', float_type, 4),  # mrp
         ('b', float_type, 3),  # gyro bias
         ('omega', float_type, 3),  # angular velocity
-        ('pos', float_type, 3),  # position
-        ('vel', float_type, 3),  # velocity
-        ('accel', float_type, 3),  # acceleration
     ])
 
     def __init__(self):
@@ -67,7 +64,7 @@ class Attitude(Msg):
 
 
 class EstimatorStatus(Msg):
-    n_max = 20
+    n_max = 24
     dtype = np.dtype([
         ('time', time_type),  # timestamp
         ('cpu_predict', time_type),  # elapsed cpu prediction time
