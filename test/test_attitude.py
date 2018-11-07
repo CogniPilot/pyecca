@@ -14,11 +14,13 @@ data_dir = os.path.join(script_dir, 'data')
 
 alpha = 0.5
 est_style={
-    'sim': {'color': 'k', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha},
-    'mrp': {'color': 'b', 'linestyle': '--', 'linewidth': 2, 'alpha': alpha},
-    'quat': {'color': 'g', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha},
-    'mekf': {'color': 'r', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha},
-    'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 1, 'alpha': alpha}
+    'sim': {'color': 'k', 'linestyle': '-.', 'linewidth': 2, 'alpha': alpha},
+    'ground_truth': {'color': 'k', 'linestyle': '-.', 'linewidth': 2, 'alpha': alpha},
+    'mrp': {'color': 'b', 'linestyle': '--', 'linewidth': 3, 'alpha': alpha},
+    'quat': {'color': 'g', 'linestyle': '-.', 'linewidth': 2, 'alpha': alpha},
+    'mekf': {'color': 'r', 'linestyle': '-.', 'linewidth': 2, 'alpha': alpha},
+    'replay': {'color': 'c', 'linestyle': '-.', 'linewidth': 2, 'alpha': alpha},
+    'default': {'color': 'm', 'linestyle': '-.', 'linewidth': 2, 'alpha': alpha}
 }
 
 
@@ -33,7 +35,7 @@ def test_sim():
         't0': 0,
         'tf': 10,
         'initialize': False,
-        'estimators': ['mrp'],
+        'estimators': ['mrp', 'quat', 'mekf'],
         'x0': np.array([0.1, 0.2, 0.3, 0, 0.07, 0.02, -0.07]),
         'params': {
             'sim/dt_sim': 1.0 / 400,
@@ -88,7 +90,7 @@ def test_replay():
         't0': 0,
         'tf': 20,
         'initialize': False,
-        'estimators': ['mrp'],
+        'estimators': ['mrp', 'quat', 'mekf'],
         'replay_log_file': os.path.join(data_dir, '19_01_20.ulg'),
         'params': {
         }
@@ -102,8 +104,9 @@ def test_replay():
     with open(data_path, 'rb') as f:
         data = pickle.load(f)
 
-    plot([data], ground_truth_name='sim', est_names=params['estimators'],
+    plot([data], ground_truth_name='ground_truth',
+         est_names=params['estimators'] + ['replay'],
          est_style=est_style, fig_dir=os.path.join(results_dir, 'replay'),
-            t_start=params['t0'] + 0.1, t_stop=params['tf'], show=False)
+            t_start=params['t0'] + 1, t_stop=params['tf'], show=False)
 
     return data

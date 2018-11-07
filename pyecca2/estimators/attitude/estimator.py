@@ -21,10 +21,10 @@ class AttitudeEstimator:
 
         # publications
         self.pub_est = uros.Publisher(core, name + '_status', msgs.EstimatorStatus)
-        self.pub_state = uros.Publisher(core, name + '_state', msgs.VehicleState)
+        self.pub_att = uros.Publisher(core, name + '_attitude', msgs.Attitude)
 
         self.msg_est_status = msgs.EstimatorStatus()
-        self.msg_state = msgs.VehicleState()
+        self.msg_att = msgs.Attitude()
 
         self.sub_params = uros.Subscriber(core, 'params', msgs.Params, self.params_callback)
 
@@ -160,12 +160,12 @@ class AttitudeEstimator:
             self.t_last_accel = t
 
         # publish vehicle state
-        self.msg_state.data['time'] = t
-        self.msg_state.data['q'] = np.array(q).T
-        self.msg_state.data['r'] = np.array(r).T
-        self.msg_state.data['b'] = np.array(b_g).T
-        self.msg_state.data['omega'] = np.array(omega).T
-        self.pub_state.publish(self.msg_state)
+        self.msg_att.data['time'] = t
+        self.msg_att.data['q'] = np.array(q).T
+        self.msg_att.data['r'] = np.array(r).T
+        self.msg_att.data['b'] = np.array(b_g).T
+        self.msg_att.data['omega'] = np.array(omega).T
+        self.pub_att.publish(self.msg_att)
 
         # publish estimator status
         self.msg_est_status.data['time'] = t

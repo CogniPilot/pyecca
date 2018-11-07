@@ -9,11 +9,34 @@ from pyecca2 import msgs, uros
 from pyecca2.uros import Publisher
 
 
-@dataclass
 class LogEvent:
-    timestamp: int
-    index: int
-    topic: pyulog.ULog.Data
+
+    def __init__(self, timestamp: int, index: int, topic: pyulog.ULog.Data):
+        self.timestamp = timestamp
+        self.index = index
+        self.topic = topic
+
+    def get(self, name):
+        data = np.nan
+        try:
+            data = self.topic.data[name][self.index]
+        except KeyError as e:
+            raise KeyError(e,  'valid fields:', self.topic.data.keys())
+        except Exception as e:
+            print(e)
+        return data
+
+    def get_array(self, name, n):
+        data = np.zeros(n)
+        data.fill(np.nan)
+        try:
+            data = np.array([self.topic.data["{:s}[{:d}]".format(name, i)][self.index]
+                             for i in range(n)])
+        except KeyError as e:
+            raise KeyError(e, 'valid fields', self.topic.data.keys())
+        except Exception as e:
+            print(e)
+        return data
 
 
 class ULogReplay:
@@ -40,20 +63,26 @@ class ULogReplay:
                 self.pubs[topic.name] = Publisher(core, 'imu', msgs.Imu)
             elif topic.name == "vehicle_magnetometer":
                 self.pubs[topic.name] = Publisher(core, 'mag', msgs.Mag)
+            elif topic.name == "estimator_status":
+                self.pubs[topic.name] = Publisher(core, 'replay_status', msgs.EstimatorStatus)
+            elif topic.name == "vehicle_attitude_groundtruth":
+                self.pubs[topic.name] = Publisher(core, 'ground_truth_attitude', msgs.Attitude)
+            elif topic.name == "vehicle_attitude":
+                self.pubs[topic.name] = Publisher(core, 'replay_attitude', msgs.Attitude)
 
         # class members
         self.core = core  # type: simpy.Environment
-        self.data_list = event_list  # type: List[LogEvent]
+        self.event_list = event_list  # type: List[LogEvent]
 
         # start process
         self.core.process(self.run())
 
     def run(self):
         index = 0
-        t0 = self.data_list[0].timestamp / 1e6
-        while index < len(self.data_list):
-            log = self.data_list[index]  # type: LogEvent
-            t = log.timestamp / 1.0e6 - t0
+        t0 = self.event_list[0].timestamp / 1e6
+        while index < len(self.event_list):
+            event = self.event_list[index]  # type: LogEvent
+            t = event.timestamp / 1.0e6 - t0
 
             wait = t - self.core.now
             assert wait >= 0
@@ -61,83 +90,84 @@ class ULogReplay:
 
             # data message
             m = None
+            name = event.topic.name
 
-            if log.topic.name == "sensor_combined":
+            if name == "sensor_combined":
                 m = msgs.Imu()
                 m.data['time'] = t
-                m.data['gyro'] = np.array([
-                    log.topic.data['gyro_rad[0]'][log.index],
-                    log.topic.data['gyro_rad[1]'][log.index],
-                    log.topic.data['gyro_rad[2]'][log.index]
-                ])
-                m.data['accel'] = np.array([
-                    log.topic.data['accelerometer_m_s2[0]'][log.index],
-                    log.topic.data['accelerometer_m_s2[1]'][log.index],
-                    log.topic.data['accelerometer_m_s2[2]'][log.index]
-                ])
-            elif log.topic.name == "vehicle_magnetometer":
+                m.data['gyro'] = event.get_array("gyro_rad", 3)
+                m.data['accel'] = event.get_array("accelerometer_m_s2", 3)
+            elif name == "vehicle_magnetometer":
                 m = msgs.Mag()
                 m.data['time'] = t
-                m.data['mag'] = np.array([
-                    log.topic.data['magnetometer_ga[0]'][log.index],
-                    log.topic.data['magnetometer_ga[1]'][log.index],
-                    log.topic.data['magnetometer_ga[2]'][log.index]
-                ])
-            elif log.topic.name == "vehicle_attitude":
+                m.data['mag'] = event.get_array("magnetometer_ga", 3)
+            elif name in ["vehicle_attitude", "vehicle_attitude_groundtruth"]:
+                m = msgs.Attitude()
+                m.data['time'] = t
+                m.data['q'] = event.get_array('q', 4)
+                m.data['omega'][0] = event.get('rollspeed')
+                m.data['omega'][1] = event.get('pitchspeed')
+                m.data['omega'][2] = event.get('yawspeed')
+
+            elif name == "vehicle_air_data":
                 pass
-            elif log.topic.name == "vehicle_attitude_groundtruth":
+            elif name == "vehicle_rates_setpoint":
                 pass
-            elif log.topic.name == "vehicle_air_data":
+            elif name == "vehicle_attitude_setpoint":
                 pass
-            elif log.topic.name == "vehicle_rates_setpoint":
+            elif name == "rate_ctrl_status":
                 pass
-            elif log.topic.name == "vehicle_attitude_setpoint":
+            elif name == "actuator_controls_0":
                 pass
-            elif log.topic.name == "rate_ctrl_status":
+            elif name in ["vehicle_local_position", "vehicle_local_position_groundtruth"]:
                 pass
-            elif log.topic.name == "actuator_controls_0":
+            elif name in ["vehicle_global_position", "vehicle_global_position_groundtruth"]:
                 pass
-            elif log.topic.name == "vehicle_local_position_groundtruth":
+            elif name == "vehicle_actuator_outputs":
                 pass
-            elif log.topic.name == "vehicle_global_position_groundtruth":
+            elif name == "vehicle_gps_position":
                 pass
-            elif log.topic.name == "vehicle_actuator_outputs":
+            elif name == "vehicle_local_position_setpoint":
                 pass
-            elif log.topic.name == "vehicle_gps_position":
+            elif name == "actuator_outputs":
                 pass
-            elif log.topic.name == "vehicle_local_position_setpoint":
+            elif name == "battery_status":
                 pass
-            elif log.topic.name == "actuator_outputs":
+            elif name == "manual_control_setpoint":
                 pass
-            elif log.topic.name == "battery_status":
+            elif name == "vehicle_land_detected":
                 pass
-            elif log.topic.name == "manual_control_setpoint":
+            elif name == "telemetry_status":
                 pass
-            elif log.topic.name == "vehicle_land_detected":
+            elif name == "vehicle_status_flags":
                 pass
-            elif log.topic.name == "telemetry_status":
+            elif name == "vehicle_status":
                 pass
-            elif log.topic.name == "vehicle_status_flags":
+            elif name == "sensor_preflight":
                 pass
-            elif log.topic.name == "vehicle_status":
+            elif name == "vehicle_command":
                 pass
-            elif log.topic.name == "sensor_preflight":
+            elif name == "commander_state":
                 pass
-            elif log.topic.name == "vehicle_command":
+            elif name == "actuator_armed":
                 pass
-            elif log.topic.name == "commander_state":
+            elif name == "sensor_selection":
                 pass
-            elif log.topic.name == "actuator_armed":
-                pass
-            elif log.topic.name == "sensor_selection":
-                pass
-            elif log.topic.name == "estimator_status":
-                pass
+            elif name == "estimator_status":
+                m = msgs.EstimatorStatus()
+                m.data['time'] = t
+                n_states = event.get('n_states')
+                m.data['x'][:n_states] = event.get_array('states', n_states)
+                m.data['W'][:n_states] = event.get_array('covariances', n_states)
+                for i in range(n_states):
+                    if m.data['W'][i] > 0:
+                        m.data['W'][i] = np.sqrt(m.data['W'][i])
+                m.data['beta_mag'] = event.get('mag_test_ratio')
             else:
-                print('unhandled', log.topic.name)
+                print('unhandled', name)
 
             if m is not None:
-                pub = self.pubs[log.topic.name]
+                pub = self.pubs[name]
                 pub.publish(m)
                 # print('publishing:', log.topic.name, 'to:', pub.topic, 'data:', m)
 

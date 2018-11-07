@@ -50,7 +50,7 @@ class Mag(Msg):
         super().__init__(self.dtype)
 
 
-class VehicleState(Msg):
+class Attitude(Msg):
     dtype = np.dtype([
         ('time', time_type),  # timestamp
         ('q', float_type, 4),  # quaternion
