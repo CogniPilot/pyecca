@@ -1,8 +1,9 @@
 import casadi as ca
-from pyecca2.lie import so3, r3
+from pyecca2.lie import so3, r3, se3
 from pyecca2.lie.util import DirectProduct
 from pyecca2.lie.so3 import Quat, Dcm, Euler, Mrp
 from pyecca2.lie.r3 import R3
+from pyecca2.lie.se3 import SE3Dcm
 
 eps = 1e-10
 
@@ -53,3 +54,7 @@ def test_r3():
     v2 = ca.SX([4, 5, 6])
     v3 = v1 + v2
     assert ca.norm_2(R3.product(v1, v2) - v3) < eps
+
+def test_se3():
+    v = ca.DM([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+    assert ca.norm_2(se3.vee(se3.wedge(v)) - v) < eps
