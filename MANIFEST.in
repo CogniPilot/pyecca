@@ -1,2 +1,2 @@
 include versioneer.py
-include pyecca2/_version.py
+include pyecca/_version.py

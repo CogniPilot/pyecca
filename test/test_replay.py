@@ -1,6 +1,6 @@
 import os
-from pyecca2.replay import ULogReplay
-from pyecca2 import uros
+from pyecca.replay import ULogReplay
+from pyecca import uros
 
 script_dir = os.path.abspath(os.path.dirname(__file__))
 data_dir = os.path.join(script_dir, 'data')

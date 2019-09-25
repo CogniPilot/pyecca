@@ -37,15 +37,15 @@ Operating System :: MacOS
 
 
 setup(
-    name='pyecca2',
+    name='pyecca',
     maintainer="James Goppert",
     maintainer_email="james.goppert@gmail.com",
     description=DOCLINES[0],
     long_description="\n".join(DOCLINES[2:]),
-    url='https://github.com/jgoppert/pyecca2',
+    url='https://github.com/jgoppert/pyecca',
     author='James Goppert',
     author_email='james.goppert@gmail.com',
-    download_url='https://github.com/jgoppert/pyecca2',
+    download_url='https://github.com/jgoppert/pyecca',
     license='BSD 3-Clause',
     classifiers=[_f for _f in CLASSIFIERS.split('\n') if _f],
     platforms=["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
@@ -54,7 +54,7 @@ setup(
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
     #entry_points={
-    #    'console_scripts': ['example=pyecca2.example:main'],
+    #    'console_scripts': ['example=pyecca.example:main'],
     #},
     packages=find_packages(),
     version=versioneer.get_version(),

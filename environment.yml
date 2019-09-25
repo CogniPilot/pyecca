@@ -1,4 +1,4 @@
-name: pyecca2
+name: pyecca
 channels:
   - conda-forge
   - defaults
