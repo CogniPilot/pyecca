@@ -1,4 +1,4 @@
-from . import so3
+import so3
 
 import casadi as ca
 
@@ -36,8 +36,14 @@ class SE3Dcm:
     group_params = 12
     algebra_params = 6
 
+    x = ca.SX.sym('x')
+    C1 = ca.Function('a', [x], [ca.if_else(ca.fabs(x) < eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
+    C4 = ca.Function('f', [x], [ca.if_else(ca.fabs(x) < eps, (1/6) - x**2/120 + x**4/5040, (1-C1(x))/(x**2))])
+    
     def __init__(self):
         raise RuntimeError('this class is just for scoping, do not instantiate')
+        if SO3 == None:
+            self.SO3 = so3.DCM()
 
     @classmethod
     def check_group_shape(cls, a):
@@ -58,15 +64,41 @@ class SE3Dcm:
     @classmethod
     def exp(cls, v):
         # TODO
-        theta = ca.norm_2(v)
         X = wedge(v)
-        return ca.SX.eye(3) + cls.C1(theta)*X + cls.C2(theta)*ca.mtimes(X, X)
+        theta = ca.norm_2(v)
+        
+        u = ca.SX(3, 1)
+        u[0, 0] = v[3, 0]
+        u[1, 0] = v[4, 0]
+        u[2, 0] = v[5, 0]
+        
+        R = self.SO3.exp(v)
+        V = ca.SX.eye(3) + so3.C2(theta)*X + cls.C4(theta)*ca.mtimes(X, X)
+        
+        vert = ca.vertcat(R, V*u)
+        lastRow = ca.SX([0,0,0,1])
+        
+        return ca.horizcat(vert, lastRow)
 
     @classmethod
     def log(cls, R):
         # TODO
         theta = ca.arccos((ca.trace(R) - 1) / 2)
-        return vee(cls.C3(theta) * (R - R.T))
+        wSkew = self.SO3.vee(cls.C3(theta) * (R - R.T))
+        
+        V_inv = ca.SX.eye(3) - 0.5*wSkew + (1/(theta**2))*(1-((so3.C1(theta))/(2*so3.C2(theta))))*ca.mtimes(wSkew, wSkew)
+        
+        # t is the translational component vector
+        t = ca.SX(3, 1)     
+        t[0, 0] = X[3, 0]
+        t[1, 0] = X[3, 1]
+        t[2, 0] = X[3, 2]
+        
+        uInv = ca.mtimes(V_inv * t) 
+        vert2 = ca.vertcat(wSkew, uInv)
+        lastRow2 = ca.SX([0,0,0,0])
+        
+        return ca.horizcat(vert2, lastRow2)
 
     @classmethod
     def kinematics(cls, R, w):
@@ -74,3 +106,9 @@ class SE3Dcm:
         assert R.shape == (3, 3)
         assert w.shape == (3, 1)
         return ca.mtimes(R, wedge(w))
+
+# testing exp and log maps
+v = [0.523, 0.785, 1.0467, 1, 2, 3]
+print(vee(wedge(v))) # gives back v
+# currently working on this, will have to check norm_2 function
+print(vee(SE3Dcm.log(SE3Dcm.exp(wedge(v)))))
