@@ -3,9 +3,9 @@ import os
 import casadi as ca
 from casadi.tools.graph import graph
 
-import pyecca2.util as util
-from pyecca2.lie import so3, r3
-from pyecca2.lie.util import DirectProduct
+import pyecca.util as util
+from pyecca.lie import so3, r3
+from pyecca.lie.util import DirectProduct
 
 # misc variables
 omega_t = ca.SX.sym('omega_t', 3, 1)  # angular velocity in body frame, true

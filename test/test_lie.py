@@ -1,9 +1,9 @@
 import casadi as ca
-from pyecca2.lie import so3, r3, se3
-from pyecca2.lie.util import DirectProduct
-from pyecca2.lie.so3 import Quat, Dcm, Euler, Mrp
-from pyecca2.lie.r3 import R3
-from pyecca2.lie.se3 import SE3Dcm
+from pyecca.lie import so3, r3, se3
+from pyecca.lie.util import DirectProduct
+from pyecca.lie.so3 import Quat, Dcm, Euler, Mrp
+from pyecca.lie.r3 import R3
+from pyecca.lie.se3 import SE3Dcm
 
 eps = 1e-10
 

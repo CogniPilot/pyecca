@@ -1,4 +1,4 @@
-# Pyecca2
+# Pyecca
 
 PYthon Estimation and Control library using CAsadi.
 
@@ -14,7 +14,7 @@ PYthon Estimation and Control library using CAsadi.
 
 ```bash
 conda env create -f environment.yml
-conda activate pyecca2
+conda activate pyecca
 conda install jupyterlab
 jupyter lab
 ```

@@ -42,8 +42,8 @@ def get_config():
     cfg.VCS = "git"
     cfg.style = "pep440"
     cfg.tag_prefix = "v"
-    cfg.parentdir_prefix = "pyecca2-"
-    cfg.versionfile_source = "pyecca2/_version.py"
+    cfg.parentdir_prefix = "pyecca-"
+    cfg.versionfile_source = "pyecca/_version.py"
     cfg.verbose = False
     return cfg
 

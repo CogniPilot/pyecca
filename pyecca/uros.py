@@ -3,7 +3,7 @@ import copy
 import numpy as np
 import simpy
 
-import pyecca2.msgs as msgs
+import pyecca.msgs as msgs
 
 
 class Core(simpy.Environment):

@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pyecca2.estimators.attitude import algorithms
+from pyecca.estimators.attitude import algorithms
 
 eqs = algorithms.eqs()
 

@@ -2,11 +2,11 @@ import multiprocessing as mp
 
 import numpy as np
 
-from pyecca2 import replay
-from pyecca2 import uros
-from pyecca2.estimators.attitude import algorithms
-from pyecca2.estimators.attitude.estimator import AttitudeEstimator
-from pyecca2.estimators.attitude.simulator import Simulator
+from pyecca import replay
+from pyecca import uros
+from pyecca.estimators.attitude import algorithms
+from pyecca.estimators.attitude.estimator import AttitudeEstimator
+from pyecca.estimators.attitude.simulator import Simulator
 
 default_params = {
     't0': 0,

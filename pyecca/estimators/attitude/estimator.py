@@ -2,8 +2,8 @@ import time
 
 import numpy as np
 
-import pyecca2.msgs as msgs
-import pyecca2.uros as uros
+import pyecca.msgs as msgs
+import pyecca.uros as uros
 
 
 class AttitudeEstimator:

@@ -5,8 +5,8 @@ import numpy as np
 import pyulog
 import simpy
 
-from pyecca2 import msgs, uros
-from pyecca2.uros import Publisher
+from pyecca import msgs, uros
+from pyecca.uros import Publisher
 
 
 class LogEvent:
