@@ -33,6 +33,15 @@ def test_so3():
     assert ca.norm_fro(Dcm.from_mrp(Mrp.from_dcm(R)) - R) < eps
     assert ca.norm_fro(Dcm.from_euler(Euler.from_dcm(R)) - R) < eps
 
+    R = ca.DM([
+        [0, -1, 0],
+        [1, 0, 0],
+        [0, 0, 1]
+    ])
+    assert ca.norm_fro(Dcm.from_quat(Quat.from_dcm(R)) - R) < eps
+    assert ca.norm_fro(Dcm.from_mrp(Mrp.from_dcm(R)) - R) < eps
+    assert ca.norm_fro(Dcm.from_euler(Euler.from_dcm(R)) - R) < eps
+
 
 def test_direct_product():
     G = DirectProduct([R3, R3])
