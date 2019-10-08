@@ -297,7 +297,7 @@ class Quat:
         b1 = 0.5 * ca.sqrt(1 + R[0, 0] + R[1, 1] + R[2, 2])
         b2 = 0.5 * ca.sqrt(1 + R[0, 0] - R[1, 1] - R[2, 2])
         b3 = 0.5 * ca.sqrt(1 - R[0, 0] + R[1, 1] - R[2, 2])
-        b4 = 0.5 * ca.sqrt(1 - R[0, 0] - R[1, 1] - R[2, 2])
+        b4 = 0.5 * ca.sqrt(1 - R[0, 0] - R[1, 1] + R[2, 2])
 
         q1 = ca.SX(4, 1)
         q1[0] = b1
@@ -324,10 +324,9 @@ class Quat:
         q4[3] = b4
 
         q = ca.if_else(
-            R[0, 0] > 0,
-            ca.if_else(R[1, 1] > 0, q1, q2),
-            ca.if_else(R[1, 1] > R[2, 2], q3, q4)
-        )
+            ca.trace(R) > 0, q1,
+            ca.if_else(ca.logic_and(R[0, 0] > R[1, 1], R[0, 0] > R[2, 2]), q2,
+            ca.if_else(R[1, 1] > R[2, 2], q3, q4)))
         return q
 
     @classmethod

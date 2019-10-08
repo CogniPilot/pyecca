@@ -12,8 +12,8 @@ def test_so3():
 
     r = ca.DM([0.1, 0.2, 0.3, 0])
     v = ca.DM([0.1, 0.2, 0.3])
-    q1 = ca.DM([1, 0, 0, 0])
-    R = ca.SX.eye(3)
+    R = Dcm.from_euler(ca.DM([0.1, 0.2, 0.3]))
+    q1 = Quat.from_euler(ca.DM([0.1, 0.2, 0.3]))
 
     assert ca.norm_2(Dcm.log(Dcm.exp(v)) - v) < eps
     assert ca.norm_2(Quat.log(Quat.exp(v)) - v) < eps
