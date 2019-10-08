@@ -12,6 +12,8 @@ dependencies:
   - autopep8
   - pytest=5.0.1
   - pyulog
+  - pylint
+  - jupyterlab
   - pip:
     - casadi
     - simpy
