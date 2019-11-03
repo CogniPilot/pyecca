@@ -1,40 +1,10 @@
-import so3
+from . import so3
 import casadi as ca
 
 eps = 1e-7 # to avoid divide by zero
 
 
-def vee(X):
-    '''
-    This takes in an element of the SE3 Lie Group and returns the se3 Lie Algebra elements 
-    '''
-    v = ca.SX(6, 1)
-    v[0, 0] = X[2, 1]
-    v[1, 0] = X[0, 2]
-    v[2, 0] = X[1, 0]
-    v[3, 0] = X[0, 3]
-    v[4, 0] = X[1, 3]
-    v[5, 0] = X[2, 3]
-    return v
-
-def wedge(v):
-    '''
-    This takes in an element of the se3 Lie Algebra and returns the SE3 Lie Group elements
-    '''
-    X = ca.SX.zeros(4, 4)
-    X[0, 1] = -v[2]
-    X[0, 2] = v[1]
-    X[1, 0] = v[2]
-    X[1, 2] = -v[0]
-    X[2, 0] = -v[1]
-    X[2, 1] = v[0]
-    X[0, 3] = v[3]
-    X[1, 3] = v[4]
-    X[2, 3] = v[5]
-    return X
-
-
-class SE3Dcm:
+class SE3:
     '''
     Implementation of the mathematical group SE3, representing
     the 3D rigid body transformations
@@ -52,14 +22,44 @@ class SE3Dcm:
     C4 = ca.Function('f', [x], [ca.if_else(ca.fabs(x) < eps, (1/6) - x**2/120 + x**4/5040, (1-C1(x))/(x**2))])
     del x
     
-    def __init__(self):
-        raise RuntimeError('this class is just for scoping, do not instantiate')
+    def __init__(self, SO3=None):
         if SO3 == None:
             self.SO3 = so3.Dcm()
 
     @classmethod
     def check_group_shape(cls, a):
         assert a.shape == cls.group_shape or a.shape == (cls.group_shape[0],)
+
+    @classmethod
+    def vee(cls, X):
+        '''
+        This takes in an element of the SE3 Lie Group and returns the se3 Lie Algebra elements 
+        '''
+        v = ca.SX(6, 1)
+        v[0, 0] = X[2, 1]
+        v[1, 0] = X[0, 2]
+        v[2, 0] = X[1, 0]
+        v[3, 0] = X[0, 3]
+        v[4, 0] = X[1, 3]
+        v[5, 0] = X[2, 3]
+        return v
+
+    @classmethod
+    def wedge(cls, v):
+        '''
+        This takes in an element of the se3 Lie Algebra and returns the SE3 Lie Group elements
+        '''
+        X = ca.SX.zeros(4, 4)
+        X[0, 1] = -v[2]
+        X[0, 2] = v[1]
+        X[1, 0] = v[2]
+        X[1, 2] = -v[0]
+        X[2, 0] = -v[1]
+        X[2, 1] = v[0]
+        X[0, 3] = v[3]
+        X[1, 3] = v[4]
+        X[2, 3] = v[5]
+        return X
 
     @classmethod
     def product(cls, a, b):
@@ -75,7 +75,7 @@ class SE3Dcm:
 
     @classmethod
     def exp(cls, v):
-        v = vee(v)
+        v = cls.vee(v)
         v_so3 = v[:3]
         X_so3 = so3.wedge(v_so3) 
         theta = ca.norm_2(so3.vee(X_so3))
@@ -117,16 +117,4 @@ class SE3Dcm:
         # TODO
         assert R.shape == (3, 3)
         assert w.shape == (3, 1)
-        return ca.mtimes(R, wedge(w))
-
-def testSE3():
-    '''
-    Make sure that SE3 is working correctly.
-    '''
-    v = ca.vertcat(0.1, 0.2, 0.3, 45, 50, 75)
-    assert ca.norm_2(vee(wedge(v)) - v) < eps
-    # print statements should print v
-    print(vee(wedge(v)))                          # test vee and wedge operators
-    print(vee(SE3Dcm.log(SE3Dcm.exp(wedge(v)))))  # test log and exp maps
-    
-testSE3()
+        return ca.mtimes(R, cls.wedge(w))
