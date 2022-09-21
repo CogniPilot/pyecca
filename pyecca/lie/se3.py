@@ -47,7 +47,7 @@ class SE3:
     @classmethod
     def wedge(cls, v):
         '''
-        This takes in an element of the se3 Lie Algebra and returns the SE3 Lie Group elements
+        This takes in an element of the se3 Lie Algebra and returns the se3 Lie Algebra matrix
         '''
         X = ca.SX.zeros(4, 4)
         X[0, 1] = -v[2]
