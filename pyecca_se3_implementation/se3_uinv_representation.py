@@ -4,6 +4,7 @@ from pyecca.lie.util import DirectProduct
 from pyecca.lie.so3 import Quat, Dcm, Euler, Mrp
 from pyecca.lie.r3 import R3
 from pyecca.lie.se3 import SE3
+from pyecca.test import test_lie
 
 
 '''
@@ -13,8 +14,7 @@ This initialize the matrix representation for se3 lie algebra elements
 v = ca.DM([0.1, 0.2, 0.3]) #translational component
 R = Dcm.from_euler(ca.DM([0.1, 0.2, 0.3])) #Rotational component using Dcm
 
-R
-
+test_lie
 '''
 lie_alg_se3= ca.SX(4, 4)
 lie_alg_se3[0, 1] = -R[2]
