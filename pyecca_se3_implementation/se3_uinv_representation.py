@@ -31,7 +31,7 @@ class SE3_diff_corr:
   def check_group_shape(cls, a):
     assert a.shape == cls.group_shape or a.shape == (cls.group_shape[0],)
 
-  @classmethod
+  @classmethod #takes 6x1 lie algebra
   def adjoint_se3(cls, v): #input vee operator
     ad_se3 = ca.SX(6, 6)
     ad_se3[0,1] = -v[5,0]
@@ -53,6 +53,8 @@ class SE3_diff_corr:
     ad_se3[5,3] = -v[4,0]
     ad_se3[5,4] = v[3,0]
     return ad_se3
+    
+    
 
   @classmethod #Does these inputs using vee operator work? Seems like there should be a better way
   def se3_diff_correction_inv(cls, v, C1,C2): #input vee operator
