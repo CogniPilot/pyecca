@@ -7,12 +7,12 @@ from pyecca.lie.se3 import SE3
 from pyecca.test import test_lie
 import numpy as np
 
-
+eps = 1e-7 # to avoid divide by zero
 '''
 This code intends to perform U_inv matrix of se3
 '''
 
-class SE3_diff_corr:
+class se3LieAlg:
   group_shape = (6, 6)
   group_params = 12
   algebra_params = 6
@@ -141,10 +141,38 @@ class SE3_diff_corr:
       return ca.vertcat(horz2, lastRow2)
     
 
-  @classmethod #Does these inputs using vee operator work? Seems like there should be a better way
-  def se3_diff_correction_inv(cls, v, C1,C2): #input vee operator
+  @classmethod 
+  def se3_diff_correction_inv(cls, v, C1,C2): #UInv
     u_inv = ca.SX(6, 6)
-    #u_inv[0,0] = C2*(v[3,0]**2 - v[])
+    u_inv[0,0] = C2*(-v[4,0]**2 - v[5,0]**2) + 1
+    u_inv[0,1] = -C1*v[5,0] + C2*v[3,0]*v[4,0]
+    u_inv[0,2] = C1 * v[4,0] + C2 * v[3,0]*v[4,0]
+    u_inv[0,3] = C2 * (-2*v[4,0]*v[1,0]-2*v[5,0]*v[2,0])
+    u_inv[0,4] = -C1 * v[2,0] + C2*(v[4,0]*v[0,0]+v[5,0]*v[1,0])
+    u_inv[0,5] = C1 * v[1,0] + C2*(v[3,0]*v[2,0]+v[5,0]*v[0,0])
     
-    #is it possible to combine theta1, theta2, theta3 into theta?
+    u_inv[1,0] = C1 * v[5,0] + C2 * v[3,0] * v[4,0]
+    u_inv[1,1] = C2 *(-v[3,0]**2 - v[5,0]**2)+1
+    u_inv[1,2] = -C1*v[3,0] + C2 * v[4,0]*v[5,0]
+    u_inv[1,3] = C1 * v[2,0] + C2 * (v[3,0]*v[1,0]+v[4,0]*v[0,0])
+    u_inv[1,4] = C2* (-v[3,0] * v[0,0] - v[5,0]*v[0,0]-2*v[5,0]*v[2,0])
+    u_inv[1,5] = -C1 * v[0,0] + C2 * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
 
+    u_inv[2,0] = -C1 * v[4,0] + C2 * v[3,0] * v[5,0]
+    u_inv[2,1] = C1 * v[3,0] + C2 * v[4,0] * v[5,0]
+    u_inv[2,2] = C2 * (-v[3,0] **2  - v[4,0]**2) +1
+    u_inv[2,3] = -C1 * v[1,0] + C2 * (v[3,0]*v[2,0] + v[5,0]*v[0,0])
+    u_inv[2,4] = C1 * v[0,0] + C2 * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
+    u_inv[2,5] = C2 * (-2*v[3,0]*v[0,0] - 2*v[4,0] *v[1,0])
+
+    u_inv[3,3] = C2 * (- v[4,0]**2 - v[5,0]**2) +1
+    u_inv[3,4] = -C1*v[5,0] + C2*v[4,0]*v[5,0]
+    u_inv[3,5] = C1 * v[4,0] + C2 * v[3,0] * v[5,0]
+
+    u_inv[4,3] = C1 * v[5,0] + C2 * v[3,0] * v[4,0]
+    u_inv[4,4] = C2 * (-v[3,0]*v[5,0] - v[5,0]**2) +1
+    u_inv[4,5] = -C1 * v[3,0] + C2 * v[4,0] *v[5,0]
+
+    u_inv[5,3] = -C1 * v[4,0] + C2 * v[5,0]**2
+    u_inv[5,4] = C1 * v[5,0] + C2 * v[4,0] * v[5,0]
+    u_inv[5,5] = C2 * (-v[3,0] * v[5,0] - v[4,0]**2)+1
