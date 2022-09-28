@@ -176,3 +176,4 @@ class se3LieAlg:
     u_inv[5,3] = -C1 * v[4,0] + C2 * v[5,0]**2
     u_inv[5,4] = C1 * v[5,0] + C2 * v[4,0] * v[5,0]
     u_inv[5,5] = C2 * (-v[3,0] * v[5,0] - v[4,0]**2)+1
+    return u_inv
