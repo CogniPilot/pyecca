@@ -32,7 +32,7 @@ class se3LieAlg:
     assert a.shape == cls.group_shape or a.shape == (cls.group_shape[0],)
 
   @classmethod #takes 6x1 lie algebra
-  def adjoint_se3(cls, v): #input vee operator
+  def adjoint(cls, v): #input vee operator
     ad_se3 = ca.SX(6, 6)
     ad_se3[0,1] = -v[5,0]
     ad_se3[0,2] = v[3,0]
@@ -142,38 +142,43 @@ class se3LieAlg:
     
 
   @classmethod 
-  def se3_diff_correction_inv(cls, v, C1,C2): #UInv
+  def se3_diff_correction_inv(cls, v): #UInv
+    v = cls.vee(v)
+    v_so3 = v[:3] #grab only rotation terms for so3 uses
+    X_so3 = so3.wedge(v_so3) #wedge operator for so3
+    theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
+
     u_inv = ca.SX(6, 6)
-    u_inv[0,0] = C2*(-v[4,0]**2 - v[5,0]**2) + 1
-    u_inv[0,1] = -C1*v[5,0] + C2*v[3,0]*v[4,0]
-    u_inv[0,2] = C1 * v[4,0] + C2 * v[3,0]*v[4,0]
-    u_inv[0,3] = C2 * (-2*v[4,0]*v[1,0]-2*v[5,0]*v[2,0])
-    u_inv[0,4] = -C1 * v[2,0] + C2*(v[4,0]*v[0,0]+v[5,0]*v[1,0])
-    u_inv[0,5] = C1 * v[1,0] + C2*(v[3,0]*v[2,0]+v[5,0]*v[0,0])
+    u_inv[0,0] = cls.C2(theta)*(-v[4,0]**2 - v[5,0]**2) + 1
+    u_inv[0,1] = -cls.C1(theta)*v[5,0] + cls.C2(theta)*v[3,0]*v[4,0]
+    u_inv[0,2] = cls.C1(theta) * v[4,0] + cls.C2(theta) * v[3,0]*v[4,0]
+    u_inv[0,3] = cls.C2(theta) * (-2*v[4,0]*v[1,0]-2*v[5,0]*v[2,0])
+    u_inv[0,4] = -cls.C1(theta) * v[2,0] + cls.C2(theta)*(v[4,0]*v[0,0]+v[5,0]*v[1,0])
+    u_inv[0,5] = cls.C1(theta) * v[1,0] + cls.C2(theta)*(v[3,0]*v[2,0]+v[5,0]*v[0,0])
     
-    u_inv[1,0] = C1 * v[5,0] + C2 * v[3,0] * v[4,0]
-    u_inv[1,1] = C2 *(-v[3,0]**2 - v[5,0]**2)+1
-    u_inv[1,2] = -C1*v[3,0] + C2 * v[4,0]*v[5,0]
-    u_inv[1,3] = C1 * v[2,0] + C2 * (v[3,0]*v[1,0]+v[4,0]*v[0,0])
-    u_inv[1,4] = C2* (-v[3,0] * v[0,0] - v[5,0]*v[0,0]-2*v[5,0]*v[2,0])
-    u_inv[1,5] = -C1 * v[0,0] + C2 * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
+    u_inv[1,0] = cls.C1(theta) * v[5,0] + cls.C2(theta) * v[3,0] * v[4,0]
+    u_inv[1,1] = cls.C2(theta) *(-v[3,0]**2 - v[5,0]**2)+1
+    u_inv[1,2] = -cls.C1(theta)*v[3,0] + cls.C2(theta) * v[4,0]*v[5,0]
+    u_inv[1,3] = cls.C1(theta) * v[2,0] + cls.C2(theta) * (v[3,0]*v[1,0]+v[4,0]*v[0,0])
+    u_inv[1,4] = cls.C2(theta)* (-v[3,0] * v[0,0] - v[5,0]*v[0,0]-2*v[5,0]*v[2,0]) ##Check syntax
+    u_inv[1,5] = -cls.C1(theta) * v[0,0] + cls.C2(theta) * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
 
-    u_inv[2,0] = -C1 * v[4,0] + C2 * v[3,0] * v[5,0]
-    u_inv[2,1] = C1 * v[3,0] + C2 * v[4,0] * v[5,0]
-    u_inv[2,2] = C2 * (-v[3,0] **2  - v[4,0]**2) +1
-    u_inv[2,3] = -C1 * v[1,0] + C2 * (v[3,0]*v[2,0] + v[5,0]*v[0,0])
-    u_inv[2,4] = C1 * v[0,0] + C2 * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
-    u_inv[2,5] = C2 * (-2*v[3,0]*v[0,0] - 2*v[4,0] *v[1,0])
+    u_inv[2,0] = -cls.C1(theta) * v[4,0] + cls.C2(theta) * v[3,0] * v[5,0]
+    u_inv[2,1] = cls.C1(theta) * v[3,0] + cls.C2(theta) * v[4,0] * v[5,0]
+    u_inv[2,2] = cls.C2(theta) * (-v[3,0] **2  - v[4,0]**2) +1
+    u_inv[2,3] = -cls.C1(theta) * v[1,0] + cls.C2(theta) * (v[3,0]*v[2,0] + v[5,0]*v[0,0])
+    u_inv[2,4] = cls.C1(theta) * v[0,0] + cls.C2(theta) * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
+    u_inv[2,5] = cls.C2(theta) * (-2*v[3,0]*v[0,0] - 2*v[4,0] *v[1,0])
 
-    u_inv[3,3] = C2 * (- v[4,0]**2 - v[5,0]**2) +1
-    u_inv[3,4] = -C1*v[5,0] + C2*v[4,0]*v[5,0]
-    u_inv[3,5] = C1 * v[4,0] + C2 * v[3,0] * v[5,0]
+    u_inv[3,3] = cls.C2(theta) * (- v[4,0]**2 - v[5,0]**2) +1
+    u_inv[3,4] = -cls.C1(theta)*v[5,0] + cls.C2(theta)*v[4,0]*v[5,0]
+    u_inv[3,5] = cls.C1(theta) * v[4,0] + cls.C2(theta) * v[3,0] * v[5,0]
 
-    u_inv[4,3] = C1 * v[5,0] + C2 * v[3,0] * v[4,0]
-    u_inv[4,4] = C2 * (-v[3,0]*v[5,0] - v[5,0]**2) +1
-    u_inv[4,5] = -C1 * v[3,0] + C2 * v[4,0] *v[5,0]
+    u_inv[4,3] = cls.C1(theta) * v[5,0] + cls.C2(theta) * v[3,0] * v[4,0]
+    u_inv[4,4] = cls.C2(theta) * (-v[3,0]*v[5,0] - v[5,0]**2) +1
+    u_inv[4,5] = -cls.C1(theta) * v[3,0] + cls.C2(theta) * v[4,0] *v[5,0]
 
-    u_inv[5,3] = -C1 * v[4,0] + C2 * v[5,0]**2
-    u_inv[5,4] = C1 * v[5,0] + C2 * v[4,0] * v[5,0]
-    u_inv[5,5] = C2 * (-v[3,0] * v[5,0] - v[4,0]**2)+1
+    u_inv[5,3] = -cls.C1(theta) * v[4,0] + cls.C2(theta) * v[5,0]**2
+    u_inv[5,4] = cls.C1(theta) * v[5,0] + cls.C2(theta) * v[4,0] * v[5,0]
+    u_inv[5,5] = cls.C2(theta) * (-v[3,0] * v[5,0] - v[4,0]**2)+1
     return u_inv
