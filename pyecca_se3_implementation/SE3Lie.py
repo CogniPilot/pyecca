@@ -168,7 +168,10 @@ class SE3:
         lastRow2 = ca.horzcat(0,0,0,0)
         return ca.vertcat(horz2, lastRow2)
 
-# def se3_diff_correction(v): #U Matrix for se3 with input vee operator
+#test
+def se3_diff_correction(v): #U Matrix for se3 with input vee operator
+    return ca.inv(se3_diff_correction_inv(v))
+
 # --- could utilize series form by implementing C1 and C2 ---
 #       #To do
 
@@ -183,37 +186,52 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
     X_so3 = so3.wedge(v_so3) #wedge operator for so3
     theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
 
+# change C1(theta), C2(theta) to some other variable such as small c1 c2
+    c1 = C1(theta)
+    c2 = C2(theta)
+
     u_inv = ca.SX(6, 6)
-    u_inv[0,0] = C2(theta)*(-v[4,0]**2 - v[5,0]**2) + 1
-    u_inv[0,1] = -C1(theta)*v[5,0] + C2(theta)*v[3,0]*v[4,0]
-    u_inv[0,2] = C1(theta) * v[4,0] + C2(theta) * v[3,0]*v[4,0]
-    u_inv[0,3] = C2(theta) * (-2*v[4,0]*v[1,0]-2*v[5,0]*v[2,0])
-    u_inv[0,4] = -C1(theta) * v[2,0] + C2(theta)*(v[4,0]*v[0,0]+v[5,0]*v[1,0])
-    u_inv[0,5] = C1(theta) * v[1,0] + C2(theta)*(v[3,0]*v[2,0]+v[5,0]*v[0,0])
+    u_inv[0,0] = c2*(-v[4,0]**2 - v[5,0]**2) + 1
+    u_inv[0,1] = -c1*v[5,0] + c2*v[3,0]*v[4,0]
+    u_inv[0,2] = c1 * v[4,0] + c2 * v[3,0]*v[4,0]
+    u_inv[0,3] = c2 * (-2*v[4,0]*v[1,0]-2*v[5,0]*v[2,0])
+    u_inv[0,4] = -c1 * v[2,0] + c2*(v[4,0]*v[0,0]+v[5,0]*v[1,0])
+    u_inv[0,5] = c1 * v[1,0] + c2*(v[3,0]*v[2,0]+v[5,0]*v[0,0])
     
-    u_inv[1,0] = C1(theta) * v[5,0] + C2(theta) * v[3,0] * v[4,0]
-    u_inv[1,1] = C2(theta) *(-v[3,0]**2 - v[5,0]**2)+1
-    u_inv[1,2] = -C1(theta)*v[3,0] + C2(theta) * v[4,0]*v[5,0]
-    u_inv[1,3] = C1(theta) * v[2,0] + C2(theta) * (v[3,0]*v[1,0]+v[4,0]*v[0,0])
-    u_inv[1,4] = C2(theta)* (-v[3,0] * v[0,0] - v[5,0]*v[0,0]-2*v[5,0]*v[2,0]) ##Check syntax
-    u_inv[1,5] = -C1(theta) * v[0,0] + C2(theta) * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
+    u_inv[1,0] = c1 * v[5,0] + c2 * v[3,0] * v[4,0]
+    u_inv[1,1] = c2 *(-v[3,0]**2 - v[5,0]**2)+1
+    u_inv[1,2] = -c1*v[3,0] + c2 * v[4,0]*v[5,0]
+    u_inv[1,3] = c1 * v[2,0] + c2 * (v[3,0]*v[1,0]+v[4,0]*v[0,0])
+    u_inv[1,4] = c2* (-v[3,0] * v[0,0] - v[5,0]*v[0,0]-2*v[5,0]*v[2,0]) ##Check syntax
+    u_inv[1,5] = -c1 * v[0,0] + c2 * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
 
-    u_inv[2,0] = -C1(theta) * v[4,0] + C2(theta) * v[3,0] * v[5,0]
-    u_inv[2,1] = C1(theta) * v[3,0] + C2(theta) * v[4,0] * v[5,0]
-    u_inv[2,2] = C2(theta) * (-v[3,0] **2  - v[4,0]**2) +1
-    u_inv[2,3] = -C1(theta) * v[1,0] + C2(theta) * (v[3,0]*v[2,0] + v[5,0]*v[0,0])
-    u_inv[2,4] = C1(theta) * v[0,0] + C2(theta) * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
-    u_inv[2,5] = C2(theta) * (-2*v[3,0]*v[0,0] - 2*v[4,0] *v[1,0])
+    u_inv[2,0] = -c1 * v[4,0] + c2 * v[3,0] * v[5,0]
+    u_inv[2,1] = c1 * v[3,0] + c2 * v[4,0] * v[5,0]
+    u_inv[2,2] = c1 * (-v[3,0] **2  - v[4,0]**2) +1
+    u_inv[2,3] = -c1 * v[1,0] + c2 * (v[3,0]*v[2,0] + v[5,0]*v[0,0])
+    u_inv[2,4] = c1 * v[0,0] + c2 * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
+    u_inv[2,5] = c2 * (-2*v[3,0]*v[0,0] - 2*v[4,0] *v[1,0])
 
-    u_inv[3,3] = C2(theta) * (- v[4,0]**2 - v[5,0]**2) +1
-    u_inv[3,4] = -C1(theta)*v[5,0] + C2(theta)*v[4,0]*v[5,0]
-    u_inv[3,5] = C1(theta) * v[4,0] + C2(theta) * v[3,0] * v[5,0]
+    u_inv[3,3] = c2 * (- v[4,0]**2 - v[5,0]**2) +1
+    u_inv[3,4] = -c1*v[5,0] + c2*v[4,0]*v[5,0]
+    u_inv[3,5] = c1 * v[4,0] + c2 * v[3,0] * v[5,0]
 
-    u_inv[4,3] = C1(theta) * v[5,0] + C2(theta) * v[3,0] * v[4,0]
-    u_inv[4,4] = C2(theta) * (-v[3,0]*v[5,0] - v[5,0]**2) +1
-    u_inv[4,5] = -C1(theta) * v[3,0] + C2(theta) * v[4,0] *v[5,0]
+    u_inv[4,3] = c1 * v[5,0] + c2 * v[3,0] * v[4,0]
+    u_inv[4,4] = c2 * (-v[3,0]*v[5,0] - v[5,0]**2) +1
+    u_inv[4,5] = -c1 * v[3,0] + c2 * v[4,0] *v[5,0]
 
-    u_inv[5,3] = -C1(theta) * v[4,0] + C2(theta) * v[5,0]**2
-    u_inv[5,4] = C1(theta) * v[5,0] + C2(theta) * v[4,0] * v[5,0]
-    u_inv[5,5] = C2(theta) * (-v[3,0] * v[5,0] - v[4,0]**2)+1
+    u_inv[5,3] = -c1 * v[4,0] + c2 * v[5,0]**2
+    u_inv[5,4] = c1 * v[5,0] + c2 * v[4,0] * v[5,0]
+    u_inv[5,5] = c2 * (-v[3,0] * v[5,0] - v[4,0]**2)+1
     return u_inv
+    #verify this with series solution 
+
+    # https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/mrp.py
+    # Use this to try to get casadi to draw a plot for this
+    # line 112-116 help for drawing plots
+    
+    # https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/common.py
+    #This import to import needed casadi command
+
+
+    ##jacobian from symbolic dotdraw
