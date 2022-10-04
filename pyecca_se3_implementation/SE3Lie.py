@@ -9,7 +9,7 @@ import numpy as np
 
 eps = 1e-7 # to avoid divide by zero
 '''
-This code intends to perform U_inv matrix of se3
+SE3Lie extension with applications of casadi
 '''
 
 class se3: #se3 Lie Algebra Functions
@@ -32,7 +32,7 @@ class se3: #se3 Lie Algebra Functions
         assert a.shape == cls.group_shape or a.shape == (cls.group_shape[0],)
 
     @classmethod #takes 6x1 lie algebra
-    def ad_matrix(cls, v): #input vee operator
+    def ad_matrix(cls, v): #input vee operator [x,y,z,theta1,theta2,theta3]
         ad_se3 = ca.SX(6, 6)
         ad_se3[0,1] = -v[5,0]
         ad_se3[0,2] = v[3,0]
@@ -64,7 +64,7 @@ class se3: #se3 Lie Algebra Functions
         This takes in an element of the SE3 Lie Group (Wedge Form) and returns the se3 Lie Algebra elements 
         '''
         v = ca.SX(6, 1) #in the form [theta1, theta2, theta3, x, y, z] ##NEEDS CORRECTION into form [x,y,z,theta1,theta2,theta3]???
-        v[0, 0] = X[2, 1]
+        v[0, 0] = X[2, 1] #review if any of these switches will be affected in se3.py and so3.py
         v[1, 0] = X[0, 2]
         v[2, 0] = X[1, 0]
         v[3, 0] = X[0, 3]
@@ -96,17 +96,17 @@ class se3: #se3 Lie Algebra Functions
         return ca.mtimes(a, b)
 
     @classmethod
-    def exp(cls, v):
+    def exp(cls, v): #accept input in wedge operator form
         v = cls.vee(v)
-        v_so3 = v[:3] #grab only rotation terms for so3 uses ##WILL NEED TO BE CHANGED into v_so3 = v[3:]
+        v_so3 = v[:3] #grab only rotation terms for so3 uses ##WILL NEED TO BE CHANGED into v_so3 = v[3:6]
         X_so3 = so3.wedge(v_so3) #wedge operator for so3
         theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
         
         # translational components u
         u = ca.SX(3, 1)
-        u[0, 0] = v[3]
-        u[1, 0] = v[4]
-        u[2, 0] = v[5]
+        u[0, 0] = v[3] #change to v[0]
+        u[1, 0] = v[4] #change to v[1]
+        u[2, 0] = v[5] #change to v[2]
         
         R = so3.Dcm.exp(v_so3) #'Dcm' for direction cosine matrix representation of so3 LieGroup Rotational
         V = ca.SX.eye(3) + cls.C2(theta)*X_so3 + cls.C4(theta)*ca.mtimes(X_so3, X_so3)
@@ -148,7 +148,7 @@ class SE3:
     @classmethod
     def inv(cls, a): #input a matrix of SX form from casadi
         cls.check_group_shape(a)
-        a_inv = ca.solve(a,ca.SX.eye(ca.size1(a))) #Google Group post mentioned ca.inv() could take too long, and should explore solve function
+        a_inv = ca.solve(a,ca.SX.eye(6)) #Google Group post mentioned ca.inv() could take too long, and should explore solve function
         return ca.transpose(a)
     
     @classmethod
@@ -168,8 +168,9 @@ class SE3:
         lastRow2 = ca.horzcat(0,0,0,0)
         return ca.vertcat(horz2, lastRow2)
 
-# def se3_diff_correction(v):
+# def se3_diff_correction(v): #U Matrix for se3 with input vee operator
 # --- could utilize series form by implementing C1 and C2 ---
+#       #To do
 
 
 def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
@@ -178,7 +179,7 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
     C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
     del x
     # v = se3.vee(v)  #This only applies if v is inputed from Lie Group format
-    v_so3 = v[:3] #grab only rotation terms for so3 uses
+    v_so3 = v[3:6] #grab only rotation terms for so3 uses ### might need to be changed to v[3:6]
     X_so3 = so3.wedge(v_so3) #wedge operator for so3
     theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
 
