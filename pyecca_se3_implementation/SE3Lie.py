@@ -61,9 +61,9 @@ class se3: #se3 Lie Algebra Functions
     @classmethod
     def vee(cls, X):
         '''
-        This takes in an element of the SE3 Lie Group (Wedge Operator) and returns the se3 Lie Algebra elements 
+        This takes in an element of the SE3 Lie Group (Wedge Form) and returns the se3 Lie Algebra elements 
         '''
-        v = ca.SX(6, 1)
+        v = ca.SX(6, 1) #in the form [theta1, theta2, theta3, x, y, z] ##NEEDS CORRECTION into form [x,y,z,theta1,theta2,theta3]???
         v[0, 0] = X[2, 1]
         v[1, 0] = X[0, 2]
         v[2, 0] = X[1, 0]
@@ -77,7 +77,7 @@ class se3: #se3 Lie Algebra Functions
         '''
         This takes in an element of the se3 Lie Algebra and returns the se3 Lie Algebra matrix
         '''
-        X = ca.SX.zeros(4, 4)
+        X = ca.SX.zeros(4, 4) #in the form [theta1, theta2, theta3, x, y, z] ##NEEDS CORRECTION into form [x,y,z,theta1,theta2,theta3]???
         X[0, 1] = -v[2]
         X[0, 2] = v[1]
         X[1, 0] = v[2]
@@ -98,7 +98,7 @@ class se3: #se3 Lie Algebra Functions
     @classmethod
     def exp(cls, v):
         v = cls.vee(v)
-        v_so3 = v[:3] #grab only rotation terms for so3 uses
+        v_so3 = v[:3] #grab only rotation terms for so3 uses ##WILL NEED TO BE CHANGED into v_so3 = v[3:]
         X_so3 = so3.wedge(v_so3) #wedge operator for so3
         theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
         
@@ -146,9 +146,9 @@ class SE3:
         return ca.mtimes(a, b)
 
     @classmethod
-    def inv(cls, a):
-        #To Do
+    def inv(cls, a): #input a matrix of SX form from casadi
         cls.check_group_shape(a)
+        a_inv = ca.solve(a,ca.SX.eye(ca.size1(a))) #Google Group post mentioned ca.inv() could take too long, and should explore solve function
         return ca.transpose(a)
     
     @classmethod
@@ -168,8 +168,11 @@ class SE3:
         lastRow2 = ca.horzcat(0,0,0,0)
         return ca.vertcat(horz2, lastRow2)
 
+# def se3_diff_correction(v):
+# --- could utilize series form by implementing C1 and C2 ---
 
-def se3_diff_correction_inv(v): #U_inv of se3
+
+def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
     x = ca.SX.sym('x')
     C1 = ca.Function('a', [x], [ca.if_else(ca.fabs(x) < eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
     C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
