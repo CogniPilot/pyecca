@@ -209,7 +209,7 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
     u_inv[2,2] = c1 * (-v[3] **2  - v[4]**2) +1
     u_inv[2,3] = -c1 * v[1] + c2 * (v[3]*v[2] + v[5]*v[0])
     u_inv[2,4] = c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
-    u_inv[2,5] = c2 * (-2*v[3,0]*v[0,0] - 2*v[4,0] *v[1])
+    u_inv[2,5] = c2 * (-2*v[3]*v[0] - 2*v[4] *v[1])
 
     u_inv[3,3] = c2 * (- v[4]**2 - v[5]**2) +1
     u_inv[3,4] = -c1*v[5] + c2*v[4]*v[5]
@@ -220,7 +220,7 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
     u_inv[4,5] = -c1 * v[3] + c2 * v[4] *v[5]
 
     u_inv[5,3] = -c1 * v[4] + c2 * v[5]**2
-    u_inv[5,4] = c1 * v[5] + c2 * v[4,0] * v[5,0]
+    u_inv[5,4] = c1 * v[5] + c2 * v[4] * v[5]
     u_inv[5,5] = c2 * (-v[3] * v[5] - v[4]**2)+1
     return u_inv
     #verify this with series solution 
