@@ -63,13 +63,13 @@ class se3: #se3 Lie Algebra Functions
         '''
         This takes in an element of the SE3 Lie Group (Wedge Form) and returns the se3 Lie Algebra elements 
         '''
-        v = ca.SX(6, 1) #in the form [theta1, theta2, theta3, x, y, z] ##NEEDS CORRECTION into form [x,y,z,theta1,theta2,theta3]???
-        v[0, 0] = X[2, 1] #review if any of these switches will be affected in se3.py and so3.py
-        v[1, 0] = X[0, 2]
-        v[2, 0] = X[1, 0]
-        v[3, 0] = X[0, 3]
-        v[4, 0] = X[1, 3]
-        v[5, 0] = X[2, 3]
+        v = ca.SX(6, 1) #CORRECTED to [x,y,z,theta1,theta2,theta3]???
+        v[0, 0] = X[0, 3] #review if any of these switches will be affected in se3.py and so3.py
+        v[1, 0] = X[1, 3]
+        v[2, 0] = X[2, 3]
+        v[3, 0] = X[2,1]
+        v[4, 0] = X[0,2]
+        v[5, 0] = X[1,0]
         return v
 
     @classmethod
@@ -77,16 +77,16 @@ class se3: #se3 Lie Algebra Functions
         '''
         This takes in an element of the se3 Lie Algebra and returns the se3 Lie Algebra matrix
         '''
-        X = ca.SX.zeros(4, 4) #in the form [theta1, theta2, theta3, x, y, z] ##NEEDS CORRECTION into form [x,y,z,theta1,theta2,theta3]???
-        X[0, 1] = -v[2]
-        X[0, 2] = v[1]
-        X[1, 0] = v[2]
-        X[1, 2] = -v[0]
-        X[2, 0] = -v[1]
-        X[2, 1] = v[0]
-        X[0, 3] = v[3]
-        X[1, 3] = v[4]
-        X[2, 3] = v[5]
+        X = ca.SX.zeros(4, 4) ##Corrected to form [x,y,z,theta1,theta2,theta3]???
+        X[0, 1] = -v[5]
+        X[0, 2] = v[4]
+        X[1, 0] = v[5]
+        X[1, 2] = -v[3]
+        X[2, 0] = -v[4]
+        X[2, 1] = v[3]
+        X[0, 3] = v[0]
+        X[1, 3] = v[1]
+        X[2, 3] = v[2]
         return X        
 
     @classmethod
@@ -98,15 +98,15 @@ class se3: #se3 Lie Algebra Functions
     @classmethod
     def exp(cls, v): #accept input in wedge operator form
         v = cls.vee(v)
-        v_so3 = v[:3] #grab only rotation terms for so3 uses ##WILL NEED TO BE CHANGED into v_so3 = v[3:6]
+        v_so3 = v[3:6] #grab only rotation terms for so3 uses ##corrected to v_so3 = v[3:6]
         X_so3 = so3.wedge(v_so3) #wedge operator for so3
         theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
         
         # translational components u
         u = ca.SX(3, 1)
-        u[0, 0] = v[3] #change to v[0]
-        u[1, 0] = v[4] #change to v[1]
-        u[2, 0] = v[5] #change to v[2]
+        u[0, 0] = v[0]
+        u[1, 0] = v[1]
+        u[2, 0] = v[2]
         
         R = so3.Dcm.exp(v_so3) #'Dcm' for direction cosine matrix representation of so3 LieGroup Rotational
         V = ca.SX.eye(3) + cls.C2(theta)*X_so3 + cls.C4(theta)*ca.mtimes(X_so3, X_so3)
@@ -153,7 +153,7 @@ class SE3:
     
     @classmethod
     def log(cls, G):
-        theta = ca.arccos(((G[0, 0]+G[1, 1]+G[2, 2]) - 1) / 2)
+        theta = ca.arccos(((G[0, 0]+G[1, 1]+G[2, 2]) - 1) / 2) #review if this need to be changed for order of vee
         wSkew = so3.wedge(so3.Dcm.log(G[:3,:3]))
         V_inv = ca.SX.eye(3) - 0.5*wSkew + (1/(theta**2))*(1-((cls.C1(theta))/(2*cls.C2(theta))))*ca.mtimes(wSkew, wSkew)
         
@@ -182,47 +182,46 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
     C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
     del x
     # v = se3.vee(v)  #This only applies if v is inputed from Lie Group format
-    v_so3 = v[3:6] #grab only rotation terms for so3 uses ### might need to be changed to v[3:6]
+    v_so3 = v[3:6] #grab only rotation terms for so3 uses ## changed to match NASAULI paper order of vee v[3:6]
     X_so3 = so3.wedge(v_so3) #wedge operator for so3
     theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
 
-# change C1(theta), C2(theta) to some other variable such as small c1 c2
     c1 = C1(theta)
     c2 = C2(theta)
 
     u_inv = ca.SX(6, 6)
-    u_inv[0,0] = c2*(-v[4,0]**2 - v[5,0]**2) + 1
-    u_inv[0,1] = -c1*v[5,0] + c2*v[3,0]*v[4,0]
-    u_inv[0,2] = c1 * v[4,0] + c2 * v[3,0]*v[4,0]
-    u_inv[0,3] = c2 * (-2*v[4,0]*v[1,0]-2*v[5,0]*v[2,0])
-    u_inv[0,4] = -c1 * v[2,0] + c2*(v[4,0]*v[0,0]+v[5,0]*v[1,0])
-    u_inv[0,5] = c1 * v[1,0] + c2*(v[3,0]*v[2,0]+v[5,0]*v[0,0])
+    u_inv[0,0] = c2*(-v[4]**2 - v[5]**2) + 1
+    u_inv[0,1] = -c1*v[5] + c2*v[3]*v[4]
+    u_inv[0,2] = c1 * v[4] + c2 * v[3]*v[4]
+    u_inv[0,3] = c2 * (-2*v[4]*v[1]-2*v[5]*v[2])
+    u_inv[0,4] = -c1 * v[2] + c2*(v[4]*v[0]+v[5]*v[1])
+    u_inv[0,5] = c1 * v[1] + c2*(v[3]*v[2]+v[5]*v[0])
     
-    u_inv[1,0] = c1 * v[5,0] + c2 * v[3,0] * v[4,0]
-    u_inv[1,1] = c2 *(-v[3,0]**2 - v[5,0]**2)+1
-    u_inv[1,2] = -c1*v[3,0] + c2 * v[4,0]*v[5,0]
-    u_inv[1,3] = c1 * v[2,0] + c2 * (v[3,0]*v[1,0]+v[4,0]*v[0,0])
-    u_inv[1,4] = c2* (-v[3,0] * v[0,0] - v[5,0]*v[0,0]-2*v[5,0]*v[2,0]) ##Check syntax
-    u_inv[1,5] = -c1 * v[0,0] + c2 * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
+    u_inv[1,0] = c1 * v[5] + c2 * v[3] * v[4]
+    u_inv[1,1] = c2 *(-v[3]**2 - v[5]**2)+1
+    u_inv[1,2] = -c1*v[3] + c2 * v[4]*v[5]
+    u_inv[1,3] = c1 * v[2] + c2 * (v[3]*v[1]+v[4]*v[0])
+    u_inv[1,4] = c2* (-v[3] * v[0] - v[5]*v[0]-2*v[5]*v[2])
+    u_inv[1,5] = -c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
 
-    u_inv[2,0] = -c1 * v[4,0] + c2 * v[3,0] * v[5,0]
-    u_inv[2,1] = c1 * v[3,0] + c2 * v[4,0] * v[5,0]
-    u_inv[2,2] = c1 * (-v[3,0] **2  - v[4,0]**2) +1
-    u_inv[2,3] = -c1 * v[1,0] + c2 * (v[3,0]*v[2,0] + v[5,0]*v[0,0])
-    u_inv[2,4] = c1 * v[0,0] + c2 * (v[4,0]*v[2,0] + v[5,0] *v[1,0])
-    u_inv[2,5] = c2 * (-2*v[3,0]*v[0,0] - 2*v[4,0] *v[1,0])
+    u_inv[2,0] = -c1 * v[4] + c2 * v[3] * v[5]
+    u_inv[2,1] = c1 * v[3] + c2 * v[4] * v[5]
+    u_inv[2,2] = c1 * (-v[3] **2  - v[4]**2) +1
+    u_inv[2,3] = -c1 * v[1] + c2 * (v[3]*v[2] + v[5]*v[0])
+    u_inv[2,4] = c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
+    u_inv[2,5] = c2 * (-2*v[3,0]*v[0,0] - 2*v[4,0] *v[1])
 
-    u_inv[3,3] = c2 * (- v[4,0]**2 - v[5,0]**2) +1
-    u_inv[3,4] = -c1*v[5,0] + c2*v[4,0]*v[5,0]
-    u_inv[3,5] = c1 * v[4,0] + c2 * v[3,0] * v[5,0]
+    u_inv[3,3] = c2 * (- v[4]**2 - v[5]**2) +1
+    u_inv[3,4] = -c1*v[5] + c2*v[4]*v[5]
+    u_inv[3,5] = c1 * v[4] + c2 * v[3] * v[5]
 
-    u_inv[4,3] = c1 * v[5,0] + c2 * v[3,0] * v[4,0]
-    u_inv[4,4] = c2 * (-v[3,0]*v[5,0] - v[5,0]**2) +1
-    u_inv[4,5] = -c1 * v[3,0] + c2 * v[4,0] *v[5,0]
+    u_inv[4,3] = c1 * v[5] + c2 * v[3] * v[4]
+    u_inv[4,4] = c2 * (-v[3]*v[5] - v[5]**2) +1
+    u_inv[4,5] = -c1 * v[3] + c2 * v[4] *v[5]
 
-    u_inv[5,3] = -c1 * v[4,0] + c2 * v[5,0]**2
-    u_inv[5,4] = c1 * v[5,0] + c2 * v[4,0] * v[5,0]
-    u_inv[5,5] = c2 * (-v[3,0] * v[5,0] - v[4,0]**2)+1
+    u_inv[5,3] = -c1 * v[4] + c2 * v[5]**2
+    u_inv[5,4] = c1 * v[5] + c2 * v[4,0] * v[5,0]
+    u_inv[5,5] = c2 * (-v[3] * v[5] - v[4]**2)+1
     return u_inv
     #verify this with series solution 
 
@@ -235,3 +234,6 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
 
 
     ##jacobian from symbolic dotdraw
+
+def dot_plot_draw(u):
+    pass

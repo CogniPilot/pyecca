@@ -35,13 +35,13 @@ class SE3:
         '''
         This takes in an element of the SE3 Lie Group and returns the se3 Lie Algebra elements 
         '''
-        v = ca.SX(6, 1)
-        v[0, 0] = X[2, 1]
-        v[1, 0] = X[0, 2]
-        v[2, 0] = X[1, 0]
-        v[3, 0] = X[0, 3]
-        v[4, 0] = X[1, 3]
-        v[5, 0] = X[2, 3]
+        v = ca.SX(6, 1) #CORRECTED to [x,y,z,theta1,theta2,theta3]???
+        v[0, 0] = X[0, 3] #review if any of these switches will be affected in se3.py and so3.py
+        v[1, 0] = X[1, 3]
+        v[2, 0] = X[2, 3]
+        v[3, 0] = X[2,1]
+        v[4, 0] = X[0,2]
+        v[5, 0] = X[1,0]
         return v
 
     @classmethod
@@ -49,17 +49,17 @@ class SE3:
         '''
         This takes in an element of the se3 Lie Algebra and returns the se3 Lie Algebra matrix
         '''
-        X = ca.SX.zeros(4, 4)
-        X[0, 1] = -v[2]
-        X[0, 2] = v[1]
-        X[1, 0] = v[2]
-        X[1, 2] = -v[0]
-        X[2, 0] = -v[1]
-        X[2, 1] = v[0]
-        X[0, 3] = v[3]
-        X[1, 3] = v[4]
-        X[2, 3] = v[5]
-        return X
+        X = ca.SX.zeros(4, 4) ##Corrected to form [x,y,z,theta1,theta2,theta3]???
+        X[0, 1] = -v[5]
+        X[0, 2] = v[4]
+        X[1, 0] = v[5]
+        X[1, 2] = -v[3]
+        X[2, 0] = -v[4]
+        X[2, 1] = v[3]
+        X[0, 3] = v[0]
+        X[1, 3] = v[1]
+        X[2, 3] = v[2]
+        return X    
 
     @classmethod
     def product(cls, a, b):
@@ -76,15 +76,15 @@ class SE3:
     @classmethod
     def exp(cls, v):
         v = cls.vee(v)
-        v_so3 = v[:3] #grab only rotation terms for so3 uses
+        v_so3 = v[3:6] #grab only rotation terms for so3 uses ##corrected to v_so3 = v[3:6]
         X_so3 = so3.wedge(v_so3) #wedge operator for so3
         theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
         
         # translational components u
         u = ca.SX(3, 1)
-        u[0, 0] = v[3]
-        u[1, 0] = v[4]
-        u[2, 0] = v[5]
+        u[0, 0] = v[0]
+        u[1, 0] = v[1]
+        u[2, 0] = v[2]
         
         R = so3.Dcm.exp(v_so3) #'Dcm' for direction cosine matrix representation of so3 LieGroup Rotational
         V = ca.SX.eye(3) + cls.C2(theta)*X_so3 + cls.C4(theta)*ca.mtimes(X_so3, X_so3)
