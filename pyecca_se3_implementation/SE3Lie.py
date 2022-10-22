@@ -6,6 +6,10 @@ from pyecca.lie.r3 import R3
 from pyecca.lie.se3 import SE3
 from pyecca.test import test_lie
 import numpy as np
+from casadi.tools.graph import graph, dotdraw
+import os
+import pydot
+
 
 eps = 1e-7 # to avoid divide by zero
 '''
@@ -177,51 +181,108 @@ def se3_diff_correction(v): #U Matrix for se3 with input vee operator
 
 
 def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
-    x = ca.SX.sym('x')
-    C1 = ca.Function('a', [x], [ca.if_else(ca.fabs(x) < eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
-    C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
-    del x
+    # x = ca.SX.sym('x')
+    # C1 = ca.Function('a', [x], [ca.if_else(ca.fabs(x) < eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
+    # C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
+    # del x
     # v = se3.vee(v)  #This only applies if v is inputed from Lie Group format
     v_so3 = v[3:6] #grab only rotation terms for so3 uses ## changed to match NASAULI paper order of vee v[3:6]
     X_so3 = so3.wedge(v_so3) #wedge operator for so3
     theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
 
-    c1 = C1(theta)
-    c2 = C2(theta)
+    if type(v[1]) == 'casadi.casadi.SX':
+        c1 = ca.sin(theta)/theta
+        c2 = (1-ca.cos(theta)/theta**2)
+    elif type(v[1]) == 'int' and theta < eps:
+        c1 = 1 - theta ** 2 / 6 + theta ** 4 / 120
+        c2 = 0.5 - theta ** 2 / 24 + theta ** 4 / 720
+    else:
+        c1 = ca.sin(theta)/theta
+        c2 = (1-ca.cos(theta)/theta**2)
 
-    u_inv = ca.SX(6, 6)
-    u_inv[0,0] = c2*(-v[4]**2 - v[5]**2) + 1
-    u_inv[0,1] = -c1*v[5] + c2*v[3]*v[4]
-    u_inv[0,2] = c1 * v[4] + c2 * v[3]*v[4]
-    u_inv[0,3] = c2 * (-2*v[4]*v[1]-2*v[5]*v[2])
-    u_inv[0,4] = -c1 * v[2] + c2*(v[4]*v[0]+v[5]*v[1])
-    u_inv[0,5] = c1 * v[1] + c2*(v[3]*v[2]+v[5]*v[0])
+    # u_inv = ca.SX(6, 6)
+    # u_inv[0,0] = c2*(-v[4]**2 - v[5]**2) + 1
+    # u_inv[0,1] = -c1*v[5] + c2*v[3]*v[4]
+    # u_inv[0,2] = c1 * v[4] + c2 * v[3]*v[4]
+    # u_inv[0,3] = c2 * (-2*v[4]*v[1]-2*v[5]*v[2])
+    # u_inv[0,4] = -c1 * v[2] + c2*(v[4]*v[0]+v[5]*v[1])
+    # u_inv[0,5] = c1 * v[1] + c2*(v[3]*v[2]+v[5]*v[0])
     
-    u_inv[1,0] = c1 * v[5] + c2 * v[3] * v[4]
-    u_inv[1,1] = c2 *(-v[3]**2 - v[5]**2)+1
-    u_inv[1,2] = -c1*v[3] + c2 * v[4]*v[5]
-    u_inv[1,3] = c1 * v[2] + c2 * (v[3]*v[1]+v[4]*v[0])
-    u_inv[1,4] = c2* (-v[3] * v[0] - v[5]*v[0]-2*v[5]*v[2])
-    u_inv[1,5] = -c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
+    # u_inv[1,0] = c1 * v[5] + c2 * v[3] * v[4]
+    # u_inv[1,1] = c2 *(-v[3]**2 - v[5]**2)+1
+    # u_inv[1,2] = -c1*v[3] + c2 * v[4]*v[5]
+    # u_inv[1,3] = c1 * v[2] + c2 * (v[3]*v[1]+v[4]*v[0])
+    # u_inv[1,4] = c2* (-v[3] * v[0] - v[5]*v[0]-2*v[5]*v[2])
+    # u_inv[1,5] = -c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
 
-    u_inv[2,0] = -c1 * v[4] + c2 * v[3] * v[5]
-    u_inv[2,1] = c1 * v[3] + c2 * v[4] * v[5]
-    u_inv[2,2] = c1 * (-v[3] **2  - v[4]**2) +1
-    u_inv[2,3] = -c1 * v[1] + c2 * (v[3]*v[2] + v[5]*v[0])
-    u_inv[2,4] = c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
-    u_inv[2,5] = c2 * (-2*v[3]*v[0] - 2*v[4] *v[1])
+    # u_inv[2,0] = -c1 * v[4] + c2 * v[3] * v[5]
+    # u_inv[2,1] = c1 * v[3] + c2 * v[4] * v[5]
+    # u_inv[2,2] = c1 * (-v[3] **2  - v[4]**2) +1
+    # u_inv[2,3] = -c1 * v[1] + c2 * (v[3]*v[2] + v[5]*v[0])
+    # u_inv[2,4] = c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
+    # u_inv[2,5] = c2 * (-2*v[3]*v[0] - 2*v[4] *v[1])
 
-    u_inv[3,3] = c2 * (- v[4]**2 - v[5]**2) +1
-    u_inv[3,4] = -c1*v[5] + c2*v[4]*v[5]
-    u_inv[3,5] = c1 * v[4] + c2 * v[3] * v[5]
+    # u_inv[3,3] = c2 * (- v[4]**2 - v[5]**2) +1
+    # u_inv[3,4] = -c1*v[5] + c2*v[4]*v[5]
+    # u_inv[3,5] = c1 * v[4] + c2 * v[3] * v[5]
 
-    u_inv[4,3] = c1 * v[5] + c2 * v[3] * v[4]
-    u_inv[4,4] = c2 * (-v[3]*v[5] - v[5]**2) +1
-    u_inv[4,5] = -c1 * v[3] + c2 * v[4] *v[5]
+    # u_inv[4,3] = c1 * v[5] + c2 * v[3] * v[4]
+    # u_inv[4,4] = c2 * (-v[3]*v[5] - v[5]**2) +1
+    # u_inv[4,5] = -c1 * v[3] + c2 * v[4] *v[5]
 
-    u_inv[5,3] = -c1 * v[4] + c2 * v[5]**2
-    u_inv[5,4] = c1 * v[5] + c2 * v[4] * v[5]
-    u_inv[5,5] = c2 * (-v[3] * v[5] - v[4]**2)+1
+    # u_inv[5,3] = -c1 * v[4] + c2 * v[5]**2
+    # u_inv[5,4] = c1 * v[5] + c2 * v[4] * v[5]
+    # u_inv[5,5] = c2 * (-v[3] * v[5] - v[4]**2)+1
+    u_inv = ca.SX(6, 6)
+    u1 = c2*(-v[4]**2 - v[5]**2) + 1
+    u2 = -c1*v[5] + c2*v[3]*v[4]
+    u3 = c1 * v[4] + c2 * v[3]*v[4]
+    u4 = c2 * (-2*v[4]*v[1]-2*v[5]*v[2])
+    u5 = -c1 * v[2] + c2*(v[4]*v[0]+v[5]*v[1])
+    u6 = c1 * v[1] + c2*(v[3]*v[2]+v[5]*v[0])
+    uInvR1 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    u1 = c1 * v[5] + c2 * v[3] * v[4]
+    u2 = c2 *(-v[3]**2 - v[5]**2)+1
+    u3 = -c1*v[3] + c2 * v[4]*v[5]
+    u4 = c1 * v[2] + c2 * (v[3]*v[1]+v[4]*v[0])
+    u5 = c2* (-v[3] * v[0] - v[5]*v[0]-2*v[5]*v[2])
+    u6 = -c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
+    uInvR2 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    u1 = -c1 * v[4] + c2 * v[3] * v[5]
+    u2 = c1 * v[3] + c2 * v[4] * v[5]
+    u3 = c1 * (-v[3] **2  - v[4]**2) +1
+    u4 = -c1 * v[1] + c2 * (v[3]*v[2] + v[5]*v[0])
+    u5 = c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
+    u6 = c2 * (-2*v[3]*v[0] - 2*v[4] *v[1])
+    uInvR3 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    u1 = 0
+    u2 = 0
+    u3 = 0
+    u4 = c2 * (- v[4]**2 - v[5]**2) +1
+    u5 = -c1*v[5] + c2*v[4]*v[5]
+    u6 = c1 * v[4] + c2 * v[3] * v[5]
+    uInvR4 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    u1 = 0
+    u2 = 0
+    u3 = 0
+    u4 = c1 * v[5] + c2 * v[3] * v[4]
+    u5 = c2 * (-v[3]*v[5] - v[5]**2) +1
+    u6 = -c1 * v[3] + c2 * v[4] *v[5]
+    uInvR5 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    u1 = 0
+    u2 = 0
+    u3 = 0
+    u4 = -c1 * v[4] + c2 * v[5]**2
+    u5 = c1 * v[5] + c2 * v[4] * v[5]
+    u6 = c2 * (-v[3] * v[5] - v[4]**2)+1
+    uInvR6 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    u_inv = ca.transpose(ca.horzcat(uInvR1,uInvR2,uInvR3,uInvR4, uInvR5, uInvR6))
     return u_inv
     #verify this with series solution 
 
@@ -235,5 +296,21 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
 
     ##jacobian from symbolic dotdraw
 
-def dot_plot_draw(u):
-    pass
+
+#New notes (Oct 18 22)
+    ## sympy.cse(f) to find common self expression using sympy to clean up the casadi plot
+    # cse_def, cse_expr = sympy.cse(f)
+
+    #convert sympy_to_casadi
+    # simplify the casadi draw plots
+    # Get sympy Uinv then convert to casadi for dotdraw plots
+
+
+def dot_plot_draw(u, **kwargs):
+    F = ca.sparsify(u)
+
+    output_dir = '/home/wsribunm/Desktop/NASA_ULI/' #change directory if needed
+    os.makedirs(output_dir, exist_ok=True)
+    g = graph.dotgraph(F)
+    g.set('dpi', 180)
+    g.write_png(os.path.join(output_dir, 'result_test_simplified.png'))
