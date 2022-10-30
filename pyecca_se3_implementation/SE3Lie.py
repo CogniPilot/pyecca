@@ -38,24 +38,24 @@ class se3: #se3 Lie Algebra Functions
     @classmethod #takes 6x1 lie algebra
     def ad_matrix(cls, v): #input vee operator [x,y,z,theta1,theta2,theta3]
         ad_se3 = ca.SX(6, 6)
-        ad_se3[0,1] = -v[5,0]
-        ad_se3[0,2] = v[3,0]
-        ad_se3[0,4] = -v[2,0]
-        ad_se3[0,5] = v[1,0]
-        ad_se3[1,0] = v[5,0]
-        ad_se3[1,2] = -v[3,0]
-        ad_se3[1,3] = v[2,0]
-        ad_se3[1,5] = -v[0,0]  
-        ad_se3[2,0] = -v[4,0]
-        ad_se3[2,1] = v[3,0]
-        ad_se3[2,3] = -v[1,0]
-        ad_se3[2,4] = v[0,0]
-        ad_se3[3,4] = -v[5,0]
-        ad_se3[3,5] = v[4,0]
-        ad_se3[4,3] = v[5,0]
-        ad_se3[4,5] = -v[3,0]
-        ad_se3[5,3] = -v[4,0]
-        ad_se3[5,4] = v[3,0]
+        ad_se3[0,1] = -v[5]
+        ad_se3[0,2] = v[3]
+        ad_se3[0,4] = -v[2]
+        ad_se3[0,5] = v[1]
+        ad_se3[1,0] = v[5]
+        ad_se3[1,2] = -v[3]
+        ad_se3[1,3] = v[2]
+        ad_se3[1,5] = -v[0]  
+        ad_se3[2,0] = -v[4]
+        ad_se3[2,1] = v[3]
+        ad_se3[2,3] = -v[1]
+        ad_se3[2,4] = v[0]
+        ad_se3[3,4] = -v[5]
+        ad_se3[3,5] = v[4]
+        ad_se3[4,3] = v[5]
+        ad_se3[4,5] = -v[3]
+        ad_se3[5,3] = -v[4]
+        ad_se3[5,4] = v[3]
         return ad_se3
 
     @classmethod
@@ -67,13 +67,13 @@ class se3: #se3 Lie Algebra Functions
         '''
         This takes in an element of the SE3 Lie Group (Wedge Form) and returns the se3 Lie Algebra elements 
         '''
-        v = ca.SX(6, 1) #CORRECTED to [x,y,z,theta1,theta2,theta3]???
-        v[0, 0] = X[0, 3] #review if any of these switches will be affected in se3.py and so3.py
-        v[1, 0] = X[1, 3]
-        v[2, 0] = X[2, 3]
-        v[3, 0] = X[2,1]
-        v[4, 0] = X[0,2]
-        v[5, 0] = X[1,0]
+        v = ca.SX(6, 1) #CORRECTED to [x,y,z,theta1,theta2,theta3]
+        v[0,0] = X[0, 3]
+        v[1,0] = X[1, 3]
+        v[2,0] = X[2, 3]
+        v[3,0] = X[2,1]
+        v[4,0] = X[0,2]
+        v[5,0] = X[1,0]
         return v
 
     @classmethod
@@ -81,7 +81,7 @@ class se3: #se3 Lie Algebra Functions
         '''
         This takes in an element of the se3 Lie Algebra and returns the se3 Lie Algebra matrix
         '''
-        X = ca.SX.zeros(4, 4) ##Corrected to form [x,y,z,theta1,theta2,theta3]???
+        X = ca.SX.zeros(4, 4) ##Corrected to form [x,y,z,theta1,theta2,theta3]
         X[0, 1] = -v[5]
         X[0, 2] = v[4]
         X[1, 0] = v[5]
@@ -172,20 +172,13 @@ class SE3:
         lastRow2 = ca.horzcat(0,0,0,0)
         return ca.vertcat(horz2, lastRow2)
 
-#test
 def se3_diff_correction(v): #U Matrix for se3 with input vee operator
     return ca.inv(se3_diff_correction_inv(v))
 
-# --- could utilize series form by implementing C1 and C2 ---
-#       #To do
-
 
 def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
-    # x = ca.SX.sym('x')
-    # C1 = ca.Function('a', [x], [ca.if_else(ca.fabs(x) < eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
-    # C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
-    # del x
     # v = se3.vee(v)  #This only applies if v is inputed from Lie Group format
+
     v_so3 = v[3:6] #grab only rotation terms for so3 uses ## changed to match NASAULI paper order of vee v[3:6]
     X_so3 = so3.wedge(v_so3) #wedge operator for so3
     theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
@@ -200,116 +193,91 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
         c1 = ca.sin(theta)/theta
         c2 = (1-ca.cos(theta)/theta**2)
 
+    ad = se3.ad_matrix(v)
+    I = ca.SX_eye(6)
     # u_inv = ca.SX(6, 6)
-    # u_inv[0,0] = c2*(-v[4]**2 - v[5]**2) + 1
-    # u_inv[0,1] = -c1*v[5] + c2*v[3]*v[4]
-    # u_inv[0,2] = c1 * v[4] + c2 * v[3]*v[4]
-    # u_inv[0,3] = c2 * (-2*v[4]*v[1]-2*v[5]*v[2])
-    # u_inv[0,4] = -c1 * v[2] + c2*(v[4]*v[0]+v[5]*v[1])
-    # u_inv[0,5] = c1 * v[1] + c2*(v[3]*v[2]+v[5]*v[0])
-    
-    # u_inv[1,0] = c1 * v[5] + c2 * v[3] * v[4]
-    # u_inv[1,1] = c2 *(-v[3]**2 - v[5]**2)+1
-    # u_inv[1,2] = -c1*v[3] + c2 * v[4]*v[5]
-    # u_inv[1,3] = c1 * v[2] + c2 * (v[3]*v[1]+v[4]*v[0])
-    # u_inv[1,4] = c2* (-v[3] * v[0] - v[5]*v[0]-2*v[5]*v[2])
-    # u_inv[1,5] = -c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
-
-    # u_inv[2,0] = -c1 * v[4] + c2 * v[3] * v[5]
-    # u_inv[2,1] = c1 * v[3] + c2 * v[4] * v[5]
-    # u_inv[2,2] = c1 * (-v[3] **2  - v[4]**2) +1
-    # u_inv[2,3] = -c1 * v[1] + c2 * (v[3]*v[2] + v[5]*v[0])
-    # u_inv[2,4] = c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
-    # u_inv[2,5] = c2 * (-2*v[3]*v[0] - 2*v[4] *v[1])
-
-    # u_inv[3,3] = c2 * (- v[4]**2 - v[5]**2) +1
-    # u_inv[3,4] = -c1*v[5] + c2*v[4]*v[5]
-    # u_inv[3,5] = c1 * v[4] + c2 * v[3] * v[5]
-
-    # u_inv[4,3] = c1 * v[5] + c2 * v[3] * v[4]
-    # u_inv[4,4] = c2 * (-v[3]*v[5] - v[5]**2) +1
-    # u_inv[4,5] = -c1 * v[3] + c2 * v[4] *v[5]
-
-    # u_inv[5,3] = -c1 * v[4] + c2 * v[5]**2
-    # u_inv[5,4] = c1 * v[5] + c2 * v[4] * v[5]
-    # u_inv[5,5] = c2 * (-v[3] * v[5] - v[4]**2)+1
-    u_inv = ca.SX(6, 6)
-    u1 = c2*(-v[4]**2 - v[5]**2) + 1
-    u2 = -c1*v[5] + c2*v[3]*v[4]
-    u3 = c1 * v[4] + c2 * v[3]*v[4]
-    u4 = c2 * (-2*v[4]*v[1]-2*v[5]*v[2])
-    u5 = -c1 * v[2] + c2*(v[4]*v[0]+v[5]*v[1])
-    u6 = c1 * v[1] + c2*(v[3]*v[2]+v[5]*v[0])
-    uInvR1 = ca.vertcat(u1,u2,u3,u4,u5,u6)
-
-    u1 = c1 * v[5] + c2 * v[3] * v[4]
-    u2 = c2 *(-v[3]**2 - v[5]**2)+1
-    u3 = -c1*v[3] + c2 * v[4]*v[5]
-    u4 = c1 * v[2] + c2 * (v[3]*v[1]+v[4]*v[0])
-    u5 = c2* (-v[3] * v[0] - v[5]*v[0]-2*v[5]*v[2])
-    u6 = -c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
-    uInvR2 = ca.vertcat(u1,u2,u3,u4,u5,u6)
-
-    u1 = -c1 * v[4] + c2 * v[3] * v[5]
-    u2 = c1 * v[3] + c2 * v[4] * v[5]
-    u3 = c1 * (-v[3] **2  - v[4]**2) +1
-    u4 = -c1 * v[1] + c2 * (v[3]*v[2] + v[5]*v[0])
-    u5 = c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
-    u6 = c2 * (-2*v[3]*v[0] - 2*v[4] *v[1])
-    uInvR3 = ca.vertcat(u1,u2,u3,u4,u5,u6)
-
-    u1 = 0
-    u2 = 0
-    u3 = 0
-    u4 = c2 * (- v[4]**2 - v[5]**2) +1
-    u5 = -c1*v[5] + c2*v[4]*v[5]
-    u6 = c1 * v[4] + c2 * v[3] * v[5]
-    uInvR4 = ca.vertcat(u1,u2,u3,u4,u5,u6)
-
-    u1 = 0
-    u2 = 0
-    u3 = 0
-    u4 = c1 * v[5] + c2 * v[3] * v[4]
-    u5 = c2 * (-v[3]*v[5] - v[5]**2) +1
-    u6 = -c1 * v[3] + c2 * v[4] *v[5]
-    uInvR5 = ca.vertcat(u1,u2,u3,u4,u5,u6)
-
-    u1 = 0
-    u2 = 0
-    u3 = 0
-    u4 = -c1 * v[4] + c2 * v[5]**2
-    u5 = c1 * v[5] + c2 * v[4] * v[5]
-    u6 = c2 * (-v[3] * v[5] - v[4]**2)+1
-    uInvR6 = ca.vertcat(u1,u2,u3,u4,u5,u6)
-
-    u_inv = ca.transpose(ca.horzcat(uInvR1,uInvR2,uInvR3,uInvR4, uInvR5, uInvR6))
+    u_inv = I + c1 * ad + c2*se3.matmul(ad,ad)
     return u_inv
-    #verify this with series solution 
 
-    # https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/mrp.py
-    # Use this to try to get casadi to draw a plot for this
-    # line 112-116 help for drawing plots
+    # u_inv = ca.SX(6, 6)
+    # u1 = c2*(-v[4]**2 - v[5]**2) + 1
+    # u2 = -c1*v[5] + c2*v[3]*v[4]
+    # u3 = c1 * v[4] + c2 * v[3]*v[5]
+    # u4 = c2 * (-2*v[4]*v[1]-2*v[5]*v[2])
+    # u5 = -c1 * v[2] + c2*(v[4]*v[0]+v[3]*v[1])
+    # u6 = c1 * v[1] + c2*(v[3]*v[2]+v[5]*v[0])
+    # uInvR1 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    # u1 = c1 * v[5] + c2 * v[3] * v[4]
+    # u2 = c2 *(-v[3]**2 - v[5]**2)+1
+    # u3 = -c1*v[3] + c2 * v[4]*v[5]
+    # u4 = c1 * v[2] + c2 * (v[3]*v[1]+v[4]*v[0])
+    # u5 = c2* (-2*v[3] * v[0] -2*v[5]*v[2])
+    # u6 = -c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
+    # uInvR2 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    # u1 = -c1 * v[4] + c2 * v[3] * v[5]
+    # u2 = c1 * v[3] + c2 * v[4] * v[5]
+    # u3 = c1 * (-v[3] **2  - v[4]**2) +1
+    # u4 = -c1 * v[1] + c2 * (v[3]*v[2] + v[5]*v[0])
+    # u5 = c1 * v[0] + c2 * (v[4]*v[2] + v[5] *v[1])
+    # u6 = c2 * (-2*v[3]*v[0] - 2*v[4] *v[1])
+    # uInvR3 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    # u1 = 0
+    # u2 = 0
+    # u3 = 0
+    # u4 = c2 * (- v[4]**2 - v[5]**2) +1
+    # u5 = -c1*v[5] + c2*v[3]*v[4]
+    # u6 = c1 * v[4] + c2 * v[3] * v[5]
+    # uInvR4 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    # u1 = 0
+    # u2 = 0
+    # u3 = 0
+    # u4 = c1 * v[5] + c2 * v[3] * v[4]
+    # u5 = c2 * (-v[3]**2 - v[5]**2) +1
+    # u6 = -c1 * v[3] + c2 * v[4] *v[5]
+    # uInvR5 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    # u1 = 0
+    # u2 = 0
+    # u3 = 0
+    # u4 = -c1 * v[4] + c2 * v[3] * v[5]
+    # u5 = c1 * v[3] + c2 * v[4] * v[5]
+    # u6 = c2 * (-v[3] **2 - v[4]**2)+1
+    # uInvR6 = ca.vertcat(u1,u2,u3,u4,u5,u6)
+
+    # u_inv = ca.transpose(ca.horzcat(uInvR1,uInvR2,uInvR3,uInvR4, uInvR5, uInvR6))
+    # return u_inv
     
-    # https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/common.py
-    #This import to import needed casadi command
+    
+    
+# verify this with series solution 
 
+# https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/mrp.py
+# Use this to try to get casadi to draw a plot for this
+# line 112-116 help for drawing plots
 
-    ##jacobian from symbolic dotdraw
+# https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/common.py
+# This import to import needed casadi command
 
 
 #New notes (Oct 18 22)
     ## sympy.cse(f) to find common self expression using sympy to clean up the casadi plot
     # cse_def, cse_expr = sympy.cse(f)
+    
 
-    #convert sympy_to_casadi
-    # simplify the casadi draw plots
-    # Get sympy Uinv then convert to casadi for dotdraw plots
+#Oct 25 Update
+    # work on updating SE2 umatrix to casadi
+    # get SE2 U matrix
+    # u matrix can be found through casadi using inverse function for casadi
 
 
 def dot_plot_draw(u, **kwargs):
     F = ca.sparsify(u)
 
-    output_dir = '/home/wsribunm/Desktop/NASA_ULI/' #change directory if needed
+    output_dir = '/home/wsribunm/Documents/GitHub/pyecca/pyecca_se3_implementation' #change directory if needed
     os.makedirs(output_dir, exist_ok=True)
     g = graph.dotgraph(F)
     g.set('dpi', 180)
