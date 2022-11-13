@@ -184,7 +184,7 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
     theta = ca.norm_2(so3.vee(X_so3)) #theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
 
     if type(v[1]) == 'casadi.casadi.SX':
-        c1 = ca.sin(theta)/theta
+        c1 = ca.sin(theta)/theta #check if this is right
         c2 = (1-ca.cos(theta)/theta**2)
     elif type(v[1]) == 'int' and theta < eps:
         c1 = 1 - theta ** 2 / 6 + theta ** 4 / 120
