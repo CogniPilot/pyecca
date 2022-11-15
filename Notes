@@ -1,0 +1,13 @@
+Might use Quaternion axis for help with representation of the rotational basis
+
+Quaternions videos:
+https://www.youtube.com/watch?v=d4EgbgTm0Bg
+https://www.youtube.com/watch?v=zjMuIxRvygQ
+
+- Quaternions: could 3d spherical plot be used to represents the output? for example, comparison of spherical shape from imaginary components compared to the unit sphere when real part is 0
+
+
+mrp = Modified Rodrigues Parameters
+https://link.springer.com/article/10.1007/s10851-017-0765-x
+https://www.coursera.org/lecture/spacecraft-dynamics-kinematics/15-modified-rodrigues-parameters-definitions-gSNEv
+
