@@ -24,7 +24,6 @@ def data_association(x: np.array, z: np.array, landmarks: np.array):
     rng_pred = np.linalg.norm(dm, axis=1)
     bearing_pred = np.arctan2(dm[:, 1], dm[:, 0])    
     z_error_list = np.array([rng_pred, bearing_pred]).T - np.array([z])
-    # print(z_error_list)
     Q = np.array([
         [1, 0],
         [0, 1]])
@@ -34,7 +33,6 @@ def data_association(x: np.array, z: np.array, landmarks: np.array):
         J_list.append(z_error.T@Q_I@z_error)
     J_list = np.array(J_list)
     i = np.argmin(J_list)
-    # print(i)
     return i
 
 def h(x, m, noise=None):
@@ -51,9 +49,8 @@ def h(x, m, noise=None):
     m_range = d
     m_bearing = np.arctan2(dm[1], dm[0])
     if noise is not None:
-        m_bearing += noise['bearing_std']*(np.random.randn()-.5)/.5 #Is the flat addition of a random variable appropriate or should we scale with magnitude of bearing? also we changed so that the bearing noise is positive or negative
-            
-        m_range += d*noise['range_std']*np.random.randn() # This may shrink large range to be below range_max. Need to fix
+        m_bearing += noise['bearing_std']*np.random.randn()
+        m_range += d*noise['range_std']*np.random.randn()
     return [m_range, m_bearing]
 
 def measure_landmarks(x, landmarks, noise=None, range_max=4):
@@ -78,7 +75,7 @@ def measure_odom(x, x_prev, noise=None):
     odom = dx
     if noise is not None:
         R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-        odom += d*(noise['odom_std']*np.random.randn(2) + R@np.array([noise['odom_bx_bias'], noise['odom_by_bias']]))#right now this is only positive noise, only overestimates
+        odom += d*(noise['odom_std']*np.random.randn(2) + R@np.array([noise['odom_bx_bias'], noise['odom_by_bias']]))
     return list(odom)
 
 def simulate(noise=None, plot=False):
@@ -90,8 +87,7 @@ def simulate(noise=None, plot=False):
         [0, 2],
         [4, 6],
         [9, 1],
-        [9, 1.5],
-        [9,10],
+        [9, 1.5]
     ])
 
     hist = {
@@ -99,8 +95,7 @@ def simulate(noise=None, plot=False):
         'x': [],
         'u': [],
         'odom': [],
-        'z': [],
-        'odom_pred': []
+        'z': []
     }
 
     for i in range(10):
@@ -115,7 +110,6 @@ def simulate(noise=None, plot=False):
 
         # odometry
         odom = measure_odom(x, x_prev, noise=noise)
-        odom_pred = measure_odom(x, x_prev)
 
         x_prev = x
 
@@ -123,8 +117,6 @@ def simulate(noise=None, plot=False):
         hist['x'].append(x)
         hist['u'].append(u)
         hist['odom'].append(np.hstack([odom, i]))
-        hist['odom_pred'].append(np.hstack([odom_pred, i]))
-        
         for z in z_list:
             hist['z'].append(np.hstack([z, i]))
 
@@ -159,21 +151,53 @@ def simulate(noise=None, plot=False):
 
     return locals()
 
-def J_graph_slam(hist,x_meas,landmarks):
+def plot_me(sim):
+    hist = sim['hist']
+    landmarks = sim['landmarks']
+    
+    fig = plt.figure(1)
+    plt.plot(landmarks[:, 0], landmarks[:, 1], 'bo', label='landmarks')
+    plt.plot(hist['x'][:, 0], hist['x'][:, 1], 'r.', label='states', markersize=10)
+
+    # plot odom
+    x_odom = np.array([0, 0], dtype=float)
+    x_odom_hist = [x_odom]
+    for odom in hist['odom']:
+        x_odom = np.array(x_odom) + np.array(odom[:2])
+        x_odom_hist.append(x_odom)
+    x_odom_hist = np.array(x_odom_hist)
+    plt.plot(x_odom_hist[:, 0], x_odom_hist[:, 1], 'g.', linewidth=3, label='odom')
+
+    # plot measurements
+    for rng, bearing, xi in hist['z']:
+        xi = int(xi)
+        x = x_odom_hist[xi, :]
+        plt.arrow(x[0], x[1], rng*np.cos(bearing) , rng*np.sin(bearing), width=0.1,
+                      length_includes_head=True)
+
+    plt.axis([0, 10, 0, 10])
+    plt.grid()
+    plt.legend()
+    plt.axis('equal');
+    
+    return
+
+def J_graph_slam(hist, x_graph, landmarks):
     J = 0
     
-    Q = np.eye(2)  # meas covariance  ##look into more realistice covariance
+    Q = np.eye(2)  # meas covariance
     R = np.eye(2)  # odom covariance
     R_I = np.linalg.inv(R)
     Q_I = np.linalg.inv(Q)
     
     n_x = len(hist['x'])
-    odom_pred= hist['odom_pred']
+
     for i in range(n_x):        
         # compute odom cost
         u = hist['u'][i]
         odom = hist['odom'][i]
-        e_x = np.array(odom[:2]) - np.array(odom_pred[i][:2])
+        odom_predicted = np.array(x_graph[i+1]) - np.array(x_graph[i])
+        e_x = np.array(odom[:2]) - np.array(odom_predicted)
         J += e_x.T@R_I@e_x
     
     n_m = len(hist['z'])
@@ -182,8 +206,8 @@ def J_graph_slam(hist,x_meas,landmarks):
         # compute measurement cost
         rng, brg, xi = hist['z'][i]
         z_i = np.array([rng, brg])
-        c_i = data_association(x_meas[int(xi)], z_i, landmarks)#this should use x predicted based off of our input
-        z_i_predicted = h(x_meas[i], landmarks[c_i])#this should use x predicted based off of our input
+        c_i = data_association(x_graph[int(xi)], z_i, landmarks)
+        z_i_predicted = h(x_graph[i], landmarks[c_i])
         e_z = np.array(z_i) - np.array(z_i_predicted)
         J += e_z.T@Q_I@e_z
         return J
@@ -224,14 +248,17 @@ def build_cost(odom, z, assoc, n_x, n_l):
 
     # the state
     x = ca.SX.sym('x', n_x, 2)
+
     # compute cost
     # -------------------
     J = 0  
-    x_prev = ca.vertcat(*([ x[0, :] ] + [ x[i, :] for i in range(n_x-1) ]))  #change sim definitions to make this cleaner.
-    x_all =ca.vertcat(ca.SX.zeros(1,2),x)
+    x_prev = ca.vertcat(*([ x[0, :] ] + [ x[i, :] for i in range(n_x-1) ]))
+    x_prev[0,:] = 0
+    x_all = ca.vertcat(ca.SX.zeros(1,2), x)
+
     # for each odometry measurement
     for i in range(odom.shape[0]):
-        odom_pred = x_all[i+1,:] - x_all[i,:]  #double check with Goppert
+        odom_pred = x[i,:] - x_prev[i,:]
         e_x = ca.SX.zeros(1,2)
         e_x[0] = odom[i, :2][0] - odom_pred[0]
         e_x[1] = odom[i, :2][1] - odom_pred[1]
@@ -250,35 +277,8 @@ def build_cost(odom, z, assoc, n_x, n_l):
 
         # error
         e_z = z[j, :2] - z_pred
+
         # cost
         J += e_z.T@Q_I@e_z
-        
-    return ca.Function('f_J', [x, l], [J], ['x', 'l'], ['J']),J
-
-def plot_me(sim):
-    hist = sim['hist']
-    landmarks = sim['landmarks']
-    fig = plt.figure(1)
-    plt.plot(landmarks[:, 0], landmarks[:, 1], 'bo', label='landmarks')
-    plt.plot(hist['x'][:, 0], hist['x'][:, 1], 'r.', label='states', markersize=10)
-    # plot odom
-    x_odom = np.array([0, 0], dtype=float)
-    x_odom_hist = [x_odom]
-    for odom in hist['odom']:
-        x_odom = np.array(x_odom) + np.array(odom[:2])
-        x_odom_hist.append(x_odom)
-    x_odom_hist = np.array(x_odom_hist)
-    plt.plot(x_odom_hist[:, 0], x_odom_hist[:, 1], 'g.', linewidth=3, label='odom')
-    # plot measurements
-    for rng, bearing, xi in hist['z']:
-        xi = int(xi)
-        x = x_odom_hist[xi, :]
-        plt.arrow(x[0], x[1], rng*np.cos(bearing) , rng*np.sin(bearing), width=0.1,
-                      length_includes_head=True)
-        
-        
-    plt.axis([0, 10, 0, 10])
-    plt.grid()
-    plt.legend()
-    plt.axis('equal');
-    return
+    
+    return ca.Function('f_J', [x, l], [J], ['x', 'l'], ['J']), J
