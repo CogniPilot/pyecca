@@ -186,17 +186,21 @@ def se3_diff_correction_inv(v): #U_inv of se3 input vee operator
     if type(v[1]) == 'casadi.casadi.SX':
         c1 = ca.sin(theta)/theta #check if this is right
         c2 = (1-ca.cos(theta)/theta**2)
+        c3 = (theta-ca.sin(theta))/theta**3
     elif type(v[1]) == 'int' and theta < eps:
         c1 = 1 - theta ** 2 / 6 + theta ** 4 / 120
         c2 = 0.5 - theta ** 2 / 24 + theta ** 4 / 720
+        c3 = 1/6 - theta**2 /120 + theta**4/5040
     else:
         c1 = ca.sin(theta)/theta
         c2 = (1-ca.cos(theta)/theta**2)
+        c3 = (theta-ca.sin(theta))/theta**3 #Check
+
 
     ad = se3.ad_matrix(v)
     I = ca.SX_eye(6)
     # u_inv = ca.SX(6, 6)
-    u_inv = I + c1 * ad + c2*se3.matmul(ad,ad)
+    u_inv = I + c2 * ad + c3*se3.matmul(ad,ad)
     return u_inv
 
     # u_inv = ca.SX(6, 6)
