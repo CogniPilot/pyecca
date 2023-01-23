@@ -1,6 +1,6 @@
 import casadi as ca
 
-eps = 1e-7 # to avoid divide by zero
+eps = 1e-7  # to avoid divide by zero
 
 
 def vee(X):
@@ -24,10 +24,34 @@ def wedge(v):
 
 class Dcm:
 
-    x = ca.SX.sym('x')
-    C1 = ca.Function('a', [x], [ca.if_else(ca.fabs(x) < eps, 1 - x ** 2 / 6 + x ** 4 / 120, ca.sin(x)/x)])
-    C2 = ca.Function('b', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 - x ** 2 / 24 + x ** 4 / 720, (1 - ca.cos(x)) / x ** 2)])
-    C3 = ca.Function('d', [x], [ca.if_else(ca.fabs(x) < eps, 0.5 + x**2/12 + 7*x**4/720, x/(2*ca.sin(x)))])
+    x = ca.SX.sym("x")
+    C1 = ca.Function(
+        "a",
+        [x],
+        [ca.if_else(ca.fabs(x) < eps, 1 - x**2 / 6 + x**4 / 120, ca.sin(x) / x)],
+    )
+    C2 = ca.Function(
+        "b",
+        [x],
+        [
+            ca.if_else(
+                ca.fabs(x) < eps,
+                0.5 - x**2 / 24 + x**4 / 720,
+                (1 - ca.cos(x)) / x**2,
+            )
+        ],
+    )
+    C3 = ca.Function(
+        "d",
+        [x],
+        [
+            ca.if_else(
+                ca.fabs(x) < eps,
+                0.5 + x**2 / 12 + 7 * x**4 / 720,
+                x / (2 * ca.sin(x)),
+            )
+        ],
+    )
     del x
 
     group_shape = (3, 3)
@@ -35,7 +59,7 @@ class Dcm:
     algebra_params = 3
 
     def __init__(self):
-        raise RuntimeError('this class is just for scoping, do not instantiate')
+        raise RuntimeError("this class is just for scoping, do not instantiate")
 
     @classmethod
     def check_group_shape(cls, a):
@@ -56,7 +80,7 @@ class Dcm:
     def exp(cls, v):
         theta = ca.norm_2(v)
         X = wedge(v)
-        return ca.SX.eye(3) + cls.C1(theta)*X + cls.C2(theta)*ca.mtimes(X, X)
+        return ca.SX.eye(3) + cls.C1(theta) * X + cls.C2(theta) * ca.mtimes(X, X)
 
     @classmethod
     def log(cls, R):
@@ -121,7 +145,7 @@ class Mrp:
     algebra_params = 3
 
     def __init__(self):
-        raise RuntimeError('this class is just for scoping, do not instantiate')
+        raise RuntimeError("this class is just for scoping, do not instantiate")
 
     @classmethod
     def product(cls, r1, r2):
@@ -132,7 +156,7 @@ class Mrp:
         na_sq = ca.dot(a, a)
         nb_sq = ca.dot(b, b)
         res = ca.SX(4, 1)
-        den = (1 + na_sq * nb_sq - 2 * ca.dot(b, a))
+        den = 1 + na_sq * nb_sq - 2 * ca.dot(b, a)
         res[:3] = ((1 - na_sq) * b + (1 - nb_sq) * a - 2 * ca.cross(b, a)) / den
         res[3] = 0  # shadow state
         return res
@@ -178,7 +202,9 @@ class Mrp:
         a = r[:3]
         n_sq = ca.dot(a, a)
         X = wedge(a)
-        B = 0.25 * ((1 - n_sq) * ca.SX.eye(3) + 2 * X + 2 * ca.mtimes(a, ca.transpose(a)))
+        B = 0.25 * (
+            (1 - n_sq) * ca.SX.eye(3) + 2 * X + 2 * ca.mtimes(a, ca.transpose(a))
+        )
         return ca.vertcat(ca.mtimes(B, w), 0)
 
     @classmethod
@@ -210,7 +236,7 @@ class Quat:
     algebra_params = 3
 
     def __init__(self):
-        raise RuntimeError('this class is just for scoping, do not instantiate')
+        raise RuntimeError("this class is just for scoping, do not instantiate")
 
     @classmethod
     def product(cls, a, b):
@@ -230,10 +256,10 @@ class Quat:
         assert q.shape == (4, 1) or q.shape == (4,)
         qi = ca.SX(4, 1)
         n = ca.norm_2(q)
-        qi[0] = q[0]/n
-        qi[1] = -q[1]/n
-        qi[2] = -q[2]/n
-        qi[3] = -q[3]/n
+        qi[0] = q[0] / n
+        qi[1] = -q[1] / n
+        qi[2] = -q[2] / n
+        qi[3] = -q[3] / n
         return qi
 
     @classmethod
@@ -241,12 +267,12 @@ class Quat:
         assert v.shape == (3, 1) or q.shape == (3,)
         q = ca.SX(4, 1)
         theta = ca.norm_2(v)
-        q[0] = ca.cos(theta/2)
-        c = ca.sin(theta/2)
+        q[0] = ca.cos(theta / 2)
+        c = ca.sin(theta / 2)
         n = ca.norm_2(v)
-        q[1] = c*v[0]/n
-        q[2] = c*v[1]/n
-        q[3] = c*v[2]/n
+        q[1] = c * v[0] / n
+        q[2] = c * v[1] / n
+        q[3] = c * v[2] / n
         return ca.if_else(n > eps, q, ca.SX([1, 0, 0, 0]))
 
     @classmethod
@@ -254,11 +280,11 @@ class Quat:
         assert q.shape == (4, 1) or q.shape == (4,)
         v = ca.SX(3, 1)
         norm_q = ca.norm_2(q)
-        theta = 2*ca.acos(q[0])
-        c = ca.sin(theta/2)
-        v[0] = theta*q[1]/c
-        v[1] = theta*q[2]/c
-        v[2] = theta*q[3]/c
+        theta = 2 * ca.acos(q[0])
+        c = ca.sin(theta / 2)
+        v[0] = theta * q[1] / c
+        v[1] = theta * q[2] / c
+        v[2] = theta * q[3] / c
         return ca.if_else(ca.fabs(c) > eps, v, ca.SX([0, 0, 0]))
 
     @classmethod
@@ -286,9 +312,9 @@ class Quat:
         q = ca.SX(4, 1)
         n_sq = ca.dot(a, a)
         den = 1 + n_sq
-        q[0] = (1 - n_sq)/den
+        q[0] = (1 - n_sq) / den
         for i in range(3):
-            q[i + 1] = 2*a[i]/den
+            q[i + 1] = 2 * a[i] / den
         return ca.if_else(r[3], -q, q)
 
     @classmethod
@@ -324,29 +350,30 @@ class Quat:
         q4[3] = b4
 
         q = ca.if_else(
-            ca.trace(R) > 0, q1,
-            ca.if_else(ca.logic_and(R[0, 0] > R[1, 1], R[0, 0] > R[2, 2]), q2,
-            ca.if_else(R[1, 1] > R[2, 2], q3, q4)))
+            ca.trace(R) > 0,
+            q1,
+            ca.if_else(
+                ca.logic_and(R[0, 0] > R[1, 1], R[0, 0] > R[2, 2]),
+                q2,
+                ca.if_else(R[1, 1] > R[2, 2], q3, q4),
+            ),
+        )
         return q
 
     @classmethod
     def from_euler(cls, e):
         assert e.shape == (3, 1) or e.shape == (3,)
         q = ca.SX(4, 1)
-        cosPhi_2 = ca.cos(e[0]/2)
-        cosTheta_2 = ca.cos(e[1]/2)
-        cosPsi_2 = ca.cos(e[2]/2)
-        sinPhi_2 = ca.sin(e[0]/2)
-        sinTheta_2 = ca.sin(e[1]/2)
-        sinPsi_2 = ca.sin(e[2]/2)
-        q[0] = cosPhi_2 * cosTheta_2 * cosPsi_2 + \
-               sinPhi_2 * sinTheta_2 * sinPsi_2
-        q[1] = sinPhi_2 * cosTheta_2 * cosPsi_2 - \
-               cosPhi_2 * sinTheta_2 * sinPsi_2
-        q[2] = cosPhi_2 * sinTheta_2 * cosPsi_2 + \
-               sinPhi_2 * cosTheta_2 * sinPsi_2
-        q[3] = cosPhi_2 * cosTheta_2 * sinPsi_2 - \
-               sinPhi_2 * sinTheta_2 * cosPsi_2
+        cosPhi_2 = ca.cos(e[0] / 2)
+        cosTheta_2 = ca.cos(e[1] / 2)
+        cosPsi_2 = ca.cos(e[2] / 2)
+        sinPhi_2 = ca.sin(e[0] / 2)
+        sinTheta_2 = ca.sin(e[1] / 2)
+        sinPsi_2 = ca.sin(e[2] / 2)
+        q[0] = cosPhi_2 * cosTheta_2 * cosPsi_2 + sinPhi_2 * sinTheta_2 * sinPsi_2
+        q[1] = sinPhi_2 * cosTheta_2 * cosPsi_2 - cosPhi_2 * sinTheta_2 * sinPsi_2
+        q[2] = cosPhi_2 * sinTheta_2 * cosPsi_2 + sinPhi_2 * cosTheta_2 * sinPsi_2
+        q[3] = cosPhi_2 * cosTheta_2 * sinPsi_2 - sinPhi_2 * sinTheta_2 * cosPsi_2
         return q
 
 
@@ -363,9 +390,9 @@ class Euler:
         b = q[1]
         c = q[2]
         d = q[3]
-        e[0] = ca.atan2(2 * (a * b + c * d), 1 - 2 * (b ** 2 + c ** 2))
+        e[0] = ca.atan2(2 * (a * b + c * d), 1 - 2 * (b**2 + c**2))
         e[1] = ca.asin(2 * (a * c - d * b))
-        e[2] = ca.atan2(2 * (a * d + b * c), 1 - 2 * (c ** 2 + d ** 2))
+        e[2] = ca.atan2(2 * (a * d + b * c), 1 - 2 * (c**2 + d**2))
         return e
 
     @classmethod

@@ -26,8 +26,8 @@ def sqrt_covariance_predict(W, F, Q):
     W_dot_sol: sqrt of P deriative, lower triangular
     """
     n_x = F.shape[0]
-    XL = ca.SX.sym('X', ca.Sparsity_lower(n_x))
-    X = (XL - XL.T)
+    XL = ca.SX.sym("X", ca.Sparsity_lower(n_x))
+    X = XL - XL.T
     for i in range(n_x):
         X[i, i] = 0
     W_dot = ca.mtimes(F, W) + ca.mtimes(Q / 2 + X, ca.inv(W).T)

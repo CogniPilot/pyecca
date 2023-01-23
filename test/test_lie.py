@@ -33,11 +33,7 @@ def test_so3():
     assert ca.norm_fro(Dcm.from_mrp(Mrp.from_dcm(R)) - R) < eps
     assert ca.norm_fro(Dcm.from_euler(Euler.from_dcm(R)) - R) < eps
 
-    R = ca.DM([
-        [0, -1, 0],
-        [1, 0, 0],
-        [0, 0, 1]
-    ])
+    R = ca.DM([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
     assert ca.norm_fro(Dcm.from_quat(Quat.from_dcm(R)) - R) < eps
     assert ca.norm_fro(Dcm.from_mrp(Mrp.from_dcm(R)) - R) < eps
     assert ca.norm_fro(Dcm.from_euler(Euler.from_dcm(R)) - R) < eps
@@ -45,9 +41,9 @@ def test_so3():
 
 def test_direct_product():
     G = DirectProduct([R3, R3])
-    v1 = ca.SX([1, 2, 3, 4, 5 ,6])
+    v1 = ca.SX([1, 2, 3, 4, 5, 6])
     v2 = G.product(v1, v1)
-    assert ca.norm_2(v2 - 2*v1) < eps
+    assert ca.norm_2(v2 - 2 * v1) < eps
 
     G = DirectProduct([Mrp, R3])
     a = ca.SX([0.1, 0.2, 0.3, 0, 5, 6, 7])
@@ -58,11 +54,13 @@ def test_direct_product():
     v = ca.SX([0.1, 0.2, 0.3, 4, 5, 6])
     assert ca.norm_2(v - G.log(G.exp(v))) < eps
 
+
 def test_r3():
     v1 = ca.SX([1, 2, 3])
     v2 = ca.SX([4, 5, 6])
     v3 = v1 + v2
     assert ca.norm_2(R3.product(v1, v2) - v3) < eps
+
 
 def test_se3():
     v = ca.vertcat(0.1, 0.2, 0.3, 45, 50, 75)

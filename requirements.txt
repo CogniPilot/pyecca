@@ -1,0 +1,17 @@
+matplotlib
+mypy
+numpy
+scipy
+coverage
+control
+pydot
+black[jupyter]
+autopep8
+pytest
+pyulog
+pylint
+jupyterlab
+sympy
+casadi
+simpy
+tox

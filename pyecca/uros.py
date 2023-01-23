@@ -7,7 +7,6 @@ import pyecca.msgs as msgs
 
 
 class Core(simpy.Environment):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._params = None
@@ -15,7 +14,7 @@ class Core(simpy.Environment):
         self._subscribers = {}
         self._declared_params = {}
         self.pub_sub_locked = False
-        self.pub_params = Publisher(self, 'params', msgs.Params)
+        self.pub_params = Publisher(self, "params", msgs.Params)
 
     def init_params(self):
         self._params = msgs.Params(self)
@@ -43,7 +42,6 @@ class Core(simpy.Environment):
 
 
 class Subscriber:
-
     def __init__(self, core, topic, msg_type, callback):
         assert not core.pub_sub_locked
         self.core = core
@@ -56,7 +54,6 @@ class Subscriber:
 
 
 class Publisher:
-
     def __init__(self, core: Core, topic: str, msg_type):
         assert not core.pub_sub_locked
         self.core = core
@@ -67,8 +64,11 @@ class Publisher:
 
     def publish(self, msg: msgs.Msg):
         if not isinstance(msg, self.msg_type):
-            raise ValueError("{:s} expects msg {:s}, but got {:s}".format(
-                self.topic, str(self.msg_type), str(type(msg))))
+            raise ValueError(
+                "{:s} expects msg {:s}, but got {:s}".format(
+                    self.topic, str(self.msg_type), str(type(msg))
+                )
+            )
         if self.topic not in self.core._subscribers:
             return
         for s in self.core._subscribers[self.topic]:
@@ -76,7 +76,6 @@ class Publisher:
 
 
 class Param:
-
     def __init__(self, core, name, value, dtype):
         assert not core.pub_sub_locked
         self.core = core
@@ -97,17 +96,15 @@ class Param:
 
 
 class Logger:
-
     def __init__(self, core):
         self.core = core
-        self.dt = Param(core, 'logger/dt', 1.0 / 200, 'f8')
+        self.dt = Param(core, "logger/dt", 1.0 / 200, "f8")
         self.data_latest = None
         self.data_list = []
         self.subs = {}
         for topic, publisher in self.core._publishers.items():
             cb = lambda msg, topic=topic: self.callback(topic, msg)
-            self.subs[topic] = Subscriber(
-                self.core, topic, publisher.msg_type, cb)
+            self.subs[topic] = Subscriber(self.core, topic, publisher.msg_type, cb)
         self.data_latest = msgs.Log(self.core)
         self.core.pub_sub_locked = True
         self.param_list = [self.dt]
@@ -115,13 +112,13 @@ class Logger:
 
     def callback(self, topic, msg):
         self.data_latest.data[topic] = copy.deepcopy(msg.data)
-        if topic == 'params':
+        if topic == "params":
             for p in self.param_list:
                 p.update()
 
     def run(self):
         while True:
-            self.data_latest.data['time'] = self.core.now
+            self.data_latest.data["time"] = self.core.now
             self.data_list.append(copy.deepcopy(self.data_latest.data))
             yield simpy.Timeout(self.core, self.dt.get())
 
@@ -134,5 +131,5 @@ def check_nan(locals_dict, label, t, names):
     for name in names:
         val = eval(name)
         if np.any((np.isnan(np.array(val)))):
-            s = 'nan in {:s} @ {:f} sec {:s} = {:s}'.format(label, t, name, str(val))
+            s = "nan in {:s} @ {:f} sec {:s} = {:s}".format(label, t, name, str(val))
             raise ValueError(s)

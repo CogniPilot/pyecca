@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - python==3.9
   - pip
   - matplotlib
   - numpy
@@ -10,10 +11,11 @@ dependencies:
   - control
   - pydot
   - autopep8
-  - pytest=5.0.1
+  - pytest
   - pyulog
   - pylint
   - jupyterlab
+  - sympy
   - pip:
     - casadi
     - simpy

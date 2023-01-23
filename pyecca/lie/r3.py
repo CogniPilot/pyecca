@@ -7,7 +7,7 @@ class R3:
     algebra_params = 3
 
     def __init__(self):
-        raise RuntimeError('this class is just for scoping, do not instantiate')
+        raise RuntimeError("this class is just for scoping, do not instantiate")
 
     @classmethod
     def identity(cls):
@@ -33,4 +33,3 @@ class R3:
     def log(cls, a):
         assert a.shape[0] == cls.group_params
         return a
-

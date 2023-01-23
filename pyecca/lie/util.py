@@ -2,7 +2,6 @@ import casadi as ca
 
 
 class DirectProduct:
-
     def __init__(self, groups):
         self.groups = groups
         self.n_group = [0]
@@ -32,24 +31,27 @@ class DirectProduct:
     def product(self, a, b):
         assert a.shape[0] == self.group_params
         assert b.shape[0] == self.group_params
-        return ca.vertcat(*[
-            g.product(self.subgroup(a, i), self.subgroup(b, i))
-            for i, g in enumerate(self.groups)])
+        return ca.vertcat(
+            *[
+                g.product(self.subgroup(a, i), self.subgroup(b, i))
+                for i, g in enumerate(self.groups)
+            ]
+        )
 
     def inv(self, a):
         assert a.shape[0] == self.group_params
-        return ca.vertcat(*[
-            g.inv(self.subgroup(a, i))
-            for i, g in enumerate(self.groups)])
+        return ca.vertcat(
+            *[g.inv(self.subgroup(a, i)) for i, g in enumerate(self.groups)]
+        )
 
     def exp(self, v):
         assert v.shape[0] == self.algebra_params
-        return ca.vertcat(*[
-            g.exp(self.subalgebra(v, i))
-            for i, g in enumerate(self.groups)])
+        return ca.vertcat(
+            *[g.exp(self.subalgebra(v, i)) for i, g in enumerate(self.groups)]
+        )
 
     def log(self, a):
         assert a.shape[0] == self.group_params
-        return ca.vertcat(*[
-            g.log(self.subgroup(a, i))
-            for i, g in enumerate(self.groups)])
+        return ca.vertcat(
+            *[g.log(self.subgroup(a, i)) for i, g in enumerate(self.groups)]
+        )
