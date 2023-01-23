@@ -7,5 +7,5 @@ PYthon Estimation and Control library using CAsadi.
 ```bash
 python3 -m venv ~/.venv
 . ~/.venv/bin/activate
-pip install -f requirements.txt
+pip install -r requirements.txt
 ```
