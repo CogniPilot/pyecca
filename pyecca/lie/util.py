@@ -1,54 +1,14 @@
 import casadi as ca
+import sympy
 
-eps = 1e-7  # to avoid divide by zero
+from ..symbolic import taylor_series_near_zero
 
-x = ca.SX.sym("x")
+# see https://ethaneade.com/lie.pdf
 
-# sin(x)/x
-C1 = ca.Function(
-    "a",
-    [x],
-    [ca.if_else(ca.fabs(x) < eps, 1 - x**2 / 6 + x**4 / 120, ca.sin(x) / x)],
-)
+x = sympy.symbols('x')
+series_dict = {}
+series_dict['sin(x)/x'] = taylor_series_near_zero(x, sympy.sin(x)/x)
+series_dict['(1 - cos(x))/x'] = taylor_series_near_zero(x, (1 - sympy.cos(x))/x)
+series_dict['(1 - cos(x))/x^2'] = taylor_series_near_zero(x, (1 - sympy.cos(x))/x**2)
+series_dict['(1 - sin(x))/x^3'] = taylor_series_near_zero(x, (1 - sympy.sin(x))/x**3)
 
-# (1 - cos(x))/x^2
-C2 = ca.Function(
-    "b",
-    [x],
-    [
-        ca.if_else(
-            ca.fabs(x) < eps,
-            0.5 - x**2 / 24 + x**4 / 720,
-            (1 - ca.cos(x)) / x**2,
-        )
-    ],
-)
-
-# x/ (2 sin(x))
-C3 = ca.Function(
-    "d",
-    [x],
-    [
-        ca.if_else(
-            ca.fabs(x) < eps,
-            0.5 + x**2 / 12 + 7 * x**4 / 720,
-            x / (2 * ca.sin(x)),
-        )
-    ],
-)
-
-# (1 - C1)/x^2
-C4 = ca.Function(
-    "f",
-    [x],
-    [
-        ca.if_else(
-            ca.fabs(x) < eps,
-            (1 / 6) - x**2 / 120 + x**4 / 5040,
-            (1 - C1(x)) / (x**2),
-        )
-    ],
-)
-    
-# delete temp variable used to create functions
-del x

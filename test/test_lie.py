@@ -3,6 +3,7 @@ import casadi as ca
 from pyecca.lie import so3, r3, se3
 from pyecca.lie.direct_product import DirectProduct
 from pyecca.lie.so3 import Quat, Dcm, Euler, Mrp
+from pyecca.lie.se2 import SE2
 from pyecca.lie.r3 import R3
 from pyecca.lie.se3 import SE3Dcm, SE3Euler, SE3Mrp, SE3Quat
 
@@ -20,7 +21,7 @@ def test_so3():
     assert ca.norm_2(Quat.log(Quat.exp(v)) - v) < eps
     assert ca.norm_2(Mrp.log(Mrp.exp(v)) - v) < eps
 
-    assert ca.norm_2(so3.vee(so3.wedge(v)) - v) < eps
+    assert ca.norm_2(so3.Dcm.vee(so3.Dcm.wedge(v)) - v) < eps
 
     assert ca.norm_2(Quat.from_dcm(Dcm.from_quat(q1)) - q1) < eps
     assert ca.norm_2(Quat.from_mrp(Mrp.from_quat(q1)) - q1) < eps
@@ -62,8 +63,14 @@ def test_r3():
     v3 = v1 + v2
     assert ca.norm_2(R3.product(v1, v2) - v3) < eps
 
+def test_se2():
+    v = ca.SX([0.1, 0.2, 0.3])
+    G = SE2
+    assert ca.norm_2(G.vee(G.wedge(v)) - v) < eps
+    assert ca.norm_2(G.vee(G.log(G.exp(G.wedge(v)))) - v) < eps
+
 def test_se3():
-    v = ca.vertcat(0.1, 0.2, 0.3, 45, 50, 75)
+    v = ca.SX([10, 20, 30, 0.4, 0.5, 0.6])
     G = SE3Dcm
     assert ca.norm_2(G.vee(G.wedge(v)) - v) < eps
-    #assert ca.norm_2(G.vee(G.log(G.exp(G.wedge(v)))) - v) < eps
+    assert ca.norm_2(G.vee(G.log(G.exp(G.wedge(v)))) - v) < eps

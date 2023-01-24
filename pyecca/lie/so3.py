@@ -1,29 +1,40 @@
 import casadi as ca
 
 from .matrix_lie_group import MatrixLieGroup
-from .util import eps, C1, C2, C3
+from .util import series_dict
 
 
-def vee(X):
-    v = ca.SX(3, 1)
-    v[0, 0] = X[2, 1]
-    v[1, 0] = X[0, 2]
-    v[2, 0] = X[1, 0]
-    return v
+# see: https://ethaneade.com/lie.pdf
 
 
-def wedge(v):
-    X = ca.SX(3, 3)
-    X[0, 1] = -v[2]
-    X[0, 2] = v[1]
-    X[1, 0] = v[2]
-    X[1, 2] = -v[0]
-    X[2, 0] = -v[1]
-    X[2, 1] = v[0]
-    return X
+EPS = 1e-7
 
 
-class _Dcm(MatrixLieGroup):
+class _SO3Base(MatrixLieGroup):
+    
+    def vee(self, X):
+        v = ca.SX(3, 1)
+        v[0, 0] = X[2, 1]
+        v[1, 0] = X[0, 2]
+        v[2, 0] = X[1, 0]
+        return v
+
+
+    def wedge(self, v):
+        X = ca.SX(3, 3)
+        theta0 = v[0]
+        theta1 = v[1]
+        theta2 = v[2]
+        X[0, 1] = -theta2
+        X[0, 2] = theta1
+        X[1, 0] = theta2
+        X[1, 2] = -theta0
+        X[2, 0] = -theta1
+        X[2, 1] = theta0
+        return X
+
+
+class _Dcm(_SO3Base):
 
     def __init__(self):
         super().__init__(
@@ -37,7 +48,7 @@ class _Dcm(MatrixLieGroup):
     def product(self, a, b):
         self.check_group_shape(a)
         self.check_group_shape(b)
-        return ca.mtimes(a, b)
+        return a@b
 
     def inv(self, a):
         self.check_group_shape(a)
@@ -45,17 +56,20 @@ class _Dcm(MatrixLieGroup):
 
     def exp(self, v):
         theta = ca.norm_2(v)
-        X = wedge(v)
-        return ca.SX.eye(3) + C1(theta) * X + C2(theta) * ca.mtimes(X, X)
+        X = self.wedge(v)
+        A = series_dict['sin(x)/x']
+        B = series_dict['(1 - cos(x))/x^2']
+        return ca.SX.eye(3) + A(theta) * X + B(theta) * X@X
 
     def log(self, R):
         theta = ca.arccos((ca.trace(R) - 1) / 2)
-        return vee(C3(theta) * (R - R.T))
+        A = series_dict['sin(x)/x']
+        return self.vee((R - R.T)/(A(theta) * 2))
 
     def kinematics(self, R, w):
         assert R.shape == (3, 3)
         assert w.shape == (3, 1)
-        return ca.mtimes(R, wedge(w))
+        return R@self.wedge(w)
 
     def from_quat(self, q):
         assert q.shape == (4, 1)
@@ -88,9 +102,9 @@ class _Dcm(MatrixLieGroup):
     def from_mrp(self, r):
         assert r.shape == (4, 1)
         a = r[:3]
-        X = wedge(a)
+        X = self.wedge(a)
         n_sq = ca.dot(a, a)
-        X_sq = ca.mtimes(X, X)
+        X_sq = X@X
         R = ca.SX.eye(3) + (8 * X_sq - 4 * (1 - n_sq) * X) / (1 + n_sq) ** 2
         # return transpose, due to convention difference in book
         return R.T
@@ -102,7 +116,7 @@ class _Dcm(MatrixLieGroup):
 Dcm = _Dcm()
 
 
-class _Mrp(MatrixLieGroup):
+class _Mrp(_SO3Base):
 
     def __init__(self):
         super().__init__(
@@ -134,12 +148,12 @@ class _Mrp(MatrixLieGroup):
         res = ca.SX(4, 1)
         res[:3] = ca.tan(angle / 4) * v / angle
         res[3] = 0
-        return ca.if_else(angle > eps, res, ca.SX([0, 0, 0, 0]))
+        return ca.if_else(angle > EPS, res, ca.SX([0, 0, 0, 0]))
 
     def log(self, r):
         assert r.shape == (4, 1) or r.shape == (4,)
         n = ca.norm_2(r[:3])
-        return ca.if_else(n > eps, 4 * ca.atan(n) * r[:3] / n, ca.SX([0, 0, 0]))
+        return ca.if_else(n > EPS, 4 * ca.atan(n) * r[:3] / n, ca.SX([0, 0, 0]))
 
     def shadow(self, r):
         assert r.shape == (4, 1) or r.shape == (4,)
@@ -158,12 +172,9 @@ class _Mrp(MatrixLieGroup):
         assert w.shape == (3, 1) or w.shape == (3,)
         a = r[:3]
         n_sq = ca.dot(a, a)
-        X = wedge(a)
-        B = 0.25 * (
-            (1 - n_sq) * ca.SX.eye(3) + 2 * X +
-            2 * ca.mtimes(a, ca.transpose(a))
-        )
-        return ca.vertcat(ca.mtimes(B, w), 0)
+        X = self.wedge(a)
+        B = 0.25 * ((1 - n_sq) * ca.SX.eye(3) + 2 * X + 2 * a@a.T)
+        return ca.vertcat(B@w, 0)
 
     def from_quat(self, q):
         assert q.shape == (4, 1) or q.shape == (4,)
@@ -190,7 +201,7 @@ class _Mrp(MatrixLieGroup):
 Mrp = _Mrp()
 
 
-class _Quat(MatrixLieGroup):
+class _Quat(_SO3Base):
 
     def __init__(self):
         super().__init__(
@@ -233,7 +244,7 @@ class _Quat(MatrixLieGroup):
         q[1] = c * v[0] / n
         q[2] = c * v[1] / n
         q[3] = c * v[2] / n
-        return ca.if_else(n > eps, q, ca.SX([1, 0, 0, 0]))
+        return ca.if_else(n > EPS, q, ca.SX([1, 0, 0, 0]))
 
     def log(self, q):
         assert q.shape == (4, 1) or q.shape == (4,)
@@ -244,7 +255,7 @@ class _Quat(MatrixLieGroup):
         v[0] = theta * q[1] / c
         v[1] = theta * q[2] / c
         v[2] = theta * q[3] / c
-        return ca.if_else(ca.fabs(c) > eps, v, ca.SX([0, 0, 0]))
+        return ca.if_else(ca.fabs(c) > EPS, v, ca.SX([0, 0, 0]))
 
     def kinematics(self, q, w):
         """
@@ -339,14 +350,14 @@ class _Quat(MatrixLieGroup):
 Quat = _Quat()
 
 
-class _Euler(MatrixLieGroup):
+class _Euler(_SO3Base):
 
     def __init__(self):
         super().__init__(
             group_params=3,
             algebra_params=3,
             group_shape=(3, 1))
-    
+
     def inv(self, e):
         return Euler.from_dcm(Dcm.inv(Dcm.from_euler(e)))
 
@@ -355,13 +366,13 @@ class _Euler(MatrixLieGroup):
 
     def log(self, e):
         return Dcm.log(Dcm.from_euler(e))
-    
+
     def product(self, a, b):
         return Euler.from_dcm(Dcm.from_euler(a)@Dcm.from_euler(b))
-    
+
     def identity(self) -> ca.SX:
         return ca.SX([0, 0, 0])
-        
+
     def from_quat(self, q):
         assert q.shape == (4, 1) or q.shape == (4,)
         e = ca.SX(3, 1)

@@ -98,19 +98,19 @@ def predict(**kwargs):
 
 def correct_mag(**kwargs):
     y_b = ca.SX.sym("y_b", 3)
-    B_n = ca.mtimes(so3.Dcm.exp(mag_decl * e3), ca.SX([1, 0, 0]))
-    yh_b = ca.mtimes(C_nb.T, B_n)
+    B_n = so3.Dcm.exp(mag_decl * e3)@ca.SX([1, 0, 0])
+    yh_b = C_nb.T@B_n
 
     H_mag = ca.sparsify(
-        ca.horzcat(-so3.wedge(ca.mtimes(C_nb.T, B_n)), ca.SX.zeros(3, 3))
+        ca.horzcat(-so3.Dcm.wedge(C_nb.T@B_n), ca.SX.zeros(3, 3))
     )
 
-    Rs_mag = ca.mtimes(C_nb.T, std_mag * ca.diag([1, 1, 1e6]))
+    Rs_mag = C_nb.T@(std_mag * ca.diag([1, 1, 1e6]))
 
     W_mag, K_mag, Ss_mag = util.sqrt_correct(Rs_mag, H_mag, W)
-    S_mag = ca.mtimes(Ss_mag, Ss_mag.T)
+    S_mag = Ss_mag@Ss_mag.T
     r_mag = yh_b - y_b / ca.norm_2(y_b)
-    x_mag = G.product(x, G.exp(ca.mtimes(K_mag, r_mag)))
+    x_mag = G.product(x, G.exp(K_mag@r_mag))
     beta_mag = ca.mtimes([r_mag.T, ca.inv(S_mag), r_mag]) / beta_mag_c
     r_std_mag = ca.diag(Ss_mag)
 
@@ -130,16 +130,16 @@ def correct_mag(**kwargs):
 def correct_accel(**kwargs):
     y_b = ca.SX.sym("y_b", 3)
     g_n = g * ca.SX([0, 0, -1])
-    g_b = ca.mtimes(C_nb.T, g_n)
-    H_accel = ca.sparsify(ca.horzcat(-so3.wedge(g_b), ca.SX.zeros(3, 3)))
+    g_b = C_nb.T@g_n
+    H_accel = ca.sparsify(ca.horzcat(-so3.Dcm.wedge(g_b), ca.SX.zeros(3, 3)))
     Rs_accel = std_accel * ca.diag([1, 1, 1])
 
     W_accel, K_accel, Ss_accel = util.sqrt_correct(Rs_accel, H_accel, W)
-    S_accel = ca.mtimes(Ss_accel, Ss_accel.T)
+    S_accel = Ss_accel@Ss_accel.T
     r_accel = g_b - y_b
     r_std_accel = ca.diag(Ss_accel)
     beta_accel = ca.mtimes([r_accel.T, ca.inv(S_accel), r_accel]) / beta_accel_c
-    x_accel = G.product(x, G.exp(ca.mtimes(K_accel, r_accel)))
+    x_accel = G.product(x, G.exp(K_accel@r_accel))
     x_accel = ca.sparsify(x_accel)
 
     # ignore correction when near singular point

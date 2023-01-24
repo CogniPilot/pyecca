@@ -2,14 +2,14 @@ import casadi as ca
 from typing import Tuple
 
 from .matrix_lie_group import MatrixLieGroup
-from .util import eps
+from .util import series_dict
 
 
 class _SE2(MatrixLieGroup):
 
     def __init__(self):
         super().__init__(
-            groups_params=6,
+            group_params=6,
             algebra_params=3,
             group_shape=(3, 3))
 
@@ -21,38 +21,48 @@ class _SE2(MatrixLieGroup):
         takes 3x1 lie algebra
         input vee operator [x,y,theta]
         """
+        x = v[0]
+        y = v[1]
+        theta = v[2]
         ad_se2 = ca.SX(3, 3)
-        ad_se2[0, 1] = -v[2]
-        ad_se2[0, 2] = v[1]
-        ad_se2[1, 0] = v[2]
-        ad_se2[1, 2] = -v[0]
+        ad_se2[0, 1] = -theta
+        ad_se2[0, 2] = y
+        ad_se2[1, 0] = theta
+        ad_se2[1, 2] = -x
         return ad_se2
 
     def vee(self, X):
         """
         This takes in an element of the SE2 Lie Group (Wedge Form) and returns the se2 Lie Algebra elements
         """
-        v = ca.SX(3, 1)  # [x,y,theta]
-        v[0, 0] = -X[1, 2]
-        v[1, 0] = X[0, 2]
-        v[2, 0] = X[1, 0]
+        print(X.shape)
+        v = ca.SX(3, 1)
+        v[0] = X[0, 2] # x
+        v[1] = X[1, 2] # y
+        v[2] = X[1, 0] # theta
         return v
 
-    def wedge(self, v):  # input v = [x,y,theta]
+    def wedge(self, v):
         """
         This takes in an element of the se2 Lie Algebra and returns the se2 Lie Algebra matrix
         """
         X = ca.SX.zeros(3, 3)
-        X[0, 1] = -v[2]
-        X[1, 0] = v[2]
-        X[0, 2] = v[0]
-        X[1, 2] = v[1]
+        x = v[0]
+        y = v[1]
+        theta = v[2]
+        X[0, 1] = -theta
+        X[1, 0] = theta
+        X[0, 2] = x
+        X[1, 2] = y
         return X
 
-    def matmul(self, a, b):
+    def product(self, a, b):
         self.check_group_shape(a)
         self.check_group_shape(b)
-        return ca.mtimes(a, b)
+        return a@b
+
+    def identity(self) -> ca.SX:
+        return ca.SX.zeros(3)
 
     def exp(self, v):  # accept input in wedge operator form
         v = self.vee(v)
@@ -60,43 +70,29 @@ class _SE2(MatrixLieGroup):
 
         # translational components u
         u = ca.SX(2, 1)
-        u[0, 0] = v[0]
-        u[1, 0] = v[1]
-
-        if type(v[1]) == "int" and theta < eps:
-            a = 1 - theta**2 / 6 + theta**4 / 120
-            b = 0.5 - theta**2 / 24 + theta**4 / 720
-        else:
-            a = ca.sin(theta) / theta
-            b = 1 - ca.cos(theta) / theta
+        u[0] = v[0]
+        u[1] = v[1]
+        
+        A = series_dict['sin(x)/x'](theta)
+        B = series_dict['(1 - cos(x))/x'](theta)
 
         V = ca.SX(2, 2)
-        V[0, 0] = a
-        V[0, 1] = -b
-        V[1, 0] = b
-        V[1, 1] = a
-
-        if type(v[1]) == "int" and theta < eps:
-            a = theta - theta**3 / 6 + theta**5 / 120
-            b = 1 - theta**2 / 2 + theta**4 / 24
-        else:
-            a = ca.sin(theta)
-            b = ca.cos(theta)
+        V[0, 0] = A
+        V[0, 1] = -B
+        V[1, 0] = B
+        V[1, 1] = A
 
         R = ca.SX(2, 2)  # Exp(wedge(theta))
-        R[0, 0] = b
-        R[0, 1] = -a
-        R[1, 0] = a
-        R[1, 1] = b
+        cos_theta = ca.cos(theta)
+        sin_theta = ca.sin(theta)
+        R[0, 0] = cos_theta
+        R[0, 1] = -sin_theta
+        R[1, 0] = sin_theta
+        R[1, 1] = cos_theta
 
-        horz = ca.horzcat(R, ca.mtimes(V, u))
-
-        lastRow = ca.horzcat(0, 0, 1)
-
+        horz = ca.horzcat(R, V@u)
+        lastRow = ca.SX([0, 0, 1]).T
         return ca.vertcat(horz, lastRow)
-
-    def one(self):
-        return ca.SX.zeros(3, 1)
 
     def inv(self, a):  # input a matrix of ca.SX form
         self.check_group_shape(a)
@@ -106,34 +102,26 @@ class _SE2(MatrixLieGroup):
         return ca.transpose(a)
 
     def log(self, G):
-        theta = ca.arccos(
-            ((G[0, 0] + G[1, 1]) - 1) / 2
-        )  # RECHECK (Unsure of where this comes from)
-        wSkew = self.wedge(G[:2, :2])
+        theta = ca.atan(G[1, 0]/G[0, 0])
 
         # t is translational component vector
-        t = ca.SX(3, 1)
-        t[0, 0] = G[0, 2]
-        t[1, 0] = G[1, 2]
+        t = ca.SX(2, 1)
+        t[0] = G[0, 2]
+        t[1] = G[1, 2]
 
-        if type(v[1]) == "int" and theta < eps:
-            a = 1 - theta**2 / 6 + theta**4 / 120
-            b = 0.5 - theta**2 / 24 + theta**4 / 720
-        else:
-            a = ca.sin(theta) / theta
-            b = 1 - ca.cos(theta) / theta
+        A = series_dict['sin(x)/x'](theta)
+        B = series_dict['(1 - cos(x))/x'](theta)
 
         V_inv = ca.SX(2, 2)
-        V_inv[0, 0] = a
-        V_inv[0, 1] = b
-        V_inv[1, 0] = -b
-        V_inv[1, 1] = a
-        V_inv = V_inv / (a**2 + b**2)
+        V_inv[0, 0] = A
+        V_inv[0, 1] = B
+        V_inv[1, 0] = -B
+        V_inv[1, 1] = A
+        V_inv = V_inv / (A**2 + B**2)
 
-        vt_i = ca.mtimes(V_inv, t)
-        t_term = theta  # Last Row for se2
+        vt_i = V_inv@t
 
-        return ca.vertcat(vt_i, t_term)
+        return self.wedge(ca.vertcat(vt_i, theta))
 
     def diff_correction(self, v):  # U Matrix for se2 with input vee operator
         return ca.inv(self.diff_correction_inv(v))
@@ -145,16 +133,12 @@ class _SE2(MatrixLieGroup):
         theta = v[2]
         # X_so3 = se2.wedge(v) #wedge operator for so2 (required [x,y,theta])
 
-        if type(v[1]) == "int" and theta < eps:
-            c1 = 1 - theta**2 / 6 + theta**4 / 120
-            c2 = 0.5 - theta**2 / 24 + theta**4 / 720
-        else:
-            c1 = ca.sin(theta) / theta
-            c2 = 1 - ca.cos(theta) / theta
+        A = series_dict['sin(x)/x']
+        B = series_dict['(1 - cos(x))/x']
 
         ad = self.ad_matrix(v)
         I = ca.SX_eye(3)
-        u_inv = I + c1 * ad + c2 * (ad@ad)
+        u_inv = I + A * ad + B * (ad@ad)
         return u_inv
 
 SE2 = _SE2()
