@@ -1,35 +1,34 @@
 import casadi as ca
 
+from .matrix_lie_group import MatrixLieGroup
 
-class R3:
 
-    group_params = 3
-    algebra_params = 3
+class _R3(MatrixLieGroup):
 
     def __init__(self):
-        raise RuntimeError("this class is just for scoping, do not instantiate")
+        super().__init__(
+            group_params=3,
+            algebra_params=3,
+            group_shape=(3, 1))
 
-    @classmethod
-    def identity(cls):
+    def identity(self):
         return ca.DM([0, 0, 0])
 
-    @classmethod
-    def product(cls, a, b):
-        assert a.shape[0] == cls.group_params
-        assert b.shape[0] == cls.group_params
+    def product(self, a, b):
+        assert a.shape[0] == self.group_params
+        assert b.shape[0] == self.group_params
         return a + b
 
-    @classmethod
-    def inv(cls, a):
-        assert a.shape[0] == cls.group_params
+    def inv(self, a):
+        assert a.shape[0] == self.group_params
         return -a
 
-    @classmethod
-    def exp(cls, v):
-        assert v.shape[0] == cls.algebra_params
+    def exp(self, v):
+        assert v.shape[0] == self.algebra_params
         return v
 
-    @classmethod
-    def log(cls, a):
-        assert a.shape[0] == cls.group_params
+    def log(self, a):
+        assert a.shape[0] == self.group_params
         return a
+
+R3 = _R3()

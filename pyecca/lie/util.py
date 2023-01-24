@@ -1,57 +1,54 @@
 import casadi as ca
 
+eps = 1e-7  # to avoid divide by zero
 
-class DirectProduct:
-    def __init__(self, groups):
-        self.groups = groups
-        self.n_group = [0]
-        self.n_algebra = [0]
-        self.group_params = 0
-        self.algebra_params = 0
-        for g in groups:
-            self.n_group.append(g.group_params)
-            self.n_algebra.append(g.algebra_params)
-            self.group_params += g.group_params
-            self.algebra_params += g.algebra_params
+x = ca.SX.sym("x")
 
-    def subgroup(self, a, i):
-        start = 0
-        for gi in range(i + 1):
-            start += self.n_group[gi]
-        end = start + self.n_group[i + 1]
-        return a[start:end]
+# sin(x)/x
+C1 = ca.Function(
+    "a",
+    [x],
+    [ca.if_else(ca.fabs(x) < eps, 1 - x**2 / 6 + x**4 / 120, ca.sin(x) / x)],
+)
 
-    def subalgebra(self, v, i):
-        start = 0
-        for gi in range(i + 1):
-            start += self.n_algebra[gi]
-        end = start + self.n_algebra[i + 1]
-        return v[start:end]
-
-    def product(self, a, b):
-        assert a.shape[0] == self.group_params
-        assert b.shape[0] == self.group_params
-        return ca.vertcat(
-            *[
-                g.product(self.subgroup(a, i), self.subgroup(b, i))
-                for i, g in enumerate(self.groups)
-            ]
+# (1 - cos(x))/x^2
+C2 = ca.Function(
+    "b",
+    [x],
+    [
+        ca.if_else(
+            ca.fabs(x) < eps,
+            0.5 - x**2 / 24 + x**4 / 720,
+            (1 - ca.cos(x)) / x**2,
         )
+    ],
+)
 
-    def inv(self, a):
-        assert a.shape[0] == self.group_params
-        return ca.vertcat(
-            *[g.inv(self.subgroup(a, i)) for i, g in enumerate(self.groups)]
+# x/ (2 sin(x))
+C3 = ca.Function(
+    "d",
+    [x],
+    [
+        ca.if_else(
+            ca.fabs(x) < eps,
+            0.5 + x**2 / 12 + 7 * x**4 / 720,
+            x / (2 * ca.sin(x)),
         )
+    ],
+)
 
-    def exp(self, v):
-        assert v.shape[0] == self.algebra_params
-        return ca.vertcat(
-            *[g.exp(self.subalgebra(v, i)) for i, g in enumerate(self.groups)]
+# (1 - C1)/x^2
+C4 = ca.Function(
+    "f",
+    [x],
+    [
+        ca.if_else(
+            ca.fabs(x) < eps,
+            (1 / 6) - x**2 / 120 + x**4 / 5040,
+            (1 - C1(x)) / (x**2),
         )
-
-    def log(self, a):
-        assert a.shape[0] == self.group_params
-        return ca.vertcat(
-            *[g.log(self.subgroup(a, i)) for i, g in enumerate(self.groups)]
-        )
+    ],
+)
+    
+# delete temp variable used to create functions
+del x

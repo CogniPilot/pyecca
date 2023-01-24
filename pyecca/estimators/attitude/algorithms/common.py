@@ -5,7 +5,7 @@ from casadi.tools.graph import graph
 
 import pyecca.util as util
 from pyecca.lie import so3, r3
-from pyecca.lie.util import DirectProduct
+from pyecca.lie.direct_product import DirectProduct
 
 # misc variables
 omega_t = ca.SX.sym("omega_t", 3, 1)  # angular velocity in body frame, true
