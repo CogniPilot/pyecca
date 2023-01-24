@@ -11,14 +11,12 @@ EPS = 1e-7
 
 
 class _SO3Base(MatrixLieGroup):
-    
     def vee(self, X):
         v = ca.SX(3, 1)
         v[0, 0] = X[2, 1]
         v[1, 0] = X[0, 2]
         v[2, 0] = X[1, 0]
         return v
-
 
     def wedge(self, v):
         X = ca.SX(3, 3)
@@ -35,12 +33,8 @@ class _SO3Base(MatrixLieGroup):
 
 
 class _Dcm(_SO3Base):
-
     def __init__(self):
-        super().__init__(
-            group_params=9,
-            algebra_params=3,
-            group_shape=(3, 3))
+        super().__init__(group_params=9, algebra_params=3, group_shape=(3, 3))
 
     def identity(self) -> ca.SX:
         return ca.SX.eye(3)
@@ -48,7 +42,7 @@ class _Dcm(_SO3Base):
     def product(self, a, b):
         self.check_group_shape(a)
         self.check_group_shape(b)
-        return a@b
+        return a @ b
 
     def inv(self, a):
         self.check_group_shape(a)
@@ -57,19 +51,19 @@ class _Dcm(_SO3Base):
     def exp(self, v):
         theta = ca.norm_2(v)
         X = self.wedge(v)
-        A = series_dict['sin(x)/x']
-        B = series_dict['(1 - cos(x))/x^2']
-        return ca.SX.eye(3) + A(theta) * X + B(theta) * X@X
+        A = series_dict["sin(x)/x"]
+        B = series_dict["(1 - cos(x))/x^2"]
+        return ca.SX.eye(3) + A(theta) * X + B(theta) * X @ X
 
     def log(self, R):
         theta = ca.arccos((ca.trace(R) - 1) / 2)
-        A = series_dict['sin(x)/x']
-        return self.vee((R - R.T)/(A(theta) * 2))
+        A = series_dict["sin(x)/x"]
+        return self.vee((R - R.T) / (A(theta) * 2))
 
     def kinematics(self, R, w):
         assert R.shape == (3, 3)
         assert w.shape == (3, 1)
-        return R@self.wedge(w)
+        return R @ self.wedge(w)
 
     def from_quat(self, q):
         assert q.shape == (4, 1)
@@ -104,7 +98,7 @@ class _Dcm(_SO3Base):
         a = r[:3]
         X = self.wedge(a)
         n_sq = ca.dot(a, a)
-        X_sq = X@X
+        X_sq = X @ X
         R = ca.SX.eye(3) + (8 * X_sq - 4 * (1 - n_sq) * X) / (1 + n_sq) ** 2
         # return transpose, due to convention difference in book
         return R.T
@@ -117,12 +111,8 @@ Dcm = _Dcm()
 
 
 class _Mrp(_SO3Base):
-
     def __init__(self):
-        super().__init__(
-            group_params=4,
-            algebra_params=3,
-            group_shape=(4, 1))
+        super().__init__(group_params=4, algebra_params=3, group_shape=(4, 1))
 
     def product(self, r1, r2):
         assert r1.shape == (4, 1) or r1.shape == (4,)
@@ -133,8 +123,7 @@ class _Mrp(_SO3Base):
         nb_sq = ca.dot(b, b)
         res = ca.SX(4, 1)
         den = 1 + na_sq * nb_sq - 2 * ca.dot(b, a)
-        res[:3] = ((1 - na_sq) * b + (1 - nb_sq)
-                   * a - 2 * ca.cross(b, a)) / den
+        res[:3] = ((1 - na_sq) * b + (1 - nb_sq) * a - 2 * ca.cross(b, a)) / den
         res[3] = 0  # shadow state
         return res
 
@@ -173,8 +162,8 @@ class _Mrp(_SO3Base):
         a = r[:3]
         n_sq = ca.dot(a, a)
         X = self.wedge(a)
-        B = 0.25 * ((1 - n_sq) * ca.SX.eye(3) + 2 * X + 2 * a@a.T)
-        return ca.vertcat(B@w, 0)
+        B = 0.25 * ((1 - n_sq) * ca.SX.eye(3) + 2 * X + 2 * a @ a.T)
+        return ca.vertcat(B @ w, 0)
 
     def from_quat(self, q):
         assert q.shape == (4, 1) or q.shape == (4,)
@@ -202,12 +191,8 @@ Mrp = _Mrp()
 
 
 class _Quat(_SO3Base):
-
     def __init__(self):
-        super().__init__(
-            group_params=4,
-            algebra_params=3,
-            group_shape=(4, 1))
+        super().__init__(group_params=4, algebra_params=3, group_shape=(4, 1))
 
     def identity(self) -> ca.SX:
         return ca.SX([1, 0, 0, 0])
@@ -336,14 +321,10 @@ class _Quat(_SO3Base):
         sinPhi_2 = ca.sin(e[0] / 2)
         sinTheta_2 = ca.sin(e[1] / 2)
         sinPsi_2 = ca.sin(e[2] / 2)
-        q[0] = cosPhi_2 * cosTheta_2 * cosPsi_2 + \
-            sinPhi_2 * sinTheta_2 * sinPsi_2
-        q[1] = sinPhi_2 * cosTheta_2 * cosPsi_2 - \
-            cosPhi_2 * sinTheta_2 * sinPsi_2
-        q[2] = cosPhi_2 * sinTheta_2 * cosPsi_2 + \
-            sinPhi_2 * cosTheta_2 * sinPsi_2
-        q[3] = cosPhi_2 * cosTheta_2 * sinPsi_2 - \
-            sinPhi_2 * sinTheta_2 * cosPsi_2
+        q[0] = cosPhi_2 * cosTheta_2 * cosPsi_2 + sinPhi_2 * sinTheta_2 * sinPsi_2
+        q[1] = sinPhi_2 * cosTheta_2 * cosPsi_2 - cosPhi_2 * sinTheta_2 * sinPsi_2
+        q[2] = cosPhi_2 * sinTheta_2 * cosPsi_2 + sinPhi_2 * cosTheta_2 * sinPsi_2
+        q[3] = cosPhi_2 * cosTheta_2 * sinPsi_2 - sinPhi_2 * sinTheta_2 * cosPsi_2
         return q
 
 
@@ -351,12 +332,8 @@ Quat = _Quat()
 
 
 class _Euler(_SO3Base):
-
     def __init__(self):
-        super().__init__(
-            group_params=3,
-            algebra_params=3,
-            group_shape=(3, 1))
+        super().__init__(group_params=3, algebra_params=3, group_shape=(3, 1))
 
     def inv(self, e):
         return Euler.from_dcm(Dcm.inv(Dcm.from_euler(e)))
@@ -368,7 +345,7 @@ class _Euler(_SO3Base):
         return Dcm.log(Dcm.from_euler(e))
 
     def product(self, a, b):
-        return Euler.from_dcm(Dcm.from_euler(a)@Dcm.from_euler(b))
+        return Euler.from_dcm(Dcm.from_euler(a) @ Dcm.from_euler(b))
 
     def identity(self) -> ca.SX:
         return ca.SX([0, 0, 0])

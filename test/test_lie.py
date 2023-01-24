@@ -63,11 +63,13 @@ def test_r3():
     v3 = v1 + v2
     assert ca.norm_2(R3.product(v1, v2) - v3) < eps
 
+
 def test_se2():
     v = ca.SX([0.1, 0.2, 0.3])
     G = SE2
     assert ca.norm_2(G.vee(G.wedge(v)) - v) < eps
     assert ca.norm_2(G.vee(G.log(G.exp(G.wedge(v)))) - v) < eps
+
 
 def test_se3():
     v = ca.SX([10, 20, 30, 0.4, 0.5, 0.6])

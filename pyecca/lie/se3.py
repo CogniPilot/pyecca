@@ -7,7 +7,6 @@ from .so3 import Quat, Euler, Mrp, Dcm
 
 
 class _SE3(MatrixLieGroup):
-
     def __init__(self, SO3=None):
         if SO3 == None:
             self.SO3 = so3.Dcm
@@ -16,7 +15,8 @@ class _SE3(MatrixLieGroup):
         super().__init__(
             group_params=3 + self.SO3.group_params,
             algebra_params=3 + self.SO3.algebra_params,
-            group_shape=(4, 4))
+            group_shape=(4, 4),
+        )
 
     def ad_matrix(self, v):
         """
@@ -49,18 +49,18 @@ class _SE3(MatrixLieGroup):
         This takes in an element of the SE3 Lie Group (Wedge Form) and returns the se3 Lie Algebra elements
         """
         v = ca.SX(6, 1)
-        v[0, 0] = X[0, 3] # x
-        v[1, 0] = X[1, 3] # y
-        v[2, 0] = X[2, 3] # z
-        v[3, 0] = X[2, 1] # theta0
-        v[4, 0] = X[0, 2] # theta1
-        v[5, 0] = X[1, 0] # theta2
+        v[0, 0] = X[0, 3]  # x
+        v[1, 0] = X[1, 3]  # y
+        v[2, 0] = X[2, 3]  # z
+        v[3, 0] = X[2, 1]  # theta0
+        v[4, 0] = X[0, 2]  # theta1
+        v[5, 0] = X[1, 0]  # theta2
         return v
 
     def wedge(self, v):
         """
         This takes in an element of the se3 Lie Algebra and returns the se3 Lie Algebra matrix
-        
+
         v: [x,y,z,theta0,theta1,theta2]
         """
         X = ca.SX.zeros(4, 4)
@@ -73,9 +73,13 @@ class _SE3(MatrixLieGroup):
     def exp(self, v):  # accept input in wedge operator form
         v = self.vee(v)
         # v = [x,y,z,theta1,theta2,theta3]
-        v_so3 = v[3:6]  # grab only rotation terms for so3 uses ##corrected to v_so3 = v[3:6]
+        v_so3 = v[
+            3:6
+        ]  # grab only rotation terms for so3 uses ##corrected to v_so3 = v[3:6]
         X_so3 = so3.Dcm.wedge(v_so3)  # wedge operator for so3
-        theta = ca.norm_2(so3.Dcm.vee(X_so3))  # theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
+        theta = ca.norm_2(
+            so3.Dcm.vee(X_so3)
+        )  # theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
 
         # translational components u
         u = ca.SX(3, 1)
@@ -83,14 +87,16 @@ class _SE3(MatrixLieGroup):
         u[1, 0] = v[1]
         u[2, 0] = v[2]
 
-        R = so3.Dcm.exp(v_so3)  #'Dcm' for direction cosine matrix representation of so3 LieGroup Rotational
-        
-        A = series_dict['sin(x)/x'](theta)
-        B = series_dict['(1 - cos(x))/x^2'](theta)
-        C = (1 - A)/theta**2
+        R = so3.Dcm.exp(
+            v_so3
+        )  #'Dcm' for direction cosine matrix representation of so3 LieGroup Rotational
 
-        V = ca.SX.eye(3) + B * X_so3 + C * X_so3@X_so3
-        
+        A = series_dict["sin(x)/x"](theta)
+        B = series_dict["(1 - cos(x))/x^2"](theta)
+        C = (1 - A) / theta**2
+
+        V = ca.SX.eye(3) + B * X_so3 + C * X_so3 @ X_so3
+
         horz = ca.horzcat(R, ca.mtimes(V, u))
 
         lastRow = ca.SX([0, 0, 0, 1]).T
@@ -103,7 +109,7 @@ class _SE3(MatrixLieGroup):
     def product(self, a, b):
         self.check_group_shape(a)
         self.check_group_shape(b)
-        return a@b
+        return a @ b
 
     def inv(self, a):  # input a matrix of SX form from casadi
         self.check_group_shape(a)
@@ -116,20 +122,23 @@ class _SE3(MatrixLieGroup):
         R = G[:3, :3]
         theta = ca.arccos((ca.trace(R) - 1) / 2)
         wSkew = so3.Dcm.wedge(so3.Dcm.log(R))
-        A = series_dict['sin(x)/x'](theta)
-        B = series_dict['(1 - cos(x))/x^2'](theta)
-        V_inv = ca.SX.eye(3) - wSkew/2 + (1/theta**2)*(1 - A/(2*B)) * wSkew@wSkew
+        A = series_dict["sin(x)/x"](theta)
+        B = series_dict["(1 - cos(x))/x^2"](theta)
+        V_inv = (
+            ca.SX.eye(3)
+            - wSkew / 2
+            + (1 / theta**2) * (1 - A / (2 * B)) * wSkew @ wSkew
+        )
 
         t = ca.SX(3, 1)
         t[0] = G[0, 3]
         t[1] = G[1, 3]
         t[2] = G[2, 3]
 
-        uInv = V_inv@t
+        uInv = V_inv @ t
         horz2 = ca.horzcat(wSkew, uInv)
         lastRow2 = ca.SX([0, 0, 0, 0]).T
         return ca.vertcat(horz2, lastRow2)
-
 
     def diff_correction(self, v):  # U Matrix for se3 with input vee operator
         return ca.inv(self.diff_correction_inv(v))
@@ -145,10 +154,9 @@ class _SE3(MatrixLieGroup):
             so3.vee(X_so3)
         )  # theta term using norm for sqrt(theta1**2+theta2**2+theta3**2)
 
-
-        A = series_dict['sin(x)/x']
-        B = series_dict['(1 - cos(x))/x^2']
-        C = series_dict['(x - sin(x))/x^3']
+        A = series_dict["sin(x)/x"]
+        B = series_dict["(1 - cos(x))/x^2"]
+        C = series_dict["(x - sin(x))/x^3"]
 
         ad = se3.ad_matrix(v)
         I = ca.SX_eye(6)
@@ -207,7 +215,6 @@ class _SE3(MatrixLieGroup):
         # u_inv = ca.transpose(ca.horzcat(uInvR1,uInvR2,uInvR3,uInvR4, uInvR5, uInvR6))
         # return u_inv
 
-
     # verify this with series solution
 
     # https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/mrp.py
@@ -217,16 +224,15 @@ class _SE3(MatrixLieGroup):
     # https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/common.py
     # This import to import needed casadi command
 
-
     # New notes (Oct 18 22)
     ## sympy.cse(f) to find common self expression using sympy to clean up the casadi plot
     # cse_def, cse_expr = sympy.cse(f)
-
 
     # Oct 25 Update
     # work on updating SE2 umatrix to casadi
     # get SE2 U matrix
     # u matrix can be found through casadi using inverse function for casadi
+
 
 SE3Dcm = _SE3(Dcm)
 SE3Euler = _SE3(Euler)

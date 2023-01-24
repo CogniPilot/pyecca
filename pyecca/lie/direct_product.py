@@ -4,7 +4,6 @@ from .matrix_lie_group import MatrixLieGroup
 
 
 class DirectProduct(MatrixLieGroup):
-
     def __init__(self, groups):
         self.groups = groups
         self.n_group = [0]
@@ -21,13 +20,14 @@ class DirectProduct(MatrixLieGroup):
         super().__init__(
             group_params=group_params,
             algebra_params=algebra_params,
-            group_shape=group_shape)
+            group_shape=group_shape,
+        )
 
     def identity(self) -> ca.SX:
         return ca.vertcat(
             *[g.identity(self.subgroup(a, i)) for i, g in enumerate(self.groups)]
         )
-        
+
     def subgroup(self, a, i):
         start = 0
         for gi in range(i + 1):

@@ -6,12 +6,8 @@ from .util import series_dict
 
 
 class _SE2(MatrixLieGroup):
-
     def __init__(self):
-        super().__init__(
-            group_params=6,
-            algebra_params=3,
-            group_shape=(3, 3))
+        super().__init__(group_params=6, algebra_params=3, group_shape=(3, 3))
 
     def check_group_shape(self, a) -> None:
         assert a.shape == self.group_shape or a.shape == (self.group_shape[0],)
@@ -37,9 +33,9 @@ class _SE2(MatrixLieGroup):
         """
         print(X.shape)
         v = ca.SX(3, 1)
-        v[0] = X[0, 2] # x
-        v[1] = X[1, 2] # y
-        v[2] = X[1, 0] # theta
+        v[0] = X[0, 2]  # x
+        v[1] = X[1, 2]  # y
+        v[2] = X[1, 0]  # theta
         return v
 
     def wedge(self, v):
@@ -59,7 +55,7 @@ class _SE2(MatrixLieGroup):
     def product(self, a, b):
         self.check_group_shape(a)
         self.check_group_shape(b)
-        return a@b
+        return a @ b
 
     def identity(self) -> ca.SX:
         return ca.SX.zeros(3)
@@ -72,9 +68,9 @@ class _SE2(MatrixLieGroup):
         u = ca.SX(2, 1)
         u[0] = v[0]
         u[1] = v[1]
-        
-        A = series_dict['sin(x)/x'](theta)
-        B = series_dict['(1 - cos(x))/x'](theta)
+
+        A = series_dict["sin(x)/x"](theta)
+        B = series_dict["(1 - cos(x))/x"](theta)
 
         V = ca.SX(2, 2)
         V[0, 0] = A
@@ -90,7 +86,7 @@ class _SE2(MatrixLieGroup):
         R[1, 0] = sin_theta
         R[1, 1] = cos_theta
 
-        horz = ca.horzcat(R, V@u)
+        horz = ca.horzcat(R, V @ u)
         lastRow = ca.SX([0, 0, 1]).T
         return ca.vertcat(horz, lastRow)
 
@@ -102,15 +98,15 @@ class _SE2(MatrixLieGroup):
         return ca.transpose(a)
 
     def log(self, G):
-        theta = ca.atan(G[1, 0]/G[0, 0])
+        theta = ca.atan(G[1, 0] / G[0, 0])
 
         # t is translational component vector
         t = ca.SX(2, 1)
         t[0] = G[0, 2]
         t[1] = G[1, 2]
 
-        A = series_dict['sin(x)/x'](theta)
-        B = series_dict['(1 - cos(x))/x'](theta)
+        A = series_dict["sin(x)/x"](theta)
+        B = series_dict["(1 - cos(x))/x"](theta)
 
         V_inv = ca.SX(2, 2)
         V_inv[0, 0] = A
@@ -119,7 +115,7 @@ class _SE2(MatrixLieGroup):
         V_inv[1, 1] = A
         V_inv = V_inv / (A**2 + B**2)
 
-        vt_i = V_inv@t
+        vt_i = V_inv @ t
 
         return self.wedge(ca.vertcat(vt_i, theta))
 
@@ -133,12 +129,13 @@ class _SE2(MatrixLieGroup):
         theta = v[2]
         # X_so3 = se2.wedge(v) #wedge operator for so2 (required [x,y,theta])
 
-        A = series_dict['sin(x)/x']
-        B = series_dict['(1 - cos(x))/x']
+        A = series_dict["sin(x)/x"]
+        B = series_dict["(1 - cos(x))/x"]
 
         ad = self.ad_matrix(v)
         I = ca.SX_eye(3)
-        u_inv = I + A * ad + B * (ad@ad)
+        u_inv = I + A * ad + B * (ad @ ad)
         return u_inv
+
 
 SE2 = _SE2()

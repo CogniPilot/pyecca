@@ -4,12 +4,8 @@ from .matrix_lie_group import MatrixLieGroup
 
 
 class _R3(MatrixLieGroup):
-
     def __init__(self):
-        super().__init__(
-            group_params=3,
-            algebra_params=3,
-            group_shape=(3, 1))
+        super().__init__(group_params=3, algebra_params=3, group_shape=(3, 1))
 
     def identity(self):
         return ca.DM([0, 0, 0])
@@ -30,5 +26,6 @@ class _R3(MatrixLieGroup):
     def log(self, a):
         assert a.shape[0] == self.group_params
         return a
+
 
 R3 = _R3()

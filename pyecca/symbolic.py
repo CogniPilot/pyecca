@@ -6,39 +6,39 @@ def taylor_series_near_zero(x, f, order=6, eps=1e-7, verbose=False):
     """
     Takes a sympy function and near zero approximates it by a taylor
     series. The resulting function is converted to a casadi function.
-    
+
     @x: sympy independent variable
     @f: sympy function
     @eps: tolerance for using series
     @verbose: show functions
     @return: casadi.Function
-    """   
-    symbols = {'x': ca.SX.sym('x')}
+    """
+    symbols = {"x": ca.SX.sym("x")}
     f_series = f.series(x, 0, order).removeO()
     f_series, _ = sympy_to_casadi(f=f_series, symbols=symbols)
     if verbose:
-        print('f_series: ', f_series, '\nf:', f)
+        print("f_series: ", f_series, "\nf:", f)
     f, _ = sympy_to_casadi(f, symbols=symbols)
-    f = ca.Function('f',
-        [symbols['x']],
-        [ca.if_else(ca.fabs(symbols['x']) < eps, f_series, f)]
-        )
+    f = ca.Function(
+        "f", [symbols["x"]], [ca.if_else(ca.fabs(symbols["x"]) < eps, f_series, f)]
+    )
     return f
 
 
 def sympy_to_casadi(f, f_dict=None, symbols=None, cse=False, verbose=False):
     if symbols is None:
         symbols = {}
-    return _sympy_parser(f=f, f_dict=f_dict, symbols=symbols,
-                         cse=cse, verbose=verbose), symbols
-    
+    return (
+        _sympy_parser(f=f, f_dict=f_dict, symbols=symbols, cse=cse, verbose=verbose),
+        symbols,
+    )
+
 
 def _sympy_parser(f, f_dict=None, symbols=None, depth=0, cse=False, verbose=False):
     if f_dict is None:
         f_dict = {}
     prs = lambda f: _sympy_parser(
-        f=f, f_dict=f_dict, symbols=symbols,
-        depth=depth + 1, cse=False, verbose=verbose
+        f=f, f_dict=f_dict, symbols=symbols, depth=depth + 1, cse=False, verbose=verbose
     )
     f_type = type(f)
     dict_keys = list(f_dict.keys())
@@ -89,7 +89,7 @@ def _sympy_parser(f, f_dict=None, symbols=None, depth=0, cse=False, verbose=Fals
     elif f_type == int:
         return f
     elif f_type == sympy.core.numbers.Rational:
-        return prs(f.numerator)/ prs(f.denominator)
+        return prs(f.numerator) / prs(f.denominator)
     elif f_type == sympy.core.numbers.Float:  # Convert Float to int
         return int(f)
     elif f_type == sympy.core.numbers.One:
