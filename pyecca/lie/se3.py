@@ -217,11 +217,11 @@ class _SE3(MatrixLieGroup):
 
     # verify this with series solution
 
-    # https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/mrp.py
+    # https://github.com/jgoppert/pyecca/blob/master/pyecce/estimation/attitude/algorithms/mrp.py
     # Use this to try to get casadi to draw a plot for this
     # line 112-116 help for drawing plots
 
-    # https://github.com/jgoppert/pyecca/blob/master/pyecca/estimators/attitude/algorithms/common.py
+    # https://github.com/jgoppert/pyecca/blob/master/pyecca/estimation/attitude/algorithms/common.py
     # This import to import needed casadi command
 
     # New notes (Oct 18 22)

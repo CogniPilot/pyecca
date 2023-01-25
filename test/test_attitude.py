@@ -3,9 +3,8 @@ import pickle
 import numpy as np
 import time
 
-from pyecca.estimators.attitude import algorithms
-from pyecca.estimators.attitude import launch
-from pyecca.estimators.attitude.plot import plot
+from pyecca.estimation.attitude import algorithms, launch
+from pyecca.estimation.attitude.plot import plot
 
 
 script_dir = os.path.abspath(os.path.dirname(__file__))
