@@ -3,6 +3,13 @@ import numpy as np
 import scipy.optimize
 import matplotlib.pyplot as plt
 
+# See
+# Richter, Charles, Adam Bry, and Nicholas Roy.
+# "Polynomial trajectory planning for aggressive quadrotor flight in dense indoor environments."
+# Robotics Research: The 16th International Symposium ISRR. Springer International Publishing, 2016.
+# https://dspace.mit.edu/bitstream/handle/1721.1/106840/Roy_Polynomial%20trajectory.pdf?sequence=1&isAllowed=y
+
+
 
 def find_Q(deriv, poly_deg, n_legs):
     """
