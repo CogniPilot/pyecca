@@ -1,4 +1,4 @@
-\documentclass[10pt]{article}
+\documentclass[10pt]{book}
 
 \usepackage{hyperref}
 \usepackage{geometry}
@@ -6,13 +6,23 @@
 
 \geometry{letterpaper, margin=0.5in}
 
-\title{Cerebri Multirotor}
-\date{January 22, 2023}
-\author{James Goppert}
+\title{Pyecca Manual}
+\date{}
+\author{}
 
 \begin{document}
 \maketitle
 \tableofcontents
+
+\chapter{Introduction}
+
+The goal of Pyecca is to provide a stream-line platform for robotics
+research and development. Algorithms can be quickly developed in Python and then
+deployed via C code using Casadi code generation to a vehicle. For the 
+benefit of the research/developer, we are documenting in detail the
+algorithms available in Pyecca in this manual. We encourage contributors
+to add algorithms, and detail them in this manual.
+
 
 \subsection*{Notation}
 
@@ -26,20 +36,108 @@ The rotation matrix $C^e_b$ operates on vectors such that
 $\vec{v}_b = C^e_b \vec{v}_e$. This convention let's us be very
 specific about the coordinate frame each vector is expressed in when necessary.
 
-\section{Trajectory Generation}
+
+\chapter{Trajectory Generation}
+
+\section{Reference Trajectory}
+
+To simplify planning, we will leverage the differential flatness of the multirotor and rovers
+to solve for the states and inputs as a fucntion of the flat outputs and
+their derivatives. We will closely follow Mellinger 2012\cite{mellinger2012}. Path planning will be conducted using polynomials. The polynomial will be represented as Bezier
+curve when the vehicle is following the path.
+
+\section{Rover}
+
+Here we show that a rover is differentially flat in terms of the 2D vehicle position $\vec{p}_e$.
+
+\subsubsection*{Kinematic Model}
+\begin{align*}
+    \dot{x} &= V \cos{\psi}  \\
+    \dot{y} &= V \sin{\psi} \\
+    \dot{\psi} &= \omega
+\end{align*}
+
+\subsubsection*{Flat Outputs}
+\begin{itemize}
+    \item $\vec{p}_e = \begin{bmatrix}x \\ y\end{bmatrix}$: the 2D position of the rover expressed in the e frame
+\end{itemize}
+
+\subsubsection*{Flat Output Derivatives}
+\begin{itemize}
+    \item $\vec{v}_e$ : the velocity of the multirotor expressed in the e frame
+    \item $\vec{a}_e$ : the acceleration of the multirotor expressed in the e frame
+    \item $\vec{j}_e$ : the jerk of the multirotor expressed in the e frame
+    \item higher derivatives if necessary
+\end{itemize}
+
+\subsubsection*{States}
+\begin{itemize}
+    \item $\vec{p}_e$ : the position of the multirotor expressed in the e frame
+    \item $\psi$ : the heading angle of the rover
+\end{itemize}
+
+\subsubsection*{Inputs}
+\begin{itemize}
+    \item V : The translational velocity of the rover
+    \item $\omega$ : The angular velocity of the rover
+\end{itemize}
+
+\subsubsection*{Frames}
+
+Note we deviate from Mellginer's convention and use the North-East-Down instead of
+East-North-Up frame to follow aeronautical convention.
+
+\begin{itemize}
+    \item e : earth/world frame, inertial frame, (North-East-Down)
+    \item b : body frame, fixed in rover, (Forward-Right-Down)
+\end{itemize}
+
+\subsection{Solve for States}
+
+The state $\vec{p}_e$ is the flat output so no further work is required.
+The state $\psi$ can be found using the vehicle dynamics.
+
+\begin{align*}
+\dfrac{\dot{y}}{\dot{x}} &= \dfrac{\sin{\psi}}{\cos{\psi}} = \tan{\psi} \\
+\psi &= \arctan{\dfrac{\dot{y}}{\dot{x}}}
+\end{align*}
+%
+Note that $atan2$ should be used for implementation, to ensure the heading
+is accurate in all quadrants.
+
+\subsection{Solve for Inputs}
+
+The velocity input to the rover $V$, can be found using the derivative of each position.
+
+$$V = \sqrt{\dot{x}^2 + \dot{y}^2}$$
+
+The angular velocity input to the rover $\omega$, can be found using the derivative of
+expression we found for $\omega$, since $\dot{\psi} = \omega$.
+
+\begin{align*}
+\omega &= \dfrac{d}{dt} \left(\arctan{\dfrac{\dot{y}}{\dot{x}}} \right) 
+= \dfrac{1}{1 + \left(\dfrac{\dot{y}}{\dot{x}}\right)^2} \dfrac{d}{dt} 
+    \left(\dfrac{\dot{y}}{\dot{x}}\right)
+= \dfrac{1}{1 + \left(\dfrac{\dot{y}}{\dot{x}}\right)^2}  \dfrac{\dot{x}\ddot{y} - \dot{y}\ddot{x}}{\dot{x}^2}
+= \dfrac{\dot{x}\ddot{y} - \dot{y}\ddot{x}}{\dot{x}^2 + \dot{y}^2}
+\end{align*}
+
+Finally, we can substitute our expression found for V to obtain:
+
+$$\omega = \dfrac{\dot{x}\ddot{y} - \dot{y}\ddot{x}}{V}$$
+
+
+\section{Multirotor}
 
 
 \subsection{Problem Statement}
 
-To simplify planning, we will leverage the differential flatness of the multirotor
-to solve for the states and inputs as a fucntion of the flat outputs and
-their derivatives. We will closely follow Mellinger 2012\cite{mellinger2012}.
-
+Here we wish to show that a quadrotor is differentially flat, following \cite{mellinger2012}.
 
 \subsubsection*{Flat Outputs}
 \begin{itemize}
     \item $\vec{p}_e$ : the position of the multirotor expressed in the e frame
-    \item $\psi$ : the desired yaw angle
+    \item $\psi$ : the desired heading angle
 
 \end{itemize}
 
@@ -49,7 +147,7 @@ their derivatives. We will closely follow Mellinger 2012\cite{mellinger2012}.
     \item $\vec{a}_e$ : the acceleration of the multirotor expressed in the e frame
     \item $\vec{j}_e$ : the jerk of the multirotor expressed in the e frame
     \item $\vec{s}_e$ : the snap of the multirotor expressed in the e frame
-    \item $\dot{\psi}$, $\ddot{\psi}$, $\ldots{}$ : derivatives of the yaw angle
+    \item $\dot{\psi}$, $\ddot{\psi}$, $\ldots{}$ : derivatives of the heading angle
     \item higher derivatives if necessary
 \end{itemize}
 
@@ -86,7 +184,6 @@ East-North-Up frame to follow aeronautical convention.
 
 
 \subsection{Solve for Orientation}
-
 
 From Newton's 2nd Law:
 %
@@ -204,6 +301,10 @@ We can now solve for the body torques produced by the motors:
 $$\begin{bmatrix}M_x \\ M_y \\ M_z \end{bmatrix} = J \begin{bmatrix}
 \dot{p} \\ \dot{q} \\ \dot{r}
 \end{bmatrix} + \begin{bmatrix}p \\ q \\ r\end{bmatrix} \times J \begin{bmatrix}p \\ q \\ r\end{bmatrix}$$
+
+\chapter{Lie Groups}
+
+\chapter{Estimation}
 
 \bibliographystyle{plain} % We choose the "plain" reference style
 \bibliography{ref} % Entries are in the refs.bib file
