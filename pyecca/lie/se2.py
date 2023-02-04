@@ -7,11 +7,39 @@ from .util import series_dict
 
 class _SE2(MatrixLieGroup):
     def __init__(self):
-        super().__init__(group_params=6, algebra_params=3, group_shape=(3, 3))
+        super().__init__(group_params=3, algebra_params=3, group_shape=(3, 3))
 
     def check_group_shape(self, a) -> None:
         assert a.shape == self.group_shape or a.shape == (self.group_shape[0],)
 
+    def check_param_shape(self, p) -> None:
+        assert p.shape == (self.group_params, 1) or p.shape == (self.group_params,)
+
+    def R(self, p) -> ca.SX:
+        """
+        Returns embedded SO(2) rotation group
+        """
+        self.check_param_shape(p)
+        theta = p[2]
+        cth = ca.cos(theta)
+        sth = ca.sin(theta)
+        R = ca.SX.zeros(2, 2)
+        R[0, 0] = cth
+        R[0, 1] = -sth
+        R[1, 0] = sth
+        R[1, 1] = cth
+        return R
+    
+    def v(self, p) -> ca.SX:
+        """
+        Returns embedded R2 vector
+        """
+        self.check_param_shape(p)
+        v = ca.SX.zeros(2)
+        v[0] = p[0]
+        v[1] = p[1]
+        return v
+        
     def ad_matrix(self, v) -> ca.SX:
         """
         takes 3x1 lie algebra
@@ -20,7 +48,7 @@ class _SE2(MatrixLieGroup):
         x = v[0]
         y = v[1]
         theta = v[2]
-        ad_se2 = ca.SX(3, 3)
+        ad_se2 = ca.SX.zeros(3, 3)
         ad_se2[0, 1] = -theta
         ad_se2[0, 2] = y
         ad_se2[1, 0] = theta
@@ -32,7 +60,7 @@ class _SE2(MatrixLieGroup):
         This takes in an element of the SE2 Lie Group (Wedge Form) and returns the se2 Lie Algebra elements
         """
         print(X.shape)
-        v = ca.SX(3, 1)
+        v = ca.SX.zeros(3)
         v[0] = X[0, 2]  # x
         v[1] = X[1, 2]  # y
         v[2] = X[1, 0]  # theta
@@ -52,10 +80,22 @@ class _SE2(MatrixLieGroup):
         X[1, 2] = y
         return X
 
-    def product(self, a, b):
-        self.check_group_shape(a)
-        self.check_group_shape(b)
-        return a @ b
+    def product(self, p1, p2):
+        self.check_param_shape(p1)
+        self.check_param_shape(p2)
+        x1 = p1[0]
+        y1 = p1[1]
+        theta1 = p1[2]
+        x2 = p2[0]
+        y2 = p2[1]
+        theta2 = p2[2]
+        p3 = ca.SX.zeros(3)
+        theta3 = theta1 + theta2
+        v3 = self.R(p1)@self.v(p2) + self.v(p1)
+        p3[0] = v3[0]
+        p3[1] = v3[1]
+        p3[2] = theta1 + theta2;
+        return p3
 
     def identity(self) -> ca.SX:
         return ca.SX.zeros(3)
@@ -65,20 +105,20 @@ class _SE2(MatrixLieGroup):
         theta = v[2]
 
         # translational components u
-        u = ca.SX(2, 1)
+        u = ca.SX.zeros(2)
         u[0] = v[0]
         u[1] = v[1]
 
         A = series_dict["sin(x)/x"](theta)
         B = series_dict["(1 - cos(x))/x"](theta)
 
-        V = ca.SX(2, 2)
+        V = ca.SX.zeros(2, 2)
         V[0, 0] = A
         V[0, 1] = -B
         V[1, 0] = B
         V[1, 1] = A
 
-        R = ca.SX(2, 2)  # Exp(wedge(theta))
+        R = ca.SX.zeros(2, 2)  # Exp(wedge(theta))
         cos_theta = ca.cos(theta)
         sin_theta = ca.sin(theta)
         R[0, 0] = cos_theta
@@ -90,34 +130,39 @@ class _SE2(MatrixLieGroup):
         lastRow = ca.SX([0, 0, 1]).T
         return ca.vertcat(horz, lastRow)
 
-    def inv(self, a):  # input a matrix of ca.SX form
-        self.check_group_shape(a)
-        a_inv = ca.solve(
-            a, ca.SX.eye(3)
-        )  # Google Group post mentioned ca.inv() could take too long, and should explore solve function
-        return ca.transpose(a)
+    def inv(self, p):  # group parameters (x, y, theta)
+        self.check_param_shape(p)
+        theta = p[2]
+        v1 = ca.SX.zeros(2)
+        v1[0] = p[0]
+        v1[1] = p[1]
+        v2 = -self.R(p).T@v1
+        p_inv = ca.SX.zeros(3)
+        p_inv[0] = v2[0]
+        p_inv[1] = v2[1]
+        p_inv[2] = -theta
+        return p_inv
 
-    def log(self, G):
-        theta = ca.atan(G[1, 0] / G[0, 0])
+    def log(self, p):
+        v = self.v(p)
 
-        # t is translational component vector
-        t = ca.SX(2, 1)
-        t[0] = G[0, 2]
-        t[1] = G[1, 2]
-
+        theta = p[2]
         A = series_dict["sin(x)/x"](theta)
         B = series_dict["(1 - cos(x))/x"](theta)
 
-        V_inv = ca.SX(2, 2)
+        V_inv = ca.SX.zeros(2, 2)
         V_inv[0, 0] = A
         V_inv[0, 1] = B
         V_inv[1, 0] = -B
         V_inv[1, 1] = A
         V_inv = V_inv / (A**2 + B**2)
 
-        vt_i = V_inv @ t
-
-        return self.wedge(ca.vertcat(vt_i, theta))
+        vt_i = V_inv @ v
+        u = ca.SX.zeros(3)
+        u[0] = vt_i[0]
+        u[1] = vt_i[1]
+        u[2] = p[2]
+        return u
 
     def diff_correction(self, v):  # U Matrix for se2 with input vee operator
         return ca.inv(self.diff_correction_inv(v))
