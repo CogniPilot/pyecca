@@ -91,10 +91,13 @@ class _SE2(MatrixLieGroup):
         theta2 = p2[2]
         p3 = ca.SX.zeros(3)
         theta3 = theta1 + theta2
+        
+        theta3 = ca.atan2(ca.sin(theta3), ca.cos(theta3))
+                
         v3 = self.R(p1)@self.v(p2) + self.v(p1)
         p3[0] = v3[0]
         p3[1] = v3[1]
-        p3[2] = theta1 + theta2;
+        p3[2] = theta3;
         return p3
 
     def identity(self) -> ca.SX:
