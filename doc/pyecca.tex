@@ -3,7 +3,8 @@
 \usepackage{hyperref}
 \usepackage{geometry}
 \usepackage{amsmath}
-
+ \usepackage{graphicx}
+ 
 \geometry{letterpaper, margin=0.5in}
 
 \title{Pyecca Manual}
@@ -130,11 +131,31 @@ Finally, we can substitute our expression found for V to obtain:
 %
 $$\omega = \dfrac{\dot{x}\ddot{y} - \dot{y}\ddot{x}}{V^2}$$
 %
+\subsubsection{Ackermann}
 The steering angle can be found using the bicycle approximation give the wheelbase
 of the vehicle, $L$.
 %
 $$\tan{\delta} = \frac{L\omega}{V}$$
 
+\subsubsection{Differential Drive}
+For a differential drive vehicle, steering is achieved through differential wheel angular velocities.
+
+\begin{figure}[htp]
+	\centering
+	\includegraphics[width=0.7\linewidth]{fig/diff-drive}
+	\caption{Differential Drive}
+	\label{fig:diff-drive}
+\end{figure}
+
+$$h = \sqrt{(L/2)^2 + (W/2)^2} = 1/2 \sqrt{L^2 + W^2}$$
+
+$$V_t = h \dot{\psi}$$
+
+$$\tan(\theta) = \frac{L/2}{W/2} = \frac{L}{W}$$
+
+$$V_w = V_t cos(\theta)$$
+
+\clearpage
 \section{Multirotor}
 
 

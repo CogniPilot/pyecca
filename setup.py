@@ -35,9 +35,10 @@ Operating System :: MacOS
 
 # pylint: disable=invalid-name
 
+package_name = "pyecca"
 
 setup(
-    name="pyecca",
+    name=package_name,
     maintainer="James Goppert",
     maintainer_email="james.goppert@gmail.com",
     description=DOCLINES[0],
@@ -50,6 +51,7 @@ setup(
     classifiers=[_f for _f in CLASSIFIERS.split("\n") if _f],
     platforms=["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"],
     install_requires=[
+        "setuptool",
         "scipy",
         "numpy",
         "casadi",
@@ -64,6 +66,12 @@ setup(
     #    'console_scripts': ['example=pyecca.example:main'],
     # },
     packages=find_packages(),
+    data_files=[
+        ('share/ament_index/resource_index/packages',
+            ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+    ],
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
+    zip_safe=True,
 )
