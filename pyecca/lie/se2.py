@@ -1,11 +1,12 @@
 import casadi as ca
 from typing import Tuple
+import abc
 
-from .matrix_lie_group import MatrixLieGroup
+from .lie_group import LieGroup
 from .util import series_dict
 
 
-class _SE2(MatrixLieGroup):
+class _SE2(LieGroup):
     def __init__(self):
         super().__init__(group_params=3, algebra_params=3, group_shape=(3, 3))
 

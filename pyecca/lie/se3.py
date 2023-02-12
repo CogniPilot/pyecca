@@ -2,11 +2,11 @@ import casadi as ca
 from pyecca.lie import so3, se3
 
 from .util import series_dict
-from .matrix_lie_group import MatrixLieGroup
-from .so3 import Quat, Euler, Mrp, Dcm
+from .lie_group import LieGroup
+from .so3 import SO3Quat, SO3Euler, SO3Mrp, SO3Dcm
 
 
-class _SE3(MatrixLieGroup):
+class _SE3(LieGroup):
     def __init__(self, SO3=None):
         if SO3 == None:
             self.SO3 = so3.Dcm
@@ -107,8 +107,10 @@ class _SE3(MatrixLieGroup):
         return ca.SX.eye(4)
 
     def product(self, a, b):
-        self.check_group_shape(a)
-        self.check_group_shape(b)
+        n = self.group_params
+        assert a.shape == (n, 1) or a.shape == (n,)
+        assert b.shape == (n, 1) or b.shape == (n,)
+        R = self.SO3.group_params
         return a @ b
 
     def inv(self, a):  # input a matrix of SX form from casadi
@@ -234,7 +236,7 @@ class _SE3(MatrixLieGroup):
     # u matrix can be found through casadi using inverse function for casadi
 
 
-SE3Dcm = _SE3(Dcm)
-SE3Euler = _SE3(Euler)
-SE3Quat = _SE3(Quat)
-SE3Mrp = _SE3(Mrp)
+SE3Dcm = _SE3(SO3Dcm)
+SE3Euler = _SE3(SO3Euler)
+SE3Quat = _SE3(SO3Quat)
+SE3Mrp = _SE3(SO3Mrp)

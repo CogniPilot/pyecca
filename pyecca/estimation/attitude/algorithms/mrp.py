@@ -10,7 +10,7 @@ modified rodrigues parameters
 # -----------
 # mrp (4)  (3 parameters and 1 shadow state)
 # b, gyro bias (3)
-G = DirectProduct([so3.Mrp, r3.R3])
+G = DirectProduct([so3.Mrp, r.R3])
 x = ca.SX.sym("x", G.group_params)
 r = G.subgroup(x, 0)
 b_gyro = G.subgroup(x, 1)

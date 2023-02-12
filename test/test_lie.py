@@ -1,10 +1,10 @@
 import pytest
 import casadi as ca
-from pyecca.lie import so3, r3, se3
-from pyecca.lie.direct_product import DirectProduct
+from pyecca.lie import r, so3, se3
+from pyecca.lie.product import DirectProduct
 from pyecca.lie.so3 import Quat, Dcm, Euler, Mrp
 from pyecca.lie.se2 import SE2
-from pyecca.lie.r3 import R3
+from pyecca.lie.r import R3
 from pyecca.lie.se3 import SE3Dcm, SE3Euler, SE3Mrp, SE3Quat
 
 eps = 1e-10

@@ -9,7 +9,7 @@ right invariant kalman filter with quaternions
 # -----------
 # q, quaternion (4)
 # b, gyro bias (3)
-G = DirectProduct([so3.Quat, r3.R3])
+G = DirectProduct([so3.Quat, r.R3])
 x = ca.SX.sym("x", G.group_params)
 q = G.subgroup(x, 0)
 b_gyro = G.subgroup(x, 1)

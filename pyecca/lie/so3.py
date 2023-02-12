@@ -1,6 +1,6 @@
 import casadi as ca
 
-from .matrix_lie_group import MatrixLieGroup
+from .lie_group import LieGroup
 from .util import series_dict
 
 
@@ -10,7 +10,7 @@ from .util import series_dict
 EPS = 1e-7
 
 
-class _SO3Base(MatrixLieGroup):
+class _SO3Base(LieGroup):
     def vee(self, X):
         v = ca.SX(3, 1)
         v[0, 0] = X[2, 1]
@@ -32,7 +32,7 @@ class _SO3Base(MatrixLieGroup):
         return X
 
 
-class _Dcm(_SO3Base):
+class _SO3Dcm(_SO3Base):
     def __init__(self):
         super().__init__(group_params=9, algebra_params=3, group_shape=(3, 3))
 
@@ -104,13 +104,13 @@ class _Dcm(_SO3Base):
         return R.T
 
     def from_euler(self, e):
-        return self.from_quat(Quat.from_euler(e))
+        return self.from_quat(SO3Quat.from_euler(e))
 
 
-Dcm = _Dcm()
+SO3Dcm = _SO3Dcm()
 
 
-class _Mrp(_SO3Base):
+class _SO3Mrp(_SO3Base):
     def __init__(self):
         super().__init__(group_params=4, algebra_params=3, group_shape=(4, 1))
 
@@ -178,19 +178,19 @@ class _Mrp(_SO3Base):
         return r
 
     def from_dcm(self, R):
-        return self.from_quat(Quat.from_dcm(R))
+        return self.from_quat(SO3Quat.from_dcm(R))
 
     def from_euler(self, e):
-        return self.from_quat(Quat.from_euler(e))
+        return self.from_quat(SO3Quat.from_euler(e))
 
     def identity(self) -> ca.SX:
         return ca.SX([0, 0, 0, 0])
 
 
-Mrp = _Mrp()
+SO3Mrp = _SO3Mrp()
 
 
-class _Quat(_SO3Base):
+class _SO3Quat(_SO3Base):
     def __init__(self):
         super().__init__(group_params=4, algebra_params=3, group_shape=(4, 1))
 
@@ -328,24 +328,24 @@ class _Quat(_SO3Base):
         return q
 
 
-Quat = _Quat()
+SO3Quat = _SO3Quat()
 
 
-class _Euler(_SO3Base):
+class _SO3Euler(_SO3Base):
     def __init__(self):
         super().__init__(group_params=3, algebra_params=3, group_shape=(3, 1))
 
     def inv(self, e):
-        return Euler.from_dcm(Dcm.inv(Dcm.from_euler(e)))
+        return SO3Euler.from_dcm(SO3Dcm.inv(SO3Dcm.from_euler(e)))
 
     def exp(self, v):
-        return Euler.from_dcm(Dcm.exp(v))
+        return SO3Euler.from_dcm(SO3Dcm.exp(v))
 
     def log(self, e):
-        return Dcm.log(Dcm.from_euler(e))
+        return SO3Dcm.log(SO3Dcm.from_euler(e))
 
     def product(self, a, b):
-        return Euler.from_dcm(Dcm.from_euler(a) @ Dcm.from_euler(b))
+        return SO3Euler.from_dcm(SO3Dcm.from_euler(a) @ SO3Dcm.from_euler(b))
 
     def identity(self) -> ca.SX:
         return ca.SX([0, 0, 0])
@@ -364,11 +364,11 @@ class _Euler(_SO3Base):
 
     def from_dcm(self, R):
         assert R.shape == (3, 3)
-        return self.from_quat(Quat.from_dcm(R))
+        return self.from_quat(SO3Quat.from_dcm(R))
 
     def from_mrp(self, a):
         assert a.shape == (4, 1) or a.shape == (4,)
-        return self.from_quat(Quat.from_mrp(a))
+        return self.from_quat(SO3Quat.from_mrp(a))
 
 
-Euler = _Euler()
+SO3Euler = _SO3Euler()

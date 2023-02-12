@@ -1,9 +1,11 @@
 import casadi as ca
+import abc
 
-from .matrix_lie_group import MatrixLieGroup
+from .lie_group import LieGroup
 
 
-class DirectProduct(MatrixLieGroup):
+class SemiDirectProduct(LieGroup):
+
     def __init__(self, groups):
         self.groups = groups
         self.n_group = [0]
@@ -25,7 +27,7 @@ class DirectProduct(MatrixLieGroup):
 
     def identity(self) -> ca.SX:
         return ca.vertcat(
-            *[g.identity(self.subgroup(a, i)) for i, g in enumerate(self.groups)]
+            *[g.identity() for i, g in enumerate(self.groups)]
         )
 
     def subgroup(self, a, i):
@@ -41,6 +43,33 @@ class DirectProduct(MatrixLieGroup):
             start += self.n_algebra[gi]
         end = start + self.n_algebra[i + 1]
         return v[start:end]
+
+    @abc.abstractmethod
+    def product(self, a, b):
+        ...
+
+    @abc.abstractmethod
+    def inv(self, a) -> ca.SX:
+        ...
+
+    @abc.abstractmethod
+    def exp(self, v) -> ca.SX:
+        ...
+
+    @abc.abstractmethod
+    def log(self, a) -> ca.SX:
+        ...
+
+
+class DirectProduct(LieGroup):
+
+    def __init__(self, groups):
+        super().__init__(groups)
+
+    def identity(self) -> ca.SX:
+        return ca.vertcat(
+            *[g.identity() for i, g in enumerate(self.groups)]
+        )
 
     def product(self, a, b):
         assert a.shape[0] == self.group_params

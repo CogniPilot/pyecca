@@ -14,7 +14,7 @@ q = x[:4]
 b_gyro = x[4:7]
 r = so3.Mrp.from_quat(q)
 C_nb = so3.Dcm.from_quat(q)
-G = DirectProduct([so3.Quat, r3.R3])
+G = DirectProduct([so3.Quat, r.R3])
 
 # e, error state (6)
 # ----------------
