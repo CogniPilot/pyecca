@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "pyecca"
+version = "0.1.0"
+description = ""
+authors = ["James Goppert <james.goppert@gmail.com>"]
+license = "Apache 2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+casadi = {version = "^3.5.6rc2", allow-prereleases = true}
+sympy = "^1.11.1"
+numpy = "^1.24.2"
+
+
+[tool.poetry.group.dev.dependencies]
+jupyterlab = "^3.6.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
