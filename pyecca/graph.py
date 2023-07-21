@@ -8,7 +8,9 @@ import casadi.tools.graph as mod_graph
 import pydot
 
 
-def draw_casadi(expr: ca.SX or ca.MX, filename: str=None, width: int=1920, direction: str="LR") -> pydot.Graph:
+def draw_casadi(
+    expr: ca.SX or ca.MX, filename: str = None, width: int = 1920, direction: str = "LR"
+) -> pydot.Graph:
     curdir = Path(os.path.abspath(os.getcwd()))
     # dot draw creates a source.dot file, lets move to the tmp directory
     os.chdir(tempfile.gettempdir())
@@ -33,5 +35,5 @@ def print_operator_escaped(expr, strs):
     return s
 
 
-# monkey patch
-mod_graph.print_operator = print_operator_escaped
+# monkey patch (not necessary on new version)
+# mod_graph.print_operator = print_operator_escaped

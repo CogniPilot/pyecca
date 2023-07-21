@@ -29,7 +29,7 @@ class _SE2(MatrixLieGroup):
         R[1, 0] = sth
         R[1, 1] = cth
         return R
-    
+
     def v(self, p) -> ca.SX:
         """
         Returns embedded R2 vector
@@ -39,7 +39,7 @@ class _SE2(MatrixLieGroup):
         v[0] = p[0]
         v[1] = p[1]
         return v
-        
+
     def ad_matrix(self, v) -> ca.SX:
         """
         takes 3x1 lie algebra
@@ -91,13 +91,13 @@ class _SE2(MatrixLieGroup):
         theta2 = p2[2]
         p3 = ca.SX.zeros(3)
         theta3 = theta1 + theta2
-        
+
         theta3 = ca.atan2(ca.sin(theta3), ca.cos(theta3))
-                
-        v3 = self.R(p1)@self.v(p2) + self.v(p1)
+
+        v3 = self.R(p1) @ self.v(p2) + self.v(p1)
         p3[0] = v3[0]
         p3[1] = v3[1]
-        p3[2] = theta3;
+        p3[2] = theta3
         return p3
 
     def identity(self) -> ca.SX:
@@ -139,7 +139,7 @@ class _SE2(MatrixLieGroup):
         v1 = ca.SX.zeros(2)
         v1[0] = p[0]
         v1[1] = p[1]
-        v2 = -self.R(p).T@v1
+        v2 = -self.R(p).T @ v1
         p_inv = ca.SX.zeros(3)
         p_inv[0] = v2[0]
         p_inv[1] = v2[1]
@@ -171,7 +171,6 @@ class _SE2(MatrixLieGroup):
         return ca.inv(self.diff_correction_inv(v))
 
     def diff_correction_inv(self, v):  # U_inv of se2 input vee operator
-
         # v = se2.vee(v)  #This only applies if v is inputed from Lie Group format
 
         theta = v[2]

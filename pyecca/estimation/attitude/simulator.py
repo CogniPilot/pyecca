@@ -68,7 +68,6 @@ class Simulator:
         time_eps = 1e-3  # small period of time to prevent missing pub
 
         while True:
-
             # time
             t = self.core.now
 

@@ -1,0 +1,17 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup poetry
+        run: curl -sSL https://install.python-poetry.org | python3 -
+      - name: Install dependencies
+        run: /home/runner/.local/bin/poetry install
+      - name: Lint with black
+        run: /home/runner/.local/bin/poetry run black --check .
+      - name: Run tests
+        run: /home/runner/.local/bin/poetry run pytest --cov
+      - name: Run notebook tests
+        run: /home/runner/.local/bin/poetry run pytest --nbmake notebook

@@ -112,7 +112,6 @@ class AttitudeEstimator:
         self.msg_est_status.data["cpu_mag"] = cpu_mag
 
     def imu_callback(self, msg):
-
         # compute dt
         t = msg.data["time"]
         dt = t - self.t_last_imu

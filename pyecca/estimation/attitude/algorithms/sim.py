@@ -21,15 +21,15 @@ def simulate(**kwargs):
     xdot = ca.vertcat(so3.Mrp.kinematics(r, omega_t), std_gyro_rw * w_gyro_rw)
     f_xdot = ca.Function(
         "xdot",
-        [t, x, omega_t, sn_gyro_rw, w_gyro_rw],
+        [t, x, omega_t, sn_gyro_rw, w_gyro_rw, dt],
         [xdot],
-        ["t", "x", "omega_t", "sn_gyro_rw", "w_gyro_rw"],
+        ["t", "x", "omega_t", "sn_gyro_rw", "w_gyro_rw", "dt"],
         ["xdot"],
     )
 
     # state prop with noise
     x1_sim = util.rk4(
-        lambda t, x: f_xdot(t, x, omega_t, sn_gyro_rw, w_gyro_rw), t, x, dt
+        lambda t, x: f_xdot(t, x, omega_t, sn_gyro_rw, w_gyro_rw, dt), t, x, dt
     )
     x1_sim[:4] = so3.Mrp.shadow_if_necessary(x1_sim[:4])
     return ca.Function(

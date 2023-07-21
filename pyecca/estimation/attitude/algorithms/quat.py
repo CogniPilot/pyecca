@@ -194,9 +194,13 @@ def correct_accel(**kwargs):
     H_accel[1, 1] = 1
 
     f_measure_accel = ca.Function(
-        "measure_accel", [x], [g * ca.mtimes(C_nb.T, ca.SX([0, 0, -1]))], ["x"], ["y"]
+        "measure_accel",
+        [x, g],
+        [g * ca.mtimes(C_nb.T, ca.SX([0, 0, -1]))],
+        ["x", "g"],
+        ["y"],
     )
-    yh_accel = f_measure_accel(x)
+    yh_accel = f_measure_accel(x, g)
     y_b = ca.SX.sym("y_b", 3)
     n3 = ca.SX([0, 0, 1])
     y_n = ca.mtimes(C_nb, -y_b)

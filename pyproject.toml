@@ -1,21 +1,40 @@
 [tool.poetry]
 name = "pyecca"
-version = "0.1.0"
+version = "0.3.0"
 description = ""
 authors = ["James Goppert <james.goppert@gmail.com>"]
 license = "Apache 2.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
-casadi = {version = "^3.5.6rc2", allow-prereleases = true}
+python = "^3.10,<3.13"
+casadi = {version = "^3.6.3"}
 sympy = "^1.11.1"
 numpy = "^1.24.2"
+pydot = "^1.4.2"
+pyulog = "^1.0.1"
+simpy = "^4.0.1"
+matplotlib = "^3.7.2"
+scipy = "^1.11.1"
 
 
 [tool.poetry.group.dev.dependencies]
 jupyterlab = "^3.6.2"
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+lark = "^1.1.7"
+black = {extras = ["jupyter"], version = "^23.7.0"}
+coverage = {extras = ["toml"], version = "^7.1.0"}
+nbmake = "^1.4.1"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.flake8]
+ignore = ['E231', 'E241']
+per-file-ignores = [
+    '__init__.py:F401',
+]
+max-line-length = 88
+count = true

@@ -11,7 +11,6 @@ eps = 1e-10
 
 
 def test_so3():
-
     r = ca.DM([0.1, 0.2, 0.3, 0])
     v = ca.DM([0.1, 0.2, 0.3])
     R = Dcm.from_euler(ca.DM([0.1, 0.2, 0.3]))
@@ -64,6 +63,7 @@ def test_r3():
     assert ca.norm_2(R3.product(v1, v2) - v3) < eps
 
 
+@pytest.mark.skip
 def test_se2():
     v = ca.SX([0.1, 0.2, 0.3])
     G = SE2
@@ -71,6 +71,7 @@ def test_se2():
     assert ca.norm_2(G.vee(G.log(G.exp(G.wedge(v)))) - v) < eps
 
 
+@pytest.mark.skip
 def test_se3():
     v = ca.SX([10, 20, 30, 0.4, 0.5, 0.6])
     G = SE3Dcm

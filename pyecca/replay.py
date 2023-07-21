@@ -44,7 +44,6 @@ class LogEvent:
 
 class ULogReplay:
     def __init__(self, core: uros.Core, ulog_file: str):
-
         with open(ulog_file, "rb") as f:
             ulog = pyulog.ULog(f)
 
