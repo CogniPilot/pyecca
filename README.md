@@ -4,8 +4,11 @@ PYthon Estimation and Control library using CAsadi.
 
 ## Getting Started
 
+* Install [Poetry](https://python-poetry.org/docs/#installation)
+
 ```bash
-python3 -m venv ~/.venv
-. ~/.venv/bin/activate
-pip install -r requirements.txt
+git clone git@github.com:CogniPilot/pyecca.git
+cd pyecca
+poetry install
+poetry run jupyter lab
 ```
